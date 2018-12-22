@@ -12,7 +12,7 @@ batch_size = 64
 latent_dim = 128
 h, w, _ = img_shape
 
-def log_run(num_it=1000):
+def log_run(num_it=10000):
 	env = gym.make('Pong-v0')
 	frames = []
 	obs = env.reset()
@@ -24,7 +24,7 @@ def log_run(num_it=1000):
 		frames.append(obs/255.0) # [obs, act]
 		obs, rwd, done, _ = env.step(act)
 		if done:
-			break
+			obs = env.reset()
 	env.close()
 	return np.array(frames)
 
@@ -58,12 +58,16 @@ def main():
 
     #model = VariantionalAutoencoder([None,64,64,1], 1e-3, batch_size, latent_dim)
     model = VanillaAutoencoder([None,64,64,1], 1e-3, batch_size, latent_dim)
-    for epoch in range(100):
+    for epoch in range(50):
         for iter in range(num_sample // batch_size):
             # Obtina a batch
             batch = get_batch(frames)
             # Execute the forward and the backward pass and report computed losses
-            loss = model.run_single_step(batch,save=epoch%10==9)
+            loss = model.run_single_step(batch)
+        if epoch%5==4:
+            save_reproductions()
+        if epoch%10==9:
+            model.save_model()
         print('[Epoch {}] Loss: {}'.format(epoch, loss))
     print('Done!')
     signal.pause()

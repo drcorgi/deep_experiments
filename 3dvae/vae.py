@@ -8,12 +8,16 @@ class VariantionalAutoencoder(object):
         self.learning_rate = learning_rate
         self.batch_size = batch_size
         self.n_z = n_z
-        self.model_fname = '~/models/VAE_pong'
+        self.model_fname = '/home/ronnypetson/models/VAE_pong'
         self.build()
         self.sess = tf.InteractiveSession()
         self.saver = tf.train.Saver()
         if os.path.isfile(self.model_fname+'.meta'):
-            self.saver.restore(self.sess,self.model_fname)
+            try:
+                self.saver.restore(self.sess,self.model_fname)
+            except ValueError:
+                self.sess.run(tf.global_variables_initializer())
+                print('Cannot restore model')
         else:
             self.sess.run(tf.global_variables_initializer())
 
@@ -91,12 +95,16 @@ class VanillaAutoencoder(object):
         self.learning_rate = learning_rate
         self.batch_size = batch_size
         self.n_z = n_z
-        self.model_fname = '~/models/Vanilla_AE_pong'
+        self.model_fname = '/home/ronnypetson/models/Vanilla_AE_pong'
         self.build()
         self.sess = tf.InteractiveSession()
         self.saver = tf.train.Saver()
         if os.path.isfile(self.model_fname+'.meta'):
-            self.saver.restore(self.sess,self.model_fname)
+            try:
+                self.saver.restore(self.sess,self.model_fname)
+            except ValueError:
+                self.sess.run(tf.global_variables_initializer())
+                print('Cannot restore model')
         else:
             self.sess.run(tf.global_variables_initializer())
 
@@ -106,43 +114,26 @@ class VanillaAutoencoder(object):
         # Encode
         # x -> z_mean, z_sigma -> z
         conv1 = tf.layers.conv2d(self.x, 32, (5,5), (2,2), padding='same', activation=tf.nn.relu)
-        conv2 = tf.layers.conv2d(conv1, 64, (5,5), (1,1), padding='same', activation=tf.nn.relu)
+        conv2 = tf.layers.conv2d(conv1, 64, (5,5), (2,2), padding='same', activation=tf.nn.relu)
         conv3 = tf.layers.conv2d(conv2, 64, (3,3), (1,1), padding='same', activation=tf.nn.relu)
         flat1 = tf.layers.flatten(conv3)
         self.z = tf.layers.dense(flat1,self.n_z)
 
-        #self.z_mu = tf.layers.dense(flat1,self.n_z)
-        #self.z_log_sigma_sq = tf.layers.dense(flat1,self.n_z)
-
-        #self.z_mu = fc(f3, self.n_z, scope='enc_fc4_mu', activation_fn=None)
-        #self.z_log_sigma_sq = fc(f3, self.n_z, scope='enc_fc4_sigma', activation_fn=None)
-        #eps = tf.random_normal(shape=tf.shape(self.z_log_sigma_sq),
-        #                       mean=0, stddev=1, dtype=tf.float32)
-        #self.z = self.z_mu + tf.sqrt(tf.exp(self.z_log_sigma_sq)) * eps
         # Decode
         # z -> x_hat
-        dec1 = tf.layers.dense(self.z,32*32*64,activation=tf.nn.relu) # tf.shape(flat1)
-        dec1 = tf.reshape(dec1,[-1,32,32,64]) # tf.shape(conv3)
+        dec1 = tf.layers.dense(self.z,16*16*64,activation=tf.nn.relu) # tf.shape(flat1)
+        dec1 = tf.reshape(dec1,[-1,16,16,64]) # tf.shape(conv3)
         dec2 = tf.layers.conv2d_transpose(dec1, 64, (3,3), (1,1), padding='same', activation=tf.nn.relu)
-        dec3 = tf.layers.conv2d_transpose(dec2, 64, (5,5), (1,1), padding='same', activation=tf.nn.relu)
-        self.x_hat = tf.layers.conv2d_transpose(dec3, 1, (5,5), (2,2), padding='same', activation=tf.nn.sigmoid)
+        dec3 = tf.layers.conv2d_transpose(dec2, 64, (5,5), (2,2), padding='same', activation=tf.nn.relu)
+        self.x_hat = tf.layers.conv2d_transpose(dec3, 1, (5,5), (2,2), padding='same', activation=tf.nn.relu)
         # Loss
         # Reconstruction loss
         # Minimize the cross-entropy loss
         # H(x, x_hat) = -\Sigma x*log(x_hat) + (1-x)*log(1-x_hat)
-        epsilon = 1e-10
-        recon_loss = -tf.reduce_sum(
-            self.x * tf.log(epsilon+self.x_hat) + (1-self.x) * tf.log(epsilon+1-self.x_hat),
-            axis=[1,2,3]
-        )
-        self.recon_loss = tf.reduce_mean(recon_loss) # tf.losses.mean_squared_error(self.x,self.x_hat)
-        # Latent loss
-        # Kullback Leibler divergence: measure the difference between two distributions
-        # Here we measure the divergence between the latent distribution and N(0, 1)
-        #latent_loss = -0.5 * tf.reduce_sum(
-        #    1 + self.z_log_sigma_sq - tf.square(self.z_mu) - tf.exp(self.z_log_sigma_sq), axis=1)
-        #self.latent_loss = tf.reduce_mean(latent_loss) # tf.distributions.kl_divergence()
-        self.total_loss = tf.reduce_mean(self.recon_loss)
+        #epsilon = 1e-10
+        #recon_loss = -tf.reduce_sum(self.x * tf.log(epsilon+self.x_hat) + (1-self.x) * tf.log(epsilon+1-self.x_hat),axis=[1,2,3])
+        self.total_loss = tf.losses.mean_squared_error(self.x,self.x_hat)
+        #self.total_loss = tf.reduce_mean(recon_loss)
         self.train_op = tf.train.AdamOptimizer(learning_rate=self.learning_rate).minimize(self.total_loss)
         return
 
