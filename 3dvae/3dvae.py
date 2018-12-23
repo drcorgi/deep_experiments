@@ -41,25 +41,6 @@ def get_encodings(frames,model):
             enc += model.transformer(b).tolist()
     return np.array([np.array(enc[i:i+32]).reshape([128,32,1]) for i in range(len(frames)-31)])
 
-def train_meta_ae():
-    frames = log_run()
-    ae = VanillaAutoencoder([None,64,64,1], 1e-3, batch_size, latent_dim)
-    encodings = get_encodings(frames,ae)
-    ae.close_session()
-
-    num_sample=len(encodings)
-    meta_ae = MetaVanillaAutoencoder([None,128,32,1], 1e-3, batch_size, latent_dim, '/home/ronnypetson/models/meta_encoder')
-    for epoch in range(100):
-        for iter in range(num_sample // batch_size):
-            # Obtina a batch
-            batch = get_batch(encodings)
-            # Execute the forward and the backward pass and report computed losses
-            loss = meta_ae.run_single_step(batch)
-        if epoch%10==9:
-            meta_ae.save_model()
-        print('[Epoch {}] Loss: {}'.format(epoch, loss))
-    print('Done!')
-
 def decode_seq():
     frames = log_run(32)
     ae = VanillaAutoencoder([None,64,64,1], 1e-3, batch_size, latent_dim)
@@ -78,6 +59,41 @@ def decode_seq():
     plt.imshow(rec_imgs, cmap='gray')
     plt.savefig('rec_frames.png')
     plt.close(fig)
+
+def train_meta_ae():
+    frames = log_run()
+    ae = VanillaAutoencoder([None,64,64,1], 1e-3, batch_size, latent_dim)
+    encodings = get_encodings(frames,ae)
+    ae.close_session()
+
+    def save_reproductions():
+        batch = get_batch(encodings)
+        x_reconstructed = meta_ae.reconstructor(batch) #.reshape((128,batch_size))
+        n = 16 #meta_ae.batch_size
+        I_reconstructed = np.empty((128,(2*32+4)*n)) # Vertical strips
+        for i in range(n):
+            x = np.concatenate((x_reconstructed[i].reshape(128,32),batch[i].reshape(128,32)),axis=1)
+            x = np.concatenate((x,np.ones((128,4))),axis=1)
+            I_reconstructed[:,(2*32+4)*i:(2*32+4)*(i+1)] = x
+        fig = plt.figure()
+        plt.imshow(I_reconstructed, cmap='gray')
+        plt.savefig('rec_encodings.png')
+        plt.close(fig)
+
+    num_sample=len(encodings)
+    meta_ae = MetaVanillaAutoencoder([None,128,32,1], 1e-3, batch_size, latent_dim, '/home/ronnypetson/models/meta_encoder')
+    for epoch in range(100):
+        for iter in range(num_sample // batch_size):
+            # Obtina a batch
+            batch = get_batch(encodings)
+            # Execute the forward and the backward pass and report computed losses
+            loss = meta_ae.run_single_step(batch)
+        if epoch%5==4:
+            save_reproductions()
+        if epoch%10==9:
+            meta_ae.save_model()
+        print('[Epoch {}] Loss: {}'.format(epoch, loss))
+    print('Done!')
 
 def train_ae():
     frames = log_run()
@@ -121,6 +137,6 @@ def train_ae():
 
 if __name__ == '__main__':
     #train_ae()
-    #train_meta_ae()
-    decode_seq()
+    train_meta_ae()
+    #decode_seq()
 
