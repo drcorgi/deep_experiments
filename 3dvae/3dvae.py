@@ -32,6 +32,39 @@ def get_batch(data):
     inds = np.random.choice(range(data.shape[0]), batch_size, False)
     return np.array([data[i] for i in inds])
 
+def get_encodings(frames,model):
+    enc = []
+    num_batches = len(frames)//batch_size
+    remainder = len(frames)%batch_size
+    for i in range(num_batches):
+        b = frames[i*num_batches:(i+1)*num_batches]
+        if len(b) > 0:
+            enc += model.transformer(b).tolist()
+    #if remainder > 0:
+    #    b = frames[-remainder:]
+    #    enc += model.transformer(b).tolist()
+    return np.array([np.array(enc[i:i+32]).reshape([128,32,1]) for i in range(len(frames)-32)])
+
+def get_meta_encodings():
+    frames = log_run()
+    ae = VanillaAutoencoder([None,64,64,1], 1e-3, batch_size, latent_dim)
+    encodings = get_encodings(frames,ae)
+    ae.close_session()
+
+    print(encodings.shape)
+    num_sample=len(encodings)
+    meta_ae = MetaVanillaAutoencoder([None,128,32,1], 1e-3, batch_size, latent_dim, '/home/ronnypetson/models/meta_encoder')
+    for epoch in range(100):
+        for iter in range(num_sample // batch_size):
+            # Obtina a batch
+            batch = get_batch(encodings)
+            # Execute the forward and the backward pass and report computed losses
+            loss = meta_ae.run_single_step(batch)
+        if epoch%10==9:
+            meta_ae.save_model()
+        print('[Epoch {}] Loss: {}'.format(epoch, loss))
+    print('Done!')
+
 def main():
     frames = log_run()
     num_sample = len(frames)
@@ -59,7 +92,7 @@ def main():
 
     #model = VariantionalAutoencoder([None,64,64,1], 1e-3, batch_size, latent_dim)
     model = VanillaAutoencoder([None,64,64,1], 1e-3, batch_size, latent_dim)
-    for epoch in range(20):
+    for epoch in range(100):
         for iter in range(num_sample // batch_size):
             # Obtina a batch
             batch = get_batch(frames)
@@ -73,5 +106,6 @@ def main():
     print('Done!')
 
 if __name__ == '__main__':
-    main()
+    #main()
+    get_meta_encodings()
 
