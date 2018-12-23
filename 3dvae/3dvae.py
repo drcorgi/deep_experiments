@@ -44,7 +44,8 @@ def main():
     signal.signal(signal.SIGINT,sig_handler)
 
     def save_reproductions():
-        x_reconstructed = model.reconstructor(get_batch(frames))
+        batch = get_batch(frames)
+        x_reconstructed = model.reconstructor(batch)
         n = np.sqrt(model.batch_size).astype(np.int32)//2
         I_reconstructed = np.empty((h*n, 2*w*n))
         for i in range(n):
@@ -58,7 +59,7 @@ def main():
 
     #model = VariantionalAutoencoder([None,64,64,1], 1e-3, batch_size, latent_dim)
     model = VanillaAutoencoder([None,64,64,1], 1e-3, batch_size, latent_dim)
-    for epoch in range(50):
+    for epoch in range(20):
         for iter in range(num_sample // batch_size):
             # Obtina a batch
             batch = get_batch(frames)
@@ -70,7 +71,6 @@ def main():
             model.save_model()
         print('[Epoch {}] Loss: {}'.format(epoch, loss))
     print('Done!')
-    signal.pause()
 
 if __name__ == '__main__':
     main()

@@ -49,21 +49,19 @@ class VariantionalAutoencoder(object):
         # Reconstruction loss
         # Minimize the cross-entropy loss
         # H(x, x_hat) = -\Sigma x*log(x_hat) + (1-x)*log(1-x_hat)
-        '''
         epsilon = 1e-10
         recon_loss = -tf.reduce_sum(
             self.x * tf.log(epsilon+self.x_hat) + (1-self.x) * tf.log(epsilon+1-self.x_hat),
             axis=[1,2,3]
         )
-        '''
-        self.recon_loss = tf.losses.mean_squared_error(self.x,self.x_hat) # tf.reduce_mean(recon_loss)
+        self.recon_loss = tf.reduce_mean(recon_loss) # tf.losses.mean_squared_error(self.x,self.x_hat)
         # Latent loss
         # Kullback Leibler divergence: measure the difference between two distributions
         # Here we measure the divergence between the latent distribution and N(0, 1)
         latent_loss = -0.5 * tf.reduce_sum(
             1 + self.z_log_sigma_sq - tf.square(self.z_mu) - tf.exp(self.z_log_sigma_sq), axis=1)
         self.latent_loss = tf.reduce_mean(latent_loss) # tf.distributions.kl_divergence()
-        self.total_loss = tf.reduce_mean(1e3*self.recon_loss + self.latent_loss)
+        self.total_loss = tf.reduce_mean(self.recon_loss + self.latent_loss)
         self.train_op = tf.train.AdamOptimizer(learning_rate=self.learning_rate).minimize(self.total_loss)
         return
 
