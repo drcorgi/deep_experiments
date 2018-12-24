@@ -42,7 +42,7 @@ def get_encodings(frames,model):
     return np.array([np.array(enc[i:i+32]).reshape([128,32,1]) for i in range(len(frames)-31)])
 
 def decode_seq():
-    frames = log_run(32)
+    frames = log_run(500)[-32:]
     ae = VanillaAutoencoder([None,64,64,1], 1e-3, batch_size, latent_dim)
     encodings = get_encodings(frames,ae) # [1,128,32,1]
 
@@ -52,10 +52,11 @@ def decode_seq():
     rec_frames = ae.generator(rec_enc.reshape([32,128])).reshape([32,64,64])
 
     fig = plt.figure()
-    rec_imgs = np.empty((4*h,8*w))
+    rec_imgs = np.empty((4*h,2*4*w))
     for i in range(4):
-        for j in range(8):
-            rec_imgs[i*h:(i+1)*h,j*w:(j+1)*w] = rec_frames[8*i+j]
+        for j in range(4):
+            rec_imgs[i*h:(i+1)*h,2*j*w:(2*j+1)*w] = frames[4*i+j].reshape((64,64))
+            rec_imgs[i*h:(i+1)*h,(2*j+1)*w:(2*j+2)*w] = rec_frames[4*i+j]
     plt.imshow(rec_imgs, cmap='gray')
     plt.savefig('rec_frames.png')
     plt.close(fig)
@@ -137,6 +138,6 @@ def train_ae():
 
 if __name__ == '__main__':
     #train_ae()
-    train_meta_ae()
-    #decode_seq()
+    #train_meta_ae()
+    decode_seq()
 
