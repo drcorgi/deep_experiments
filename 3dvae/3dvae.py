@@ -63,7 +63,7 @@ def train_simulator():
 
     # close the inner-most sessions first
     meta_ae.close_session()
-    ae.close_session()
+    #ae.close_session()
 
     simulator = Transition(model_fname='/home/ronnypetson/models/Vanilla_transition')
     for epoch in range(100):
@@ -74,10 +74,29 @@ def train_simulator():
             x_ = [b[1] for b in batch]
             # Execute the forward and the backward pass and report computed losses
             loss = simulator.run_single_step(x,x_)
-        if epoch%10==9:
+        if epoch%30==29:
             simulator.save_model()
         print('[Epoch {}] Loss: {}'.format(epoch, loss))
+
+    x = state_pairs[0,0]
+    sim_x = [x]
+    for i in range(32):
+        x = simulator.forward([x])[0]
+        sim_x.append(x)
     simulator.close_session()
+
+    #ae = VanillaAutoencoder([None,64,64,1], 1e-3, batch_size, latent_dim)
+    sim_frames = np.empty((4*64,8*64))
+    for i in range(32):
+        frame = ae.generator([state_pairs[i][0][128:]])[0] # sim_x[i][128:]
+        r,c = (i//8),(i%8)
+        sim_frames[r*64:(r+1)*64,c*64:(c+1)*64] = frame.reshape((64,64))
+    ae.close_session()
+
+    fig = plt.figure()
+    plt.imshow(sim_frames, cmap='gray')
+    plt.savefig('sim_frames.png')
+    plt.close(fig)
     print('Done!')
 
 def decode_seq():
