@@ -6,6 +6,7 @@ import cv2
 import matplotlib.pyplot as plt
 
 from vae import *
+from transition import *
 
 img_shape = (64,64,1)
 batch_size = 64
@@ -33,14 +34,51 @@ def get_batch(data):
     inds = np.random.choice(range(data.shape[0]), batch_size, False)
     return np.array([data[i] for i in inds])
 
-def get_encodings(frames,model):
+def get_encodings(frames,model,meta=False):
     enc = []
     num_batches = (len(frames)+batch_size)//batch_size
     for i in range(num_batches):
         b = frames[i*batch_size:(i+1)*batch_size]
         if len(b) > 0:
             enc += model.transformer(b).tolist()
-    return np.array([np.array(enc[i:i+32]).reshape([128,32,1]) for i in range(len(frames)-31)])
+    if meta:
+        return np.array(enc)
+    else:
+        return np.array([np.array(enc[i:i+32]).reshape([128,32,1]) for i in range(len(frames)-31)])
+
+def get_state_pairs(frames,ae1,ae2):
+    enc1 = get_encodings(frames,ae1)
+    enc2 = get_encodings(enc1,ae2,True)
+    states = []
+    for i in range(enc2.shape[0]):
+        states.append(np.concatenate((enc2[i],enc1[i,:,-1,0]),axis=0))
+    return np.array([[states[i],states[i+1]] for i in range(len(states)-1)])
+
+def train_simulator():
+    frames = log_run()
+    ae = VanillaAutoencoder([None,64,64,1], 1e-3, batch_size, latent_dim)
+    meta_ae = MetaVanillaAutoencoder([None,128,32,1], 1e-3, batch_size, latent_dim, '/home/ronnypetson/models/meta_encoder')
+    state_pairs = get_state_pairs(frames,ae,meta_ae)
+    num_sample = len(state_pairs)
+
+    # close the inner-most sessions first
+    meta_ae.close_session()
+    ae.close_session()
+
+    simulator = Transition(model_fname='/home/ronnypetson/models/Vanilla_transition')
+    for epoch in range(100):
+        for iter in range(num_sample // batch_size):
+            # Obtina a batch
+            batch = get_batch(state_pairs)
+            x = [b[0] for b in batch]
+            x_ = [b[1] for b in batch]
+            # Execute the forward and the backward pass and report computed losses
+            loss = simulator.run_single_step(x,x_)
+        if epoch%10==9:
+            simulator.save_model()
+        print('[Epoch {}] Loss: {}'.format(epoch, loss))
+    simulator.close_session()
+    print('Done!')
 
 def decode_seq():
     frames = log_run(500)[-32:]
@@ -143,12 +181,9 @@ def train_ae():
     model.close_session()
     print('Done!')
 
-def train_transition():
-    pass
-
 if __name__ == '__main__':
     #train_ae()
     #train_meta_ae()
     #decode_seq()
-    pass
+    train_simulator()
 

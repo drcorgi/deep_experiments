@@ -36,7 +36,7 @@ class Transition(object):
         return
 
     # Execute the forward and the backward pass
-    def run_single_step(self, x, x_, save=False):
+    def run_single_step(self, x, x_):
         _, loss = self.sess.run(
             [self.train_op, self.total_loss],
             feed_dict={self.x: x, self.x_: x_}
