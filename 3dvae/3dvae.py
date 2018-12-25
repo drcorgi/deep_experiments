@@ -11,6 +11,7 @@ img_shape = (64,64,1)
 batch_size = 64
 latent_dim = 128
 h, w, _ = img_shape
+#sess = tf.InteractiveSession()
 
 def log_run(num_it=10000):
 	env = gym.make('Pong-v0')
@@ -50,6 +51,10 @@ def decode_seq():
     meta_enc = meta_ae.transformer(encodings) # shape [1,128]
     rec_enc = meta_ae.generator(meta_enc) # shape([1,128,32,1])
     rec_frames = ae.generator(rec_enc.reshape([32,128])).reshape([32,64,64])
+
+    # close the inner-most sessions first
+    meta_ae.close_session()
+    ae.close_session()
 
     fig = plt.figure()
     rec_imgs = np.empty((4*h,2*4*w))
@@ -94,6 +99,7 @@ def train_meta_ae():
         if epoch%10==9:
             meta_ae.save_model()
         print('[Epoch {}] Loss: {}'.format(epoch, loss))
+    meta_ae.close_session()
     print('Done!')
 
 def train_ae():
@@ -134,6 +140,7 @@ def train_ae():
         if epoch%10==9:
             model.save_model()
         print('[Epoch {}] Loss: {}'.format(epoch, loss))
+    model.close_session()
     print('Done!')
 
 if __name__ == '__main__':
