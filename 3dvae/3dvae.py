@@ -143,8 +143,12 @@ def train_ae():
     model.close_session()
     print('Done!')
 
+def train_transition():
+    pass
+
 if __name__ == '__main__':
     #train_ae()
     #train_meta_ae()
-    decode_seq()
+    #decode_seq()
+    pass
 
