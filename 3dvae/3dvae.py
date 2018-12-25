@@ -49,9 +49,10 @@ def get_encodings(frames,model,meta=False):
 def get_state_pairs(frames,ae1,ae2):
     enc1 = get_encodings(frames,ae1)
     enc2 = get_encodings(enc1,ae2,True)
+    enc1 = enc1.reshape([-1,32,128])
     states = []
     for i in range(enc2.shape[0]):
-        states.append(np.concatenate((enc2[i],enc1[i,:,-1,0]),axis=0))
+        states.append(np.concatenate((enc2[i],enc1[i,-1]),axis=0))
     return np.array([[states[i],states[i+1]] for i in range(len(states)-1)])
 
 def train_simulator():
@@ -88,7 +89,7 @@ def train_simulator():
     #ae = VanillaAutoencoder([None,64,64,1], 1e-3, batch_size, latent_dim)
     sim_frames = np.empty((4*64,8*64))
     for i in range(32):
-        frame = ae.generator([state_pairs[i][0][128:]])[0] # sim_x[i][128:]
+        frame = ae.generator([sim_x[i][128:]])[0] # state_pairs[i][0][128:]
         r,c = (i//8),(i%8)
         sim_frames[r*64:(r+1)*64,c*64:(c+1)*64] = frame.reshape((64,64))
     ae.close_session()
@@ -171,7 +172,7 @@ def train_ae():
     signal.signal(signal.SIGINT,sig_handler)
 
     def save_reproductions():
-        batch = get_batch(frames)
+        batch = get_batch(log_run(64))
         x_reconstructed = model.reconstructor(batch)
         n = np.sqrt(model.batch_size).astype(np.int32)//2
         I_reconstructed = np.empty((h*n, 2*w*n))
@@ -197,6 +198,7 @@ def train_ae():
         if epoch%10==9:
             model.save_model()
         print('[Epoch {}] Loss: {}'.format(epoch, loss))
+    #save_reproductions()
     model.close_session()
     print('Done!')
 
