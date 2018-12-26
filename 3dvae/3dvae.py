@@ -79,11 +79,10 @@ def train_simulator():
             simulator.save_model()
         print('[Epoch {}] Loss: {}'.format(epoch, loss))
 
-    x = state_pairs[0,0]
-    sim_x = [x]
-    for i in range(32):
-        x = simulator.forward([x])[0]
-        sim_x.append(x)
+    sim_x = []
+    for i in range(16):
+        sim_x.append(simulator.forward([state_pairs[i,0]])[0])
+        sim_x.append(state_pairs[i,1])
     simulator.close_session()
 
     #ae = VanillaAutoencoder([None,64,64,1], 1e-3, batch_size, latent_dim)
