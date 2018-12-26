@@ -29,7 +29,7 @@ class Transition(object):
         self.x_ = tf.placeholder(name='x_', dtype=tf.float32, shape=self.output_dim)
         # Layers
         d1 = tf.layers.dense(self.x, 512, activation=tf.nn.relu)
-        self.x_hat = tf.layers.dense(d1, self.output_dim[1], activation=tf.nn.relu)
+        self.x_hat = tf.layers.dense(d1, self.output_dim[1], activation=None) # tf.nn.relu
         # Loss and train operations
         self.total_loss = tf.losses.mean_squared_error(self.x_,self.x_hat)
         self.train_op = tf.train.AdamOptimizer(learning_rate=self.learning_rate).minimize(self.total_loss)

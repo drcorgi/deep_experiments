@@ -164,7 +164,7 @@ class VanillaAutoencoder(object):
         self.sess.close()
 
 class MetaVanillaAutoencoder(object):
-    def __init__(self, input_dim=[None,128,32,1], learning_rate=1e-3, batch_size=64, n_z=128, model_fname='/home/ronnypetson/models/meta_encoder'):
+    def __init__(self, input_dim=[None,32,128,1], learning_rate=1e-3, batch_size=64, n_z=128, model_fname='/home/ronnypetson/models/meta_encoder'):
         self.input_dim = input_dim
         self.learning_rate = learning_rate
         self.batch_size = batch_size
@@ -192,15 +192,15 @@ class MetaVanillaAutoencoder(object):
         conv2 = tf.layers.conv2d(conv1, 64, (5,5), (2,2), padding='same', activation=tf.nn.relu)
         conv3 = tf.layers.conv2d(conv2, 64, (3,3), (1,1), padding='same', activation=tf.nn.relu)
         flat1 = tf.layers.flatten(conv3)
-        self.z = tf.layers.dense(flat1,self.n_z)
+        self.z = tf.layers.dense(flat1,self.n_z) # ,activation=tf.nn.relu
 
         # Decode
         # z -> x_hat
         dec1 = tf.layers.dense(self.z,32*8*64,activation=tf.nn.relu) # tf.shape(flat1)
-        dec1 = tf.reshape(dec1,[-1,32,8,64]) # tf.shape(conv3)
+        dec1 = tf.reshape(dec1,[-1,8,32,64]) # tf.shape(conv3)
         dec2 = tf.layers.conv2d_transpose(dec1, 64, (3,3), (1,1), padding='same', activation=tf.nn.relu)
         dec3 = tf.layers.conv2d_transpose(dec2, 64, (5,5), (2,2), padding='same', activation=tf.nn.relu)
-        self.x_hat = tf.layers.conv2d_transpose(dec3, 1, (5,5), (2,2), padding='same', activation=tf.nn.relu)
+        self.x_hat = tf.layers.conv2d_transpose(dec3, 1, (5,5), (2,2), padding='same', activation=None)
         # Loss
         # Reconstruction loss
         # Minimize the cross-entropy loss
@@ -213,7 +213,7 @@ class MetaVanillaAutoencoder(object):
         return
 
     # Execute the forward and the backward pass
-    def run_single_step(self, x, save=False):
+    def run_single_step(self, x):
         _, loss = self.sess.run(
             [self.train_op, self.total_loss],
             feed_dict={self.x: x}
