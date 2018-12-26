@@ -79,10 +79,12 @@ def train_simulator():
             simulator.save_model()
         print('[Epoch {}] Loss: {}'.format(epoch, loss))
 
-    sim_x = []
-    for i in range(16):
-        sim_x.append(simulator.forward([state_pairs[i,0]])[0])
-        sim_x.append(state_pairs[i,1])
+    x = state_pairs[100,0]
+    sim_x = [x]
+    for i in range(32):
+        x = simulator.forward([x])[0]
+        sim_x.append(x)
+        #sim_x.append(state_pairs[i,1])
     simulator.close_session()
 
     #ae = VanillaAutoencoder([None,64,64,1], 1e-3, batch_size, latent_dim)
@@ -187,7 +189,7 @@ def train_ae():
 
     #model = VariantionalAutoencoder([None,64,64,1], 1e-3, batch_size, latent_dim)
     model = VanillaAutoencoder([None,64,64,1], 1e-3, batch_size, latent_dim)
-    for epoch in range(100):
+    for epoch in range(60):
         for iter in range(num_sample // batch_size):
             # Obtina a batch
             batch = get_batch(frames)
@@ -203,8 +205,8 @@ def train_ae():
     print('Done!')
 
 if __name__ == '__main__':
-    #train_ae()
+    train_ae()
     #train_meta_ae()
     #decode_seq()
-    train_simulator()
+    #train_simulator()
 
