@@ -2,7 +2,7 @@ import os
 import numpy as np
 import tensorflow as tf
 
-class VariantionalAutoencoder(object):
+class VariationalAutoencoder(object):
     def __init__(self, input_dim=[None,64,64,1], learning_rate=1e-3, batch_size=64, n_z=128, model_fname='/home/ronnypetson/models/VAE_pong'):
         self.input_dim = input_dim
         self.learning_rate = learning_rate
@@ -41,8 +41,9 @@ class VariantionalAutoencoder(object):
         self.z = self.z_mu + tf.sqrt(tf.exp(self.z_log_sigma_sq)) * eps
         # Decode
         # z -> x_hat
-        dec1 = tf.layers.dense(self.z,32*32*64,activation=tf.nn.relu) # tf.shape(flat1)
-        dec1 = tf.reshape(dec1,[-1,32,32,64]) # tf.shape(conv3)
+        new_dim = [-1,self.input_dim[1]//2,self.input_dim[2]//2,64]
+        dec1 = tf.layers.dense(self.z,np.prod(new_dim[1:]),activation=tf.nn.relu) # tf.shape(flat1)
+        dec1 = tf.reshape(dec1,new_dim) # tf.shape(conv3)
         dec2 = tf.layers.conv2d_transpose(dec1, 64, (3,3), (1,1), padding='same', activation=tf.nn.relu)
         dec3 = tf.layers.conv2d_transpose(dec2, 64, (5,5), (1,1), padding='same', activation=tf.nn.relu)
         self.x_hat = tf.layers.conv2d_transpose(dec3, 1, (5,5), (2,2), padding='same', activation=tf.nn.sigmoid)

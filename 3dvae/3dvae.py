@@ -58,7 +58,8 @@ def get_state_pairs(frames,ae1,ae2):
 def train_simulator():
     frames = log_run()
     ae = VanillaAutoencoder([None,64,64,1], 1e-3, batch_size, latent_dim)
-    meta_ae = MetaVanillaAutoencoder([None,32,128,1], 1e-3, batch_size, latent_dim, '/home/ronnypetson/models/meta_encoder')
+    #meta_ae = MetaVanillaAutoencoder([None,32,128,1], 1e-3, batch_size, latent_dim, '/home/ronnypetson/models/meta_encoder')
+    meta_ae = VariationalAutoencoder(input_dim=[None,32,128,1], model_fname='/home/ronnypetson/models/Meta_VAE')
     state_pairs = get_state_pairs(frames,ae,meta_ae)
     num_sample = len(state_pairs)
 
@@ -68,7 +69,7 @@ def train_simulator():
 
     simulator = Transition(model_fname='/home/ronnypetson/models/Vanilla_transition')
     #simulator = TransitionWGAN(model_fname='/home/ronnypetson/models/Transition_WGAN')
-    for epoch in range(500):
+    for epoch in range(100):
         for iter in range(num_sample // batch_size):
             # Obtina a batch
             batch = get_batch(state_pairs)
@@ -149,7 +150,8 @@ def train_meta_ae():
         plt.close(fig)
 
     num_sample=len(encodings)
-    meta_ae = MetaVanillaAutoencoder([None,32,128,1], 1e-3, batch_size, latent_dim, '/home/ronnypetson/models/meta_encoder')
+    #meta_ae = MetaVanillaAutoencoder([None,32,128,1], 1e-3, batch_size, latent_dim, '/home/ronnypetson/models/meta_encoder')
+    meta_ae = VariationalAutoencoder(input_dim=[None,32,128,1], model_fname='/home/ronnypetson/models/Meta_VAE')
     for epoch in range(100):
         for iter in range(num_sample // batch_size):
             # Obtain a batch
