@@ -77,11 +77,12 @@ class TransitionWGAN(object):
         def generator_(x):
             with tf.variable_scope('generator'):
                 d1 = tf.layers.dense(x, 512, activation=tf.nn.relu)
-                x_hat = tf.layers.dense(d1, self.input_dim[1], activation=None) # tf.nn.relu
+                x_hat = tf.layers.dense(d1, self.input_dim[1], activation=tf.nn.sigmoid) # tf.nn.relu
             return x_hat
         # Discriminator
         def discriminator_(x,reuse):
             with tf.variable_scope('discriminator',reuse=reuse):
+                d2 = tf.layers.dense(x, 128, activation=tf.nn.relu)
                 d2 = tf.layers.dense(x, 32, activation=tf.nn.relu)
                 d = tf.layers.dense(d2, 1, activation=None)
             return d

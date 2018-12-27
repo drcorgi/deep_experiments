@@ -66,19 +66,19 @@ def train_simulator():
     meta_ae.close_session()
     #ae.close_session()
 
-    #simulator = Transition(model_fname='/home/ronnypetson/models/Vanilla_transition')
-    simulator = TransitionWGAN(model_fname='/home/ronnypetson/models/Transition_WGAN')
-    for epoch in range(480):
+    simulator = Transition(model_fname='/home/ronnypetson/models/Vanilla_transition')
+    #simulator = TransitionWGAN(model_fname='/home/ronnypetson/models/Transition_WGAN')
+    for epoch in range(500):
         for iter in range(num_sample // batch_size):
             # Obtina a batch
             batch = get_batch(state_pairs)
             x = [b[0] for b in batch]
             x_ = [b[1] for b in batch]
             # Execute the forward and the backward pass and report computed losses
-            g_loss, d_loss = simulator.run_single_step(x,x_)
+            g_loss = simulator.run_single_step(x,x_) # , d_loss
         if epoch%30==29:
             simulator.save_model()
-        print('[Epoch {}] Loss: {} {}'.format(epoch, g_loss, d_loss))
+        print('[Epoch {}] Loss: {}'.format(epoch, g_loss))
 
     x = state_pairs[100,0]
     sim_x = [x]
