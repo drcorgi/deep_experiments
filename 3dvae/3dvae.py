@@ -66,18 +66,19 @@ def train_simulator():
     meta_ae.close_session()
     #ae.close_session()
 
-    simulator = Transition(model_fname='/home/ronnypetson/models/Vanilla_transition')
-    for epoch in range(100):
+    #simulator = Transition(model_fname='/home/ronnypetson/models/Vanilla_transition')
+    simulator = TransitionWGAN(model_fname='/home/ronnypetson/models/Transition_WGAN')
+    for epoch in range(480):
         for iter in range(num_sample // batch_size):
             # Obtina a batch
             batch = get_batch(state_pairs)
             x = [b[0] for b in batch]
             x_ = [b[1] for b in batch]
             # Execute the forward and the backward pass and report computed losses
-            loss = simulator.run_single_step(x,x_)
+            g_loss, d_loss = simulator.run_single_step(x,x_)
         if epoch%30==29:
             simulator.save_model()
-        print('[Epoch {}] Loss: {}'.format(epoch, loss))
+        print('[Epoch {}] Loss: {} {}'.format(epoch, g_loss, d_loss))
 
     x = state_pairs[100,0]
     sim_x = [x]
@@ -136,11 +137,12 @@ def train_meta_ae():
         batch = get_batch(encodings)
         x_reconstructed = meta_ae.reconstructor(batch) #.reshape((128,batch_size))
         n = 16 #meta_ae.batch_size
-        I_reconstructed = np.empty((128,(2*32+4)*n)) # Vertical strips
+        I_reconstructed = np.empty((128,(32+4)*n)) # Vertical strips
         for i in range(n):
-            x = np.concatenate((x_reconstructed[i].reshape(128,32),batch[i].reshape(128,32)),axis=1)
-            x = np.concatenate((x,np.ones((128,4))),axis=1)
-            I_reconstructed[:,(2*32+4)*i:(2*32+4)*(i+1)] = x
+            #x = np.concatenate((x_reconstructed[i].reshape(128,32),batch[i].reshape(128,32)),axis=1)
+            x = x_reconstructed[i].reshape(128,32) - batch[i].reshape(128,32)
+            x = np.concatenate((x,np.zeros((128,4))),axis=1)
+            I_reconstructed[:,(32+4)*i:(32+4)*(i+1)] = x
         fig = plt.figure()
         plt.imshow(I_reconstructed, cmap='gray')
         plt.savefig('rec_encodings.png')
@@ -205,8 +207,8 @@ def train_ae():
     print('Done!')
 
 if __name__ == '__main__':
-    train_ae()
+    #train_ae()
     #train_meta_ae()
     #decode_seq()
-    #train_simulator()
+    train_simulator()
 

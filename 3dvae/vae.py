@@ -127,7 +127,7 @@ class VanillaAutoencoder(object):
         dec1 = tf.reshape(dec1,[-1,16,16,64]) # tf.shape(conv3)
         dec2 = tf.layers.conv2d_transpose(dec1, 64, (3,3), (1,1), padding='same', activation=tf.nn.relu)
         dec3 = tf.layers.conv2d_transpose(dec2, 64, (5,5), (2,2), padding='same', activation=tf.nn.relu)
-        self.x_hat = tf.layers.conv2d_transpose(dec3, 1, (5,5), (2,2), padding='same', activation=None) # tf.nn.relu
+        self.x_hat = tf.layers.conv2d_transpose(dec3, 1, (5,5), (2,2), padding='same', activation=tf.nn.relu) # None
         # Loss
         # Reconstruction loss
         # Minimize the cross-entropy loss
