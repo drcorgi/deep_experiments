@@ -28,7 +28,8 @@ class Transition(object):
         self.x = tf.placeholder(name='x', dtype=tf.float32, shape=self.input_dim)
         self.x_ = tf.placeholder(name='x_', dtype=tf.float32, shape=self.output_dim)
         # Layers
-        d1 = tf.layers.dense(self.x, 512, activation=tf.nn.relu)
+        d1 = tf.layers.dense(self.x, 1024, activation=tf.nn.relu)
+        d1 = tf.layers.dense(d1, 1024, activation=tf.nn.relu)
         self.x_hat = tf.layers.dense(d1, self.output_dim[1], activation=None) # tf.nn.relu
         # Loss and train operations
         self.total_loss = tf.losses.mean_squared_error(self.x_,self.x_hat)
@@ -77,14 +78,15 @@ class TransitionWGAN(object):
         def generator_(x):
             with tf.variable_scope('generator'):
                 d1 = tf.layers.dense(x, 512, activation=tf.nn.relu)
+                d1 = tf.layers.dense(d1, 256, activation=tf.nn.relu)
                 x_hat = tf.layers.dense(d1, self.input_dim[1], activation=tf.nn.sigmoid) # tf.nn.relu
             return x_hat
         # Discriminator
         def discriminator_(x,reuse):
             with tf.variable_scope('discriminator',reuse=reuse):
-                d2 = tf.layers.dense(x, 128, activation=tf.nn.relu)
-                d2 = tf.layers.dense(x, 32, activation=tf.nn.relu)
-                d = tf.layers.dense(d2, 1, activation=None)
+                d2 = tf.layers.dense(x, 256, activation=tf.nn.relu)
+                d2 = tf.layers.dense(d2, 64, activation=tf.nn.relu)
+                d = tf.layers.dense(d2, 1, activation=None) # tf.nn.sigmoid
             return d
         # Placeholders
         with tf.variable_scope('placeholders'):
