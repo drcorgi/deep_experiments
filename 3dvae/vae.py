@@ -126,24 +126,16 @@ class VanillaAutoencoder(object):
         conv3 = tf.layers.conv2d(conv2, 64, (3,3), (1,1), padding='same', activation=tf.nn.relu)
         flat1 = tf.layers.flatten(conv3)
         self.z = tf.layers.dense(flat1,self.n_z)
-
         # Decode
         # z -> x_hat
-        dec1 = tf.layers.dense(self.z,16*16*64,activation=tf.nn.relu) # tf.shape(flat1)
-        dec1 = tf.reshape(dec1,[-1,16,16,64]) # tf.shape(conv3)
+        new_dim = [-1,self.input_dim[1]//4,self.input_dim[2]//4,64]
+        dec1 = tf.layers.dense(self.z,np.prod(new_dim[1:]),activation=tf.nn.relu) # tf.shape(flat1)
+        dec1 = tf.reshape(dec1,new_dim) # tf.shape(conv3)
         dec2 = tf.layers.conv2d_transpose(dec1, 64, (3,3), (1,1), padding='same', activation=tf.nn.relu)
         dec3 = tf.layers.conv2d_transpose(dec2, 64, (5,5), (2,2), padding='same', activation=tf.nn.relu)
         self.x_hat = tf.layers.conv2d_transpose(dec3, 1, (5,5), (2,2), padding='same', activation=tf.nn.relu) # None
-        # Loss
-        # Reconstruction loss
-        # Minimize the cross-entropy loss
-        # H(x, x_hat) = -\Sigma x*log(x_hat) + (1-x)*log(1-x_hat)
-        #epsilon = 1e-10
-        #recon_loss = -tf.reduce_sum(self.x * tf.log(epsilon+self.x_hat) + (1-self.x) * tf.log(epsilon+1-self.x_hat),axis=[1,2,3])
         self.total_loss = tf.losses.mean_squared_error(self.x,self.x_hat)
-        #self.total_loss = tf.reduce_mean(recon_loss)
         self.train_op = tf.train.AdamOptimizer(learning_rate=self.learning_rate).minimize(self.total_loss)
-        return
 
     # Execute the forward and the backward pass
     def run_single_step(self, x):
@@ -242,19 +234,67 @@ class MetaVanillaAutoencoder(object):
     def close_session(self):
         self.sess.close()
 
-'''
-def trainer(learning_rate=1e-3, batch_size=64, num_epoch=5, n_z=16):
-    model = VariantionalAutoencoder(learning_rate=learning_rate, batch_size=batch_size, n_z=n_z)
-    for epoch in range(num_epoch):
-        for iter in range(num_sample // batch_size):
-            # Obtina a batch
-            batch = mnist.train.next_batch(batch_size)
-            # Execute the forward and the backward pass and report computed losses
-            loss, recon_loss, latent_loss = model.run_single_step(batch[0])
-        if epoch % 5 == 0:
-            print('[Epoch {}] Loss: {}, Recon loss: {}, Latent loss: {}'.format(
-                epoch, loss, recon_loss, latent_loss))
-    print('Done!')
-    return model
-'''
+class ConvAutoencoder(object):
+    def __init__(self, input_dim=[None,32,32,1], learning_rate=1e-3, batch_size=64, z_shape=[64,1], model_fname='/home/ronnypetson/models/Conv_AE'):
+        self.input_dim = input_dim
+        self.learning_rate = learning_rate
+        self.batch_size = batch_size
+        self.z_shape = z_shape
+        self.model_fname = model_fname
+        self.build()
+        self.sess = tf.InteractiveSession()
+        self.saver = tf.train.Saver()
+        if os.path.isfile(self.model_fname+'.meta'):
+            try:
+                self.saver.restore(self.sess,self.model_fname)
+            except ValueError:
+                self.sess.run(tf.global_variables_initializer())
+                print('Cannot restore model')
+        else:
+            print('Model file not found')
+            self.sess.run(tf.global_variables_initializer())
+
+    # Build the netowrk and the loss functions
+    def build(self):
+        self.x = tf.placeholder(name='x', dtype=tf.float32, shape=self.input_dim)
+        # Encode
+        # x -> z_mean, z_sigma -> z
+        conv1 = tf.layers.conv2d(self.x, 64, (5,5), (2,2), padding='same', activation=tf.nn.relu)
+        conv2 = tf.layers.conv2d(conv1, 64, (5,5), (2,2), padding='same', activation=tf.nn.relu)
+        self.z_ = tf.layers.conv2d(conv2, 1, (3,3), (1,1), padding='same', activation=None) # tf.nn.relu
+        #self.z_ = tf.image.resize_bilinear(conv3, (16,16))
+        self.z = tf.reshape(self.z_,[-1,64,1]) # 64x64x1 -> 16x16x1 -> 256x1 -> 32x256x1 -> 16x16x1 -> ...
+        # Decode
+        # z -> x_hat
+        #dec1 = tf.image.resize_bilinear(self.z_, [dim//4 for dim in self.input_dim[1:-1]])
+        dec1 = tf.layers.conv2d_transpose(self.z_, 64, (3,3), (1,1), padding='same', activation=tf.nn.relu)
+        dec2 = tf.layers.conv2d_transpose(dec1, 64, (5,5), (2,2), padding='same', activation=tf.nn.relu)
+        self.x_hat = tf.layers.conv2d_transpose(dec2, self.input_dim[3], (5,5), (2,2), padding='same', activation=None) # None
+        self.total_loss = tf.losses.mean_squared_error(self.x,self.x_hat)
+        self.train_op = tf.train.AdamOptimizer(learning_rate=self.learning_rate).minimize(self.total_loss)
+
+    # Execute the forward and the backward pass
+    def run_single_step(self, x):
+        _, loss = self.sess.run(
+            [self.train_op, self.total_loss],
+            feed_dict={self.x: x}
+        )
+        return loss
+    # x -> x_hat
+    def reconstructor(self, x):
+        x_hat = self.sess.run(self.x_hat, feed_dict={self.x: x})
+        return x_hat
+    # z -> x
+    def generator(self, z):
+        #x_hat = self.sess.run(self.x_hat, feed_dict={self.z: z})
+        x_hat = self.sess.run(self.x_hat, feed_dict={self.z_: z.reshape([-1,8,8,1])})
+        return x_hat
+    # x -> z
+    def transformer(self, x):
+        z = self.sess.run(self.z, feed_dict={self.x: x})
+        return z
+    def save_model(self):
+        self.saver.save(self.sess, self.model_fname)
+    def close_session(self):
+        self.sess.close()
 
