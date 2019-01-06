@@ -62,13 +62,13 @@ def get_encodings(frames,model,enc_shape=[-1,32,128,1],meta=False):
     else:
         return np.array([ np.array(enc[i:i+32]).reshape(enc_shape[1:]) for i in range(len(frames)-31)],dtype=np.float32)
 
-def get_state_pairs_(frames,ae1,ae2, seq_len=32):
+def get_state_pairs_(frames,ae1,ae2,seq_len=32):
     enc1_ = encode_(frames,ae1) # [b,h,w,c]
     enc1 = stack_(enc1_)
     enc2 = encode_(enc1,ae2)
     states = []
     for i in range(enc2.shape[0]):
-        states.append(np.concatenate((enc2[i],enc1_[i+seq_len-1]),axis=1))
+        states.append(np.concatenate((enc2[i].reshape((8,16,1)),enc1_[i+seq_len-1].reshape((8,8,1))),axis=1))
     return np.array([[states[i],states[i+1]] for i in range(len(states)-1)],dtype=np.float32)
 
 def get_state_pairs(frames,ae1,ae2):

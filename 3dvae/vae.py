@@ -289,6 +289,9 @@ class ConvAutoencoder(object):
         #x_hat = self.sess.run(self.x_hat, feed_dict={self.z: z})
         x_hat = self.sess.run(self.x_hat, feed_dict={self.z_: z.reshape([-1,self.input_dim[1]//4,self.input_dim[2]//4,1])})
         return x_hat
+    def generator_(self, z_):
+        x_hat = self.sess.run(self.x_hat, feed_dict={self.z_: z_})
+        return x_hat
     # x -> z
     def transformer(self, x):
         z = self.sess.run(self.z, feed_dict={self.x: x})
