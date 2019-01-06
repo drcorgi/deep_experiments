@@ -24,7 +24,7 @@ def simulate(state_pairs,simulator,ae,k=1):
         for i in range(1024):
             frame = ae.generator([sim_x[i][:,2:,:]])[0] # sim_x[i][128:]
             fig = plt.figure()
-            plt.imshow(frame.reshape((64,64)), cmap='gray')
+            plt.imshow(frame.reshape((h,w)), cmap='gray')
             plt.savefig('/home/ronnypetson/models/sim_frames_{}_{}.png'.format(j,i))
             plt.close(fig)
 
@@ -68,13 +68,13 @@ def decode_seq():
     frames = log_run(500)[-32:]
     # ae = VanillaAutoencoder([None,64,64,1], 1e-3, batch_size, latent_dim)
     # ae = VariationalAutoencoder([None,64,64,1], 1e-3, batch_size, latent_dim)
-    ae = ConvAutoencoder([None,64,64,1], 1e-3, batch_size)
+    ae = ConvAutoencoder([None,h,w,1], 1e-3, batch_size)
     encodings = encode_(frames,ae) #get_encodings(frames,ae) # [1,128,32,1]
     encodings = stack_(encodings)
 
     # meta_ae = MetaVanillaAutoencoder([None,32,128,1], 1e-3, batch_size, latent_dim, '/home/ronnypetson/models/meta_encoder')
     # meta_ae = VariationalAutoencoder(input_dim=[None,32,128,1], model_fname='/home/ronnypetson/models/Meta_VAE')
-    meta_ae = ConvAutoencoder([None,32,256,1], 1e-3, batch_size, model_fname='/home/ronnypetson/models/Conv_MetaAE')
+    meta_ae = ConvAutoencoder([None,32,64,1], 1e-3, batch_size, model_fname='/home/ronnypetson/models/Conv_MetaAE')
 
     meta_enc = meta_ae.transformer(encodings) # shape [-1,256,1]
     rec_enc = meta_ae.generator(meta_enc) # shape([-1,32,256,1])
@@ -89,8 +89,8 @@ def decode_seq():
     rec_imgs = np.empty((4*h,2*4*w))
     for i in range(4):
         for j in range(4):
-            rec_imgs[i*h:(i+1)*h,2*j*w:(2*j+1)*w] = frames[4*i+j].reshape((64,64))
-            rec_imgs[i*h:(i+1)*h,(2*j+1)*w:(2*j+2)*w] = rec_frames[4*i+j].reshape((64,64))
+            rec_imgs[i*h:(i+1)*h,2*j*w:(2*j+1)*w] = frames[4*i+j].reshape((h,w))
+            rec_imgs[i*h:(i+1)*h,(2*j+1)*w:(2*j+2)*w] = rec_frames[4*i+j].reshape((h,w))
     plt.imshow(rec_imgs, cmap='gray')
     plt.savefig('/home/ronnypetson/models/rec_frames.png')
     plt.close(fig)
@@ -180,8 +180,8 @@ def train_ae(num_epochs):
     print('Done!')
 
 if __name__ == '__main__':
-    train_ae(60)
+    #train_ae(60)
     #train_meta_ae(80)
-    #decode_seq()
+    decode_seq()
     #train_simulator(30)
 

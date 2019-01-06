@@ -263,7 +263,7 @@ class ConvAutoencoder(object):
         conv2 = tf.layers.conv2d(conv1, 64, (5,5), (2,2), padding='same', activation=tf.nn.relu)
         self.z_ = tf.layers.conv2d(conv2, 1, (3,3), (1,1), padding='same', activation=None) # tf.nn.relu
         #self.z_ = tf.image.resize_bilinear(conv3, (16,16))
-        self.z = tf.reshape(self.z_,[-1,64,1]) # 64x64x1 -> 16x16x1 -> 256x1 -> 32x256x1 -> 16x16x1 -> ...
+        self.z = tf.reshape(self.z_,[-1,np.prod([d//4 for d in self.input_dim[1:-1]]),1])
         # Decode
         # z -> x_hat
         #dec1 = tf.image.resize_bilinear(self.z_, [dim//4 for dim in self.input_dim[1:-1]])
@@ -287,7 +287,7 @@ class ConvAutoencoder(object):
     # z -> x
     def generator(self, z):
         #x_hat = self.sess.run(self.x_hat, feed_dict={self.z: z})
-        x_hat = self.sess.run(self.x_hat, feed_dict={self.z_: z.reshape([-1,8,8,1])})
+        x_hat = self.sess.run(self.x_hat, feed_dict={self.z_: z.reshape([-1,self.input_dim[1]//4,self.input_dim[2]//4,1])})
         return x_hat
     # x -> z
     def transformer(self, x):
