@@ -22,7 +22,7 @@ def simulate(state_pairs,simulator,ae,k=1):
             x = simulator.forward([x])[0]
             sim_x.append(x)
         for i in range(1024):
-            frame = ae.generator_(np.array([sim_x[i][:,16:]]))[0] # sim_x[i][128:]
+            frame = ae.generator(np.array([sim_x[i][128:]]))[0] # sim_x[i][128:]
             fig = plt.figure()
             plt.imshow(frame.reshape((h,w)), cmap='gray')
             plt.savefig('/home/ronnypetson/models/sim_frames_{}_{}.png'.format(j,i))
@@ -30,12 +30,12 @@ def simulate(state_pairs,simulator,ae,k=1):
 
 def train_simulator(num_epochs):
     frames = log_run()
-    # ae = VanillaAutoencoder([None,64,64,1], 1e-3, batch_size, latent_dim)
+    ae = VanillaAutoencoder([None,h,w,1], 1e-3, batch_size, latent_dim)
     # ae = VariationalAutoencoder([None,64,64,1], 1e-3, batch_size, latent_dim)
-    ae = ConvAutoencoder([None,h,w,1], 1e-3, batch_size)
-    # meta_ae = MetaVanillaAutoencoder([None,32,128,1], 1e-3, batch_size, latent_dim, '/home/ronnypetson/models/meta_encoder')
+    # ae = ConvAutoencoder([None,h,w,1], 1e-3, batch_size)
+    meta_ae = MetaVanillaAutoencoder([None,32,128,1], 1e-3, batch_size, latent_dim, '/home/ronnypetson/models/Vanilla_MetaAE')
     # meta_ae = VariationalAutoencoder(input_dim=[None,32,128,1], model_fname='/home/ronnypetson/models/Meta_VAE')
-    meta_ae = ConvAutoencoder([None,32,64,1], 1e-3, batch_size, model_fname='/home/ronnypetson/models/Conv_MetaAE')
+    # meta_ae = ConvAutoencoder([None,32,64,1], 1e-3, batch_size, model_fname='/home/ronnypetson/models/Conv_MetaAE')
 
     state_pairs = get_state_pairs_(frames,ae,meta_ae)
     num_sample = len(state_pairs)
@@ -44,9 +44,9 @@ def train_simulator(num_epochs):
     meta_ae.close_session()
     # ae.close_session()
 
-    # simulator = Transition(model_fname='/home/ronnypetson/models/Vanilla_transition')
+    simulator = Transition(model_fname='/home/ronnypetson/models/Vanilla_transition')
     # simulator = TransitionWGAN(model_fname='/home/ronnypetson/models/Transition_WGAN')
-    simulator = ConvTransition()
+    # simulator = ConvTransition()
     for epoch in range(num_epochs):
         for iter in range(num_sample // batch_size):
             # Obtina a batch
@@ -65,20 +65,23 @@ def train_simulator(num_epochs):
     print('Done!')
 
 def decode_seq():
-    frames = log_run(500)[-32:]
-    # ae = VanillaAutoencoder([None,64,64,1], 1e-3, batch_size, latent_dim)
+    frames = log_run(500)[-32:] #.reshape((-1,1,h,w,1))
+    ae = VanillaAutoencoder([None,h,w,1], 1e-3, batch_size, latent_dim)
     # ae = VariationalAutoencoder([None,64,64,1], 1e-3, batch_size, latent_dim)
-    ae = ConvAutoencoder([None,h,w,1], 1e-3, batch_size)
+    # ae = ConvAutoencoder([None,h,w,1], 1e-3, batch_size)
+    # ae = Conv3DAutoencoder([None,1,h,w,1], 1e-3, batch_size)
+
     encodings = encode_(frames,ae) #get_encodings(frames,ae) # [1,128,32,1]
     encodings = stack_(encodings)
 
-    # meta_ae = MetaVanillaAutoencoder([None,32,128,1], 1e-3, batch_size, latent_dim, '/home/ronnypetson/models/meta_encoder')
+    meta_ae = MetaVanillaAutoencoder([None,32,128,1], 1e-3, batch_size, latent_dim, '/home/ronnypetson/models/Vanilla_MetaAE')
     # meta_ae = VariationalAutoencoder(input_dim=[None,32,128,1], model_fname='/home/ronnypetson/models/Meta_VAE')
-    meta_ae = ConvAutoencoder([None,32,64,1], 1e-3, batch_size, model_fname='/home/ronnypetson/models/Conv_MetaAE')
+    # meta_ae = ConvAutoencoder([None,32,64,1], 1e-3, batch_size, model_fname='/home/ronnypetson/models/Conv_MetaAE')
+    # meta_ae = Conv3DAutoencoder([None,32,8,8,1], 1e-3, batch_size, model_fname='/home/ronnypetson/models/Conv3D_MetaAE')
 
     meta_enc = meta_ae.transformer(encodings) # shape [-1,256,1]
     rec_enc = meta_ae.generator(meta_enc) # shape([-1,32,256,1])
-    rec_enc = rec_enc.reshape((rec_enc.shape[1:])) #.transpose((2,0,1)).reshape((32,16,16,1))
+    rec_enc = rec_enc.reshape((32,128)) #.transpose((2,0,1)).reshape((32,16,16,1))
     rec_frames = ae.generator(rec_enc) # .reshape([32,128]) .reshape([32,64,64])
 
     # close the inner-most sessions first
@@ -96,10 +99,12 @@ def decode_seq():
     plt.close(fig)
 
 def train_meta_ae(num_epochs):
-    frames = log_run()
+    frames = log_run() #.reshape((-1,1,h,w,1))
     # ae = VariationalAutoencoder([None,64,64,1], 1e-3, batch_size, latent_dim)
-    # ae = VanillaAutoencoder([None,64,64,1], 1e-3, batch_size, latent_dim)
-    ae = ConvAutoencoder([None,h,w,1], 1e-3, batch_size)
+    ae = VanillaAutoencoder([None,h,w,1], 1e-3, batch_size, latent_dim)
+    # ae = ConvAutoencoder([None,h,w,1], 1e-3, batch_size)
+    # ae = Conv3DAutoencoder([None,1,h,w,1], 1e-3, batch_size)
+
     encodings = encode_(frames,ae)
     encodings = stack_(encodings)
     ae.close_session()
@@ -109,11 +114,11 @@ def train_meta_ae(num_epochs):
         batch = get_batch(encodings)
         x_reconstructed = meta_ae.reconstructor(batch) #.reshape((128,batch_size))
         n = 16 #meta_ae.batch_size
-        I_reconstructed = np.empty((64,(32+4)*n)) # Vertical strips
+        I_reconstructed = np.empty((128,(32+4)*n)) # Vertical strips
         for i in range(n):
             #x = np.concatenate((x_reconstructed[i].reshape(128,32),batch[i].reshape(128,32)),axis=1)
-            x = x_reconstructed[i].reshape(64,32) - batch[i].reshape(64,32)
-            x = np.concatenate((x,np.zeros((64,4))),axis=1)
+            x = x_reconstructed[i].reshape(128,32) - batch[i].reshape(128,32)
+            x = np.concatenate((x,np.zeros((128,4))),axis=1)
             I_reconstructed[:,(32+4)*i:(32+4)*(i+1)] = x
         fig = plt.figure()
         plt.imshow(I_reconstructed, cmap='gray')
@@ -121,9 +126,10 @@ def train_meta_ae(num_epochs):
         plt.close(fig)
 
     num_sample=len(encodings)
-    #meta_ae = MetaVanillaAutoencoder([None,32,128,1], 1e-3, batch_size, latent_dim, '/home/ronnypetson/models/meta_encoder')
+    meta_ae = MetaVanillaAutoencoder([None,32,128,1], 1e-3, batch_size, latent_dim, '/home/ronnypetson/models/Vanilla_MetaAE')
     #meta_ae = VariationalAutoencoder(input_dim=[None,32,128,1], model_fname='/home/ronnypetson/models/Meta_VAE')
-    meta_ae = ConvAutoencoder([None,32,64,1], 1e-3, batch_size, model_fname='/home/ronnypetson/models/Conv_MetaAE')
+    #meta_ae = ConvAutoencoder([None,32,64,1], 1e-3, batch_size, model_fname='/home/ronnypetson/models/Conv_MetaAE')
+    #meta_ae = Conv3DAutoencoder([None,32,8,8,1], 1e-3, batch_size, model_fname='/home/ronnypetson/models/Conv3D_MetaAE')
     for epoch in range(num_epochs):
         for iter in range(num_sample // batch_size):
             # Obtain a batch
@@ -138,7 +144,7 @@ def train_meta_ae(num_epochs):
     print('Done!')
 
 def train_ae(num_epochs):
-    frames = log_run()
+    frames = log_run() #.reshape((-1,1,h,w,1))
     num_sample = len(frames)
     model = None
 
@@ -149,7 +155,7 @@ def train_ae(num_epochs):
     signal.signal(signal.SIGINT,sig_handler)
 
     def save_reproductions():
-        batch = get_batch(log_run(256)[-batch_size:])
+        batch = get_batch(log_run(256)[-batch_size:]) #.reshape((-1,1,h,w,1)))
         x_reconstructed = model.reconstructor(batch)
         n = np.sqrt(model.batch_size).astype(np.int32)//2
         I_reconstructed = np.empty((h*n, 2*w*n))
@@ -163,8 +169,9 @@ def train_ae(num_epochs):
         plt.close(fig)
 
     #model = VariationalAutoencoder([None,64,64,1], 1e-3, batch_size, latent_dim)
-    #model = VanillaAutoencoder([None,64,64,1], 1e-3, batch_size, latent_dim)
-    model = ConvAutoencoder([None,h,w,1], 1e-3, batch_size)
+    model = VanillaAutoencoder([None,h,w,1], 1e-3, batch_size, latent_dim)
+    #model = ConvAutoencoder([None,h,w,1], 1e-3, batch_size)
+    #model = Conv3DAutoencoder([None,1,h,w,1], 1e-3, batch_size)
     for epoch in range(num_epochs):
         for iter in range(num_sample // batch_size):
             # Obtina a batch
@@ -181,7 +188,7 @@ def train_ae(num_epochs):
 
 if __name__ == '__main__':
     #train_ae(60)
-    #train_meta_ae(80)
+    #train_meta_ae(60)
     #decode_seq()
-    train_simulator(30)
+    train_simulator(0)
 

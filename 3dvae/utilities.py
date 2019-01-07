@@ -41,8 +41,8 @@ def encode_(data,ae):
     return np.array(enc,dtype=np.float32)
 
 def stack_(data,seq_len=32):
-    stacked = [np.array(data[i:i+seq_len]) for i in range(len(data)-(seq_len-1))]
-    sshape = (-1,seq_len,data.shape[1],1)
+    sshape = (seq_len,data.shape[1],1) #(seq_len,data.shape[2],data.shape[3],1)
+    stacked = [np.array(data[i:i+seq_len]).reshape(sshape) for i in range(len(data)-(seq_len-1))]
     stacked = np.stack(stacked,axis=0)
     return stacked
 
@@ -68,7 +68,7 @@ def get_state_pairs_(frames,ae1,ae2,seq_len=32):
     enc2 = encode_(enc1,ae2)
     states = []
     for i in range(enc2.shape[0]):
-        states.append(np.concatenate((enc2[i].reshape((8,16,1)),enc1_[i+seq_len-1].reshape((8,8,1))),axis=1))
+        states.append(np.concatenate((enc2[i].reshape(128),enc1_[i+seq_len-1].reshape(128)),axis=0))
     return np.array([[states[i],states[i+1]] for i in range(len(states)-1)],dtype=np.float32)
 
 def get_state_pairs(frames,ae1,ae2):

@@ -162,7 +162,7 @@ class VanillaAutoencoder(object):
         self.sess.close()
 
 class MetaVanillaAutoencoder(object):
-    def __init__(self, input_dim=[None,32,128,1], learning_rate=1e-3, batch_size=64, n_z=128, model_fname='/home/ronnypetson/models/meta_encoder'):
+    def __init__(self, input_dim=[None,32,128,1], learning_rate=1e-3, batch_size=64, n_z=128, model_fname='/home/ronnypetson/models/Vanilla_MetaAE'):
         self.input_dim = input_dim
         self.learning_rate = learning_rate
         self.batch_size = batch_size
@@ -191,10 +191,9 @@ class MetaVanillaAutoencoder(object):
         conv3 = tf.layers.conv2d(conv2, 64, (3,3), (1,1), padding='same', activation=tf.nn.relu)
         flat1 = tf.layers.flatten(conv3)
         self.z = tf.layers.dense(flat1,self.n_z) # ,activation=tf.nn.relu
-
         # Decode
         # z -> x_hat
-        dec1 = tf.layers.dense(self.z,32*8*64,activation=tf.nn.relu) # tf.shape(flat1)
+        dec1 = tf.layers.dense(self.z,8*32*64,activation=tf.nn.relu) # tf.shape(flat1)
         dec1 = tf.reshape(dec1,[-1,8,32,64]) # tf.shape(conv3)
         dec2 = tf.layers.conv2d_transpose(dec1, 64, (3,3), (1,1), padding='same', activation=tf.nn.relu)
         dec3 = tf.layers.conv2d_transpose(dec2, 64, (5,5), (2,2), padding='same', activation=tf.nn.relu)
@@ -291,6 +290,69 @@ class ConvAutoencoder(object):
         return x_hat
     def generator_(self, z_):
         x_hat = self.sess.run(self.x_hat, feed_dict={self.z_: z_})
+        return x_hat
+    # x -> z
+    def transformer(self, x):
+        z = self.sess.run(self.z, feed_dict={self.x: x})
+        return z
+    def save_model(self):
+        self.saver.save(self.sess, self.model_fname)
+    def close_session(self):
+        self.sess.close()
+
+class Conv3DAutoencoder(object):
+    def __init__(self, input_dim=[None,1,32,32,1], learning_rate=1e-3, batch_size=64, model_fname='/home/ronnypetson/models/Conv3D_AE'):
+        self.input_dim = input_dim
+        self.learning_rate = learning_rate
+        self.batch_size = batch_size
+        self.model_fname = model_fname
+        self.build()
+        self.sess = tf.InteractiveSession()
+        self.saver = tf.train.Saver()
+        if os.path.isfile(self.model_fname+'.meta'):
+            try:
+                self.saver.restore(self.sess,self.model_fname)
+            except ValueError:
+                self.sess.run(tf.global_variables_initializer())
+                print('Cannot restore model')
+        else:
+            print('Model file not found')
+            self.sess.run(tf.global_variables_initializer())
+
+    # Build the netowrk and the loss functions
+    def build(self):
+        self.x = tf.placeholder(name='x', dtype=tf.float32, shape=self.input_dim)
+        # Encode
+        d = min(self.input_dim[1],2)
+        h = min(self.input_dim[2]//8,2)
+        w = min(self.input_dim[3]//8,2)
+        fd = lambda x: min(x,self.input_dim[1])
+        # x -> z_mean, z_sigma -> z
+        conv1 = tf.layers.conv3d(self.x, 64, (fd(5),5,5), (d,h,w), padding='same', activation=tf.nn.relu)
+        conv2 = tf.layers.conv3d(conv1, 64, (fd(3),3,3), (d,h,w), padding='same', activation=tf.nn.relu)
+        self.z = tf.layers.conv3d(conv2, 1, (fd(3),3,3), (1,1,1), padding='same', activation=None) # tf.nn.relu
+        # Decode
+        # z -> x_hat
+        dec1 = tf.layers.conv3d_transpose(self.z, 64, (fd(3),3,3), (1,1,1), padding='same', activation=tf.nn.relu)
+        dec2 = tf.layers.conv3d_transpose(dec1, 64, (fd(3),3,3), (d,h,w), padding='same', activation=tf.nn.relu)
+        self.x_hat = tf.layers.conv3d_transpose(dec2, self.input_dim[-1], (fd(5),5,5), (d,h,w), padding='same', activation=None) # None
+        self.total_loss = tf.losses.mean_squared_error(self.x,self.x_hat)
+        self.train_op = tf.train.AdamOptimizer(learning_rate=self.learning_rate).minimize(self.total_loss)
+
+    # Execute the forward and the backward pass
+    def run_single_step(self, x):
+        _, loss = self.sess.run(
+            [self.train_op, self.total_loss],
+            feed_dict={self.x: x}
+        )
+        return loss
+    # x -> x_hat
+    def reconstructor(self, x):
+        x_hat = self.sess.run(self.x_hat, feed_dict={self.x: x})
+        return x_hat
+    # z -> x
+    def generator(self, z):
+        x_hat = self.sess.run(self.x_hat, feed_dict={self.z: z})
         return x_hat
     # x -> z
     def transformer(self, x):

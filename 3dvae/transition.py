@@ -151,8 +151,9 @@ class ConvTransition(object):
     def build(self):
         self.x = tf.placeholder(name='x', dtype=tf.float32, shape=self.input_dim)
         self.x_ = tf.placeholder(name='x_', dtype=tf.float32, shape=self.output_dim)
-        conv1 = tf.layers.conv2d(self.x, 64, (5,5), (1,1), padding='same', activation=tf.nn.relu)
-        conv2 = tf.layers.conv2d(conv1, 64, (5,5), (1,1), padding='same', activation=tf.nn.relu)
+        conv1 = tf.layers.conv2d(self.x, 64, (3,3), (1,1), padding='same', activation=tf.nn.relu)
+        conv2 = tf.layers.conv2d(conv1, 64, (3,3), (1,1), padding='same', activation=tf.nn.relu)
+        conv3 = tf.layers.conv2d(conv2, 64, (3,3), (1,1), padding='same', activation=tf.nn.relu)
         self.x_hat = tf.layers.conv2d(conv2, self.input_dim[-1], (3,3), (1,1), padding='same', activation=None)
         self.total_loss = tf.losses.mean_squared_error(self.x_,self.x_hat)
         self.train_op = tf.train.AdamOptimizer(learning_rate=self.learning_rate).minimize(self.total_loss)
