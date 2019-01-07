@@ -22,7 +22,7 @@ def simulate(state_pairs,simulator,ae,k=1):
             x = simulator.forward([x])[0]
             sim_x.append(x)
         for i in range(1024):
-            frame = ae.generator(np.array([sim_x[i][128:]]))[0] # sim_x[i][128:]
+            frame = ae.generator(np.array([sim_x[i][128:,0]]))[0] # sim_x[i][128:]
             fig = plt.figure()
             plt.imshow(frame.reshape((h,w)), cmap='gray')
             plt.savefig('/home/ronnypetson/models/sim_frames_{}_{}.png'.format(j,i))
@@ -37,16 +37,17 @@ def train_simulator(num_epochs):
     # meta_ae = VariationalAutoencoder(input_dim=[None,32,128,1], model_fname='/home/ronnypetson/models/Meta_VAE')
     # meta_ae = ConvAutoencoder([None,32,64,1], 1e-3, batch_size, model_fname='/home/ronnypetson/models/Conv_MetaAE')
 
-    state_pairs = get_state_pairs_(frames,ae,meta_ae)
+    state_pairs = get_state_pairs_(frames,ae,meta_ae).reshape((-1,2,256,1))
     num_sample = len(state_pairs)
 
     # close the inner-most sessions first
     meta_ae.close_session()
     # ae.close_session()
 
-    simulator = Transition(model_fname='/home/ronnypetson/models/Vanilla_transition')
+    # simulator = Transition(model_fname='/home/ronnypetson/models/Vanilla_transition')
     # simulator = TransitionWGAN(model_fname='/home/ronnypetson/models/Transition_WGAN')
     # simulator = ConvTransition()
+    simulator = Conv1DTransition()
     for epoch in range(num_epochs):
         for iter in range(num_sample // batch_size):
             # Obtina a batch
@@ -187,8 +188,8 @@ def train_ae(num_epochs):
     print('Done!')
 
 if __name__ == '__main__':
-    #train_ae(60)
-    #train_meta_ae(60)
+    #train_ae(40)
+    #train_meta_ae(40)
     #decode_seq()
-    train_simulator(0)
+    train_simulator(30)
 
