@@ -49,7 +49,7 @@ def train_simulator(num_epochs):
     # simulator = ConvTransition()
     simulator = Conv1DTransition()
     for epoch in range(num_epochs):
-        for iter in range(num_sample // batch_size):
+        for _ in range(num_sample // batch_size):
             # Obtina a batch
             batch = get_batch(state_pairs)
             x = [b[0] for b in batch] # + np.random.normal(0.0,1e-3,(batch_size,256))
@@ -132,7 +132,7 @@ def train_meta_ae(num_epochs):
     #meta_ae = ConvAutoencoder([None,32,64,1], 1e-3, batch_size, model_fname='/home/ronnypetson/models/Conv_MetaAE')
     #meta_ae = Conv3DAutoencoder([None,32,8,8,1], 1e-3, batch_size, model_fname='/home/ronnypetson/models/Conv3D_MetaAE')
     for epoch in range(num_epochs):
-        for iter in range(num_sample // batch_size):
+        for _ in range(num_sample // batch_size):
             # Obtain a batch
             batch = get_batch(encodings)
             # Execute the forward and the backward pass and report computed losses
@@ -174,7 +174,7 @@ def train_ae(num_epochs):
     #model = ConvAutoencoder([None,h,w,1], 1e-3, batch_size)
     #model = Conv3DAutoencoder([None,1,h,w,1], 1e-3, batch_size)
     for epoch in range(num_epochs):
-        for iter in range(num_sample // batch_size):
+        for _ in range(num_sample // batch_size):
             # Obtina a batch
             batch = get_batch(frames)
             # Execute the forward and the backward pass and report computed losses
