@@ -46,13 +46,10 @@ def stack_(data,seq_len=32):
     stacked = np.stack(stacked,axis=0)
     return stacked
 
-def decode_(data,ae):
+def decode_(data,ae,seq_len=32):
     dec = []
-    num_batches = (len(data)+batch_size)//batch_size
-    for i in range(num_batches):
-        b = data[i*batch_size:(i+1)*batch_size]
-        if len(b) > 0:
-            dec += ae.generator(b).tolist()
+    for i in range(len(data)):
+        dec.append(ae.generator(data[i].reshape(seq_len,data.shape[-2])))
     return np.array(dec,dtype=np.float32)
 
 def unstack_(data,seq_len=32):
@@ -94,7 +91,6 @@ def train_last_ae(aes,data,num_epochs):
     for ae in base:
         ae.load()
         data = stack_(encode_(data,ae))
-        #tf.reset_default_graph()
         print('.')
     num_sample=len(data)
     current.load()
@@ -105,6 +101,19 @@ def train_last_ae(aes,data,num_epochs):
         if epoch%10==9:
             current.save_model()
         print('[Epoch {}] Loss: {}'.format(epoch, loss))
-    #tf.reset_default_graph()
     print('Done!')
+
+def encode_decode_sequence(aes,data):
+    base_data = data
+    for ae in aes:
+        ae.load()
+        data = stack_(encode_(data,ae))
+        print('.')
+    aes.reverse()
+    for ae in aes:
+        data = unstack_(data)
+        print(data.shape)
+        data = decode_(data,ae)
+        print('.')
+    print(base_data[0]-data[0])
 
