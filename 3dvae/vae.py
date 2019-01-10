@@ -1,17 +1,20 @@
 import os
 import numpy as np
 import tensorflow as tf
+from tensorflow.contrib.framework.python.framework import checkpoint_utils
 
 ################################
 
 class VanillaAutoencoder(object):
-    def __init__(self, input_dim=[None,64,64,1], learning_rate=1e-3, batch_size=64, n_z=128, model_fname='/home/ronnypetson/models/Vanilla_AE_pong', load=True):
+    def __init__(self, session, input_dim=[None,64,64,1], learning_rate=1e-3, batch_size=64, n_z=128, model_fname='/home/ronnypetson/models/Vanilla_AE_pong', load=True):
         self.input_dim = input_dim
         self.learning_rate = learning_rate
         self.batch_size = batch_size
         self.n_z = n_z
         self.model_fname = model_fname
         self.build()
+        self.sess = session #tf.Session() # Interactive
+        self.saver = tf.train.Saver()
         if load: self.load()
 
     # Build the netowrk and the loss functions
@@ -36,8 +39,6 @@ class VanillaAutoencoder(object):
         self.train_op = tf.train.AdamOptimizer(learning_rate=self.learning_rate).minimize(self.total_loss)
 
     def load(self):
-        self.sess = tf.InteractiveSession()
-        self.saver = tf.train.Saver()
         if os.path.isfile(self.model_fname+'.meta'):
             try:
                 self.saver.restore(self.sess,self.model_fname)
@@ -72,16 +73,18 @@ class VanillaAutoencoder(object):
         self.sess.close()
 
 class MetaVanillaAutoencoder(object):
-    def __init__(self, input_dim=[None,32,128,1], learning_rate=1e-3, batch_size=64, n_z=128, model_fname='/home/ronnypetson/models/Vanilla_MetaAE', load=True):
+    def __init__(self, session, input_dim=[None,32,128,1], learning_rate=1e-3, batch_size=64, n_z=128, model_fname='/home/ronnypetson/models/Vanilla_MetaAE', load=True):
         self.input_dim = input_dim
         self.learning_rate = learning_rate
         self.batch_size = batch_size
         self.n_z = n_z
         self.model_fname = model_fname
         self.build()
+        self.sess = session #tf.Session() # Interactive
+        self.saver = tf.train.Saver()
         if load: self.load()
 
-    # Build the netowrk and the loss functions
+    # Build the network and the loss functions
     def build(self):
         self.x = tf.placeholder(name='x', dtype=tf.float32, shape=self.input_dim)
         # Encode
@@ -104,8 +107,6 @@ class MetaVanillaAutoencoder(object):
         return
 
     def load(self):
-        self.sess = tf.InteractiveSession()
-        self.saver = tf.train.Saver()
         if os.path.isfile(self.model_fname+'.meta'):
             try:
                 self.saver.restore(self.sess,self.model_fname)

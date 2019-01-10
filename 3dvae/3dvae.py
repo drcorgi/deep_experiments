@@ -188,8 +188,13 @@ def train_ae(num_epochs):
     print('Done!')
 
 if __name__ == '__main__':
-    #train_ae(40)
-    #train_meta_ae(40)
+    #train_ae(10)
+    #train_meta_ae(10)
     #decode_seq()
-    train_simulator(30)
+    #train_simulator(30)
+    with tf.Session() as sess:
+        aes = [VanillaAutoencoder(sess,[None,h,w,1],1e-3,batch_size,latent_dim,load=False),\
+               MetaVanillaAutoencoder(sess,[None,32,128,1],1e-3,batch_size,latent_dim,'/home/ronnypetson/models/Vanilla_MetaAE',load=False),\
+               MetaVanillaAutoencoder(sess,[None,32,128,1],1e-3,batch_size,latent_dim,'/home/ronnypetson/models/Vanilla_Meta2AE',load=False)]
+        train_last_ae(aes,log_run(),10)
 

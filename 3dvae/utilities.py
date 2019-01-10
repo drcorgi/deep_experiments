@@ -80,3 +80,23 @@ def get_state_pairs(frames,ae1,ae2):
         states.append(np.concatenate((enc2[i],enc1[i,-1]),axis=0))
     return np.array([[states[i],states[i+1]] for i in range(len(states)-1)],dtype=np.float32)
 
+def train_last_ae(aes,data,num_epochs):
+    current = aes[-1]
+    base = aes[:-1]
+    for ae in base:
+        ae.load()
+        data = stack_(encode_(data,ae))
+        #tf.reset_default_graph()
+        print('.')
+    num_sample=len(data)
+    current.load()
+    for epoch in range(num_epochs):
+        for _ in range(num_sample // batch_size):
+            batch = get_batch(data)
+            loss = current.run_single_step(batch)
+        if epoch%10==9:
+            current.save_model()
+        print('[Epoch {}] Loss: {}'.format(epoch, loss))
+    #tf.reset_default_graph()
+    print('Done!')
+
