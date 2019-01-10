@@ -46,9 +46,17 @@ def stack_(data,seq_len=32):
     stacked = np.stack(stacked,axis=0)
     return stacked
 
+def decode_(data,ae):
+    dec = []
+    num_batches = (len(data)+batch_size)//batch_size
+    for i in range(num_batches):
+        b = data[i*batch_size:(i+1)*batch_size]
+        if len(b) > 0:
+            dec += ae.generator(b).tolist()
+    return np.array(dec,dtype=np.float32)
+
 def unstack_(data,seq_len=32):
-    data = data.transpose((0,2,3,1))
-    return [np.split(d,seq_len) for d in data]
+    return np.array([np.split(d,seq_len) for d in data],dtype=np.float32)
 
 def get_encodings(frames,model,enc_shape=[-1,32,128,1],meta=False):
     enc = []
