@@ -1,6 +1,8 @@
 import numpy as np
 import gym
 import cv2
+from copy import deepcopy
+from matplotlib import pyplot as plt
 
 from vae import *
 from transition import *
@@ -40,20 +42,23 @@ def encode_(data,ae):
             enc += ae.transformer(b).tolist()
     return np.array(enc,dtype=np.float32)
 
-def stack_(data,seq_len=32):
+def stack_(data,seq_len=32,offset=1): # change offset for higher encodings
     sshape = (seq_len,data.shape[1],1) #(seq_len,data.shape[2],data.shape[3],1)
-    stacked = [np.array(data[i:i+seq_len]).reshape(sshape) for i in range(len(data)-(seq_len-1))]
+    stacked = [np.array(data[i:i+seq_len]).reshape(sshape) for i in range(0,len(data)-(seq_len-1),offset)]
     stacked = np.stack(stacked,axis=0)
     return stacked
 
 def decode_(data,ae,seq_len=32):
     dec = []
-    for i in range(len(data)):
-        dec.append(ae.generator(data[i].reshape(seq_len,data.shape[-2])))
+    num_batches = (len(data)+batch_size)//batch_size
+    for i in range(num_batches):
+        b = data[i*batch_size:(i+1)*batch_size]
+        if len(b) > 0:
+            dec += ae.generator(b).tolist() # .reshape(seq_len,data.shape[-1])
     return np.array(dec,dtype=np.float32)
 
-def unstack_(data,seq_len=32):
-    return np.array([np.split(d,seq_len) for d in data],dtype=np.float32)
+def unstack_(data,seq_len=32): # Ex.: (1,32,128,1) -> (32,128)
+    return data.reshape((-1,data.shape[-2])) #np.array([np.split(d,seq_len) for d in data],dtype=np.float32)
 
 def get_encodings(frames,model,enc_shape=[-1,32,128,1],meta=False):
     enc = []
@@ -104,16 +109,28 @@ def train_last_ae(aes,data,num_epochs):
     print('Done!')
 
 def encode_decode_sequence(aes,data):
-    base_data = data
-    for ae in aes:
+    # Separate base data for later comparison with the reconstruction
+    base_data = deepcopy(data)
+    # Obtain base encodings
+    aes[0].load()
+    data = encode_(data,aes[0])
+    # Obtain meta-encodings from the middle
+    for ae in aes[1:]:
         ae.load()
-        data = stack_(encode_(data,ae))
-        print('.')
+        data = stack_(data,offset=32)
+        data = encode_(data,ae)
+    # Reconstruct original data
     aes.reverse()
-    for ae in aes:
-        data = unstack_(data)
-        print(data.shape)
+    for ae in aes[:-1]:
         data = decode_(data,ae)
-        print('.')
-    print(base_data[0]-data[0])
+        data = unstack_(data)
+    data = decode_(data,aes[-1])
+    # Compare the reconstructions
+    img_shape = (base_data.shape[1],2*base_data.shape[2])
+    for i in range(len(data)):
+        side_by_side = np.concatenate((base_data[i],data[i]),axis=1)
+        fig = plt.figure()
+        plt.imshow(side_by_side.reshape(img_shape), cmap='gray')
+        plt.savefig('/home/ronnypetson/models/rec_1024_{}.png'.format(i))
+        plt.close(fig)
 
