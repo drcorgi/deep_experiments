@@ -42,9 +42,11 @@ def encode_(data,ae):
             enc += ae.transformer(b).tolist()
     return np.array(enc,dtype=np.float32)
 
-def stack_(data,seq_len=32,offset=1): # change offset for higher encodings
+def stack_(data,seq_len=32,offset=1,blimit=1): # change offset for higher encodings
     sshape = (seq_len,data.shape[1],1) #(seq_len,data.shape[2],data.shape[3],1)
-    stacked = [np.array(data[i:i+seq_len]).reshape(sshape) for i in range(0,len(data)-(seq_len-1),offset)]
+    #stacked = [np.array(data[i:i+seq_len]).reshape(sshape) for i in range(j,len(data)-(seq_len-1),offset)\
+    #                                                           for j in range(0,blimit)]
+    stacked = [np.array(data[range(i,i+offset*seq_len,offset)]).reshape(sshape) for i in range(blimit)]
     stacked = np.stack(stacked,axis=0)
     return stacked
 
@@ -90,12 +92,14 @@ def get_state_pairs(frames,ae1,ae2):
         states.append(np.concatenate((enc2[i],enc1[i,-1]),axis=0))
     return np.array([[states[i],states[i+1]] for i in range(len(states)-1)],dtype=np.float32)
 
-def train_last_ae(aes,data,num_epochs):
+def train_last_ae(aes,data,num_epochs,seq_len=32):
     current = aes[-1]
     base = aes[:-1]
+    offset = 1
     for ae in base:
         ae.load()
-        data = stack_(encode_(data,ae))
+        data = stack_(encode_(data,ae),offset=offset,blimit=len(data)-offset*seq_len)
+        offset *= seq_len
         print('.')
     num_sample=len(data)
     current.load()
