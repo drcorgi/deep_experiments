@@ -98,7 +98,7 @@ def train_last_ae(aes,data,num_epochs,seq_len=32):
     offset = 1
     for ae in base:
         ae.load()
-        data = stack_(encode_(data,ae),offset=offset,blimit=len(data)-offset*seq_len)
+        data = stack_(encode_(data,ae),offset=offset,blimit=len(data)-offset*(seq_len-1))
         offset *= seq_len
         print('.')
     num_sample=len(data)
@@ -112,16 +112,20 @@ def train_last_ae(aes,data,num_epochs,seq_len=32):
         print('[Epoch {}] Loss: {}'.format(epoch, loss))
     print('Done!')
 
-def encode_decode_sequence(aes,data):
+def encode_decode_sequence(aes,data,seq_len=32):
     # Separate base data for later comparison with the reconstruction
     base_data = deepcopy(data)
     # Obtain base encodings
     aes[0].load()
     data = encode_(data,aes[0])
+    offset = 1
     # Obtain meta-encodings from the middle
     for ae in aes[1:]:
+        print(data.shape)
         ae.load()
-        data = stack_(data,offset=32)
+        data = stack_(data,offset=offset,blimit=len(data)-offset*(seq_len-1))
+        offset *= 32
+        print(data.shape)
         data = encode_(data,ae)
     # Reconstruct original data
     aes.reverse()
