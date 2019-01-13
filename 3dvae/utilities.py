@@ -43,16 +43,14 @@ def encode_(data,ae):
     return np.array(enc,dtype=np.float32)
 
 def stack_(data,seq_len=32,offset=1,blimit=1): # change offset for higher encodings
-    sshape = (seq_len,data.shape[1],1) #(seq_len,data.shape[2],data.shape[3],1)
-    #stacked = [np.array(data[i:i+seq_len]).reshape(sshape) for i in range(j,len(data)-(seq_len-1),offset)\
-    #                                                           for j in range(0,blimit)]
+    sshape = (seq_len,data.shape[1],1)
     stacked = [np.array(data[range(i,i+offset*seq_len,offset)]).reshape(sshape) for i in range(blimit)]
     stacked = np.stack(stacked,axis=0)
     return stacked
 
 def decode_(data,ae,seq_len=32,offset=1,start=0,base=False):
     dec = []
-    if not base: data = data[range(start,offset*seq_len,offset)]
+    if not base: data = data[range(start,start+offset*seq_len,offset)]
     num_batches = (len(data)+batch_size)//batch_size
     for i in range(num_batches):
         b = data[i*batch_size:(i+1)*batch_size]
@@ -61,7 +59,67 @@ def decode_(data,ae,seq_len=32,offset=1,start=0,base=False):
     return np.array(dec,dtype=np.float32)
 
 def unstack_(data,seq_len=32): # Ex.: (1,32,128,1) -> (32,128)
-    return data.reshape((-1,data.shape[-2])) #np.array([np.split(d,seq_len) for d in data],dtype=np.float32)
+    d = []
+    for a in data:
+        d += a.reshape((seq_len,data.shape[-2])).tolist()
+    d = np.array(d,dtype=np.float32)
+    return d #data.reshape((-1,data.shape[-2]))
+
+def plot_data(data):
+    im_shape = (data.shape[1],data.shape[2])
+    for i in range(32): # len(data)
+        fig = plt.figure()
+        plt.imshow(data[i].reshape(im_shape), cmap='gray')
+        plt.savefig('/home/ronnypetson/models/data_plot_{}.png'.format(i))
+        plt.close(fig)
+
+def train_last_ae(aes,data,num_epochs,seq_len=32):
+    current = aes[-1]
+    base = aes[:-1]
+    offset = 1
+    for ae in base:
+        #ae.load()
+        data = stack_(encode_(data,ae),offset=offset,blimit=len(data)-offset*(seq_len-1))
+        offset *= seq_len
+        print('.')
+    num_sample=len(data)
+    #current.load()
+    for epoch in range(num_epochs):
+        for _ in range(num_sample // batch_size):
+            batch = get_batch(data)
+            loss = current.run_single_step(batch)
+        if epoch%10==9:
+            current.save_model()
+        print('[Epoch {}] Loss: {}'.format(epoch, loss))
+    print('Done!')
+
+def encode_decode_sequence(aes,data,seq_len=32):
+    # Separate base data for later comparison with the reconstruction
+    base_data = deepcopy(data)
+    # Obtain base encodings
+    data = encode_(data,aes[0])
+    offset = 1
+    # Obtain meta-encodings from the middle
+    for ae in aes[1:]:
+        #ae.load()
+        data = stack_(data,offset=offset,blimit=len(data)-offset*(seq_len-1))
+        offset *= 32
+        data = encode_(data,ae)
+    # Reconstruct original data
+    aes.reverse()
+    for ae in aes[:-1]:
+        data = decode_(data,ae,offset=offset)
+        offset = offset//32
+        data = unstack_(data)
+    data = decode_(data,aes[-1],offset=1,base=True)
+    # Compare the reconstructions
+    im_shape = (data.shape[1],2*data.shape[2])
+    for i in range(128): # len(data)
+        side_by_side = np.concatenate((base_data[i],data[i]),axis=1)
+        fig = plt.figure()
+        plt.imshow(side_by_side.reshape(im_shape), cmap='gray')
+        plt.savefig('/home/ronnypetson/models/rec_1024_{}.png'.format(i))
+        plt.close(fig)
 
 def get_encodings(frames,model,enc_shape=[-1,32,128,1],meta=False):
     enc = []
@@ -92,54 +150,4 @@ def get_state_pairs(frames,ae1,ae2):
     for i in range(enc2.shape[0]):
         states.append(np.concatenate((enc2[i],enc1[i,-1]),axis=0))
     return np.array([[states[i],states[i+1]] for i in range(len(states)-1)],dtype=np.float32)
-
-def train_last_ae(aes,data,num_epochs,seq_len=32):
-    current = aes[-1]
-    base = aes[:-1]
-    offset = 1
-    for ae in base:
-        ae.load()
-        data = stack_(encode_(data,ae),offset=offset,blimit=len(data)-offset*(seq_len-1))
-        offset *= seq_len
-        print('.')
-    num_sample=len(data)
-    current.load()
-    for epoch in range(num_epochs):
-        for _ in range(num_sample // batch_size):
-            batch = get_batch(data)
-            loss = current.run_single_step(batch)
-        if epoch%10==9:
-            current.save_model()
-        print('[Epoch {}] Loss: {}'.format(epoch, loss))
-    print('Done!')
-
-def encode_decode_sequence(aes,data,seq_len=32):
-    # Separate base data for later comparison with the reconstruction
-    base_data = deepcopy(data)
-    # Obtain base encodings
-    aes[0].load()
-    data = encode_(data,aes[0])
-    offset = 1
-    # Obtain meta-encodings from the middle
-    for ae in aes[1:]:
-        ae.load()
-        data = stack_(data,offset=offset,blimit=len(data)-offset*(seq_len-1))
-        offset *= 32
-        data = encode_(data,ae)
-    # Reconstruct original data
-    aes.reverse()
-    for ae in aes[:-1]:
-        data = decode_(data,ae,offset=offset)
-        offset /= 32
-        data = unstack_(data)
-    data = decode_(data,aes[-1],offset=1,base=True)
-    print(data.shape)
-    # Compare the reconstructions
-    img_shape = (base_data.shape[1],2*base_data.shape[2])
-    for i in range(len(data)):
-        side_by_side = np.concatenate((base_data[i],data[i]),axis=1)
-        fig = plt.figure()
-        plt.imshow(side_by_side.reshape(img_shape), cmap='gray')
-        plt.savefig('/home/ronnypetson/models/rec_1024_{}.png'.format(i))
-        plt.close(fig)
 

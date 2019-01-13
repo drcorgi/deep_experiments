@@ -192,10 +192,11 @@ if __name__ == '__main__':
     #train_meta_ae(10)
     #decode_seq()
     #train_simulator(30)
-    with tf.Session() as sess:
-        aes = [VanillaAutoencoder(sess,[None,h,w,1],1e-3,batch_size,latent_dim,load=False),\
-               MetaVanillaAutoencoder(sess,[None,32,128,1],1e-3,batch_size,latent_dim,'/home/ronnypetson/models/Vanilla_MetaAE',load=False),\
-               MetaVanillaAutoencoder(sess,[None,32,128,1],1e-3,batch_size,latent_dim,'/home/ronnypetson/models/Vanilla_Meta2AE',load=False)]
-        #train_last_ae(aes[:2],log_run(),150)
-        encode_decode_sequence(aes[:2],log_run(1024))
+    #with tf.Session() as sess:
+    #sess = tf.InteractiveSession()
+    aes = [VanillaAutoencoder([None,h,w,1],1e-3,batch_size,latent_dim),\
+           MetaVanillaAutoencoder([None,32,128,1],1e-3,batch_size,latent_dim,'/home/ronnypetson/models/Vanilla_MetaAE'),\
+           MetaVanillaAutoencoder([None,32,128,1],1e-3,batch_size,latent_dim,'/home/ronnypetson/models/Vanilla_Meta2AE')]
+    train_last_ae(aes,log_run(),40)
+    #encode_decode_sequence(aes[:2],log_run(1024))
 
