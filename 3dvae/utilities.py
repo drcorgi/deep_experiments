@@ -42,9 +42,12 @@ def encode_(data,ae):
             enc += ae.transformer(b).tolist()
     return np.array(enc,dtype=np.float32)
 
-def stack_(data,seq_len=32,offset=1,blimit=1): # change offset for higher encodings
+def stack_(data,seq_len=32,offset=1,blimit=1,training=False): # change offset for higher encodings
     sshape = (seq_len,data.shape[1],1)
-    stacked = [np.array(data[range(i,i+offset*seq_len,offset)]).reshape(sshape) for i in range(blimit)]
+    if training:
+        stacked = [np.array(data[range(i,i+offset*seq_len,offset)]).reshape(sshape) for i in range(blimit)]
+    else:
+        stacked = [np.array(data[i:i+seq_len]).reshape(sshape) for i in range(0,blimit,seq_len)]
     stacked = np.stack(stacked,axis=0)
     return stacked
 
@@ -79,12 +82,11 @@ def train_last_ae(aes,data,num_epochs,seq_len=32):
     base = aes[:-1]
     offset = 1
     for ae in base:
-        #ae.load()
-        data = stack_(encode_(data,ae),offset=offset,blimit=len(data)-offset*(seq_len-1))
+        data = stack_(encode_(data,ae),offset=offset,blimit=len(data)-offset*(seq_len-1),training=True)
         offset *= seq_len
         print('.')
     num_sample=len(data)
-    #current.load()
+    print(data.shape)
     for epoch in range(num_epochs):
         for _ in range(num_sample // batch_size):
             batch = get_batch(data)
@@ -99,25 +101,27 @@ def encode_decode_sequence(aes,data,seq_len=32):
     base_data = deepcopy(data)
     # Obtain base encodings
     data = encode_(data,aes[0])
-    offset = 1
+    offset = seq_len
     # Obtain meta-encodings from the middle
     for ae in aes[1:]:
         print(data.shape)
-        data = stack_(data,offset=offset,blimit=len(data)-offset*(seq_len-1))
-        offset *= 32
+        data = stack_(data,offset=offset,blimit=len(data)-(seq_len-1))
+        #offset = 1
         data = encode_(data,ae)
+    offset = 1 #1024
     # Reconstruct original data
     aes.reverse()
     for ae in aes[:-1]:
         print(data.shape)
         data = decode_(data,ae,offset=offset)
-        offset = 1
+        print(data.shape)
+        #offset = 1
         data = unstack_(data)
     print(data.shape)
     data = decode_(data,aes[-1],offset=1,base=True)
     # Compare the reconstructions
     im_shape = (data.shape[1],2*data.shape[2])
-    for i in range(128): # len(data)
+    for i in range(64): # len(data)
         side_by_side = np.concatenate((base_data[i],data[i]),axis=1)
         fig = plt.figure()
         plt.imshow(side_by_side.reshape(im_shape), cmap='gray')
