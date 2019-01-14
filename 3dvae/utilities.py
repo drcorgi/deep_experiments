@@ -121,7 +121,7 @@ def encode_decode_sequence(aes,data,seq_len=32):
     data = decode_(data,aes[-1],offset=1,base=True)
     # Compare the reconstructions
     im_shape = (data.shape[1],2*data.shape[2])
-    for i in range(64): # len(data)
+    for i in range(1024): # len(data)
         side_by_side = np.concatenate((base_data[i],data[i]),axis=1)
         fig = plt.figure()
         plt.imshow(side_by_side.reshape(im_shape), cmap='gray')
