@@ -50,7 +50,8 @@ def stack_(data,seq_len=32,offset=1,blimit=1): # change offset for higher encodi
 
 def decode_(data,ae,seq_len=32,offset=1,start=0,base=False):
     dec = []
-    if not base: data = data[range(start,start+offset*seq_len,offset)]
+    #if not base: data = data[range(start,start+offset*seq_len,offset)]
+    if not base: data = data[range(start,len(data),offset)]
     num_batches = (len(data)+batch_size)//batch_size
     for i in range(num_batches):
         b = data[i*batch_size:(i+1)*batch_size]
@@ -101,16 +102,18 @@ def encode_decode_sequence(aes,data,seq_len=32):
     offset = 1
     # Obtain meta-encodings from the middle
     for ae in aes[1:]:
-        #ae.load()
+        print(data.shape)
         data = stack_(data,offset=offset,blimit=len(data)-offset*(seq_len-1))
         offset *= 32
         data = encode_(data,ae)
     # Reconstruct original data
     aes.reverse()
     for ae in aes[:-1]:
+        print(data.shape)
         data = decode_(data,ae,offset=offset)
-        offset = offset//32
+        offset = 1
         data = unstack_(data)
+    print(data.shape)
     data = decode_(data,aes[-1],offset=1,base=True)
     # Compare the reconstructions
     im_shape = (data.shape[1],2*data.shape[2])

@@ -197,6 +197,6 @@ if __name__ == '__main__':
     aes = [VanillaAutoencoder([None,h,w,1],1e-3,batch_size,latent_dim),\
            MetaVanillaAutoencoder([None,32,128,1],1e-3,batch_size,latent_dim,'/home/ronnypetson/models/Vanilla_MetaAE'),\
            MetaVanillaAutoencoder([None,32,128,1],1e-3,batch_size,latent_dim,'/home/ronnypetson/models/Vanilla_Meta2AE')]
-    train_last_ae(aes,log_run(),40)
-    #encode_decode_sequence(aes[:2],log_run(1024))
+    #train_last_ae(aes,log_run(),40)
+    encode_decode_sequence(aes,log_run(1024))
 
