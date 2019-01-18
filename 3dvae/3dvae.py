@@ -188,15 +188,17 @@ def train_ae(num_epochs):
     print('Done!')
 
 if __name__ == '__main__':
-    #train_ae(10)
-    #train_meta_ae(10)
-    #decode_seq()
-    #train_simulator(30)
-    #with tf.Session() as sess:
-    #sess = tf.InteractiveSession()
-    aes = [VanillaAutoencoder([None,h,w,1],1e-3,batch_size,latent_dim),\
-           MetaVanillaAutoencoder([None,32,128,1],1e-3,batch_size,256,'/home/ronnypetson/models/Vanilla_Meta1_2AE'),\
-           MetaVanillaAutoencoder([None,32,256,1],1e-3,batch_size,512,'/home/ronnypetson/models/Vanilla_Meta2_3AE')]
-    #train_last_ae(aes,log_run(20000),30)
+    '''
+    aes = [VanillaAutoencoder([None,h,w,1],1e-3,batch_size,latent_dim,'/home/ronnypetson/models/Vanilla_AE_assault'),\
+           MetaVanillaAutoencoder([None,32,128,1],1e-3,batch_size,256,'/home/ronnypetson/models/Vanilla_Meta1_AE_assault'),\
+           MetaVanillaAutoencoder([None,32,256,1],1e-3,batch_size,256,'/home/ronnypetson/models/Vanilla_Meta2_AE_assault')]
+    #train_last_ae(aes,log_run(20000),20)
     encode_decode_sequence(aes,log_run(1024))
+    '''
+    aes = [VanillaAutoencoder([None,8,256,1],1e-3,batch_size,128,'/home/ronnypetson/models/Vanilla_AE_text2'),\
+           VanillaAutoencoder([None,32,128,1],1e-3,batch_size,512,'/home/ronnypetson/models/Vanilla_AE2_text',False)]
+    text_data = log_run_text('/home/ronnypetson/Documents/lusiadas.txt')
+    split = int(0.8*len(text_data))
+    train_last_ae(aes[:1],text_data[:300000],30)
+    #encode_decode_sequence(aes[:1],text_data[-256:],data_type='text')
 

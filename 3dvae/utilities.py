@@ -11,7 +11,7 @@ img_shape = (32,32,1)
 batch_size = 64
 latent_dim = 128
 h, w, _ = img_shape
-env_name = 'Pong-v0'
+env_name = 'Assault-v0' #'Breakout-v0' #'Pong-v0'
 
 def log_run(num_it=10000):
 	env = gym.make(env_name)
@@ -28,6 +28,16 @@ def log_run(num_it=10000):
 			obs = env.reset()
 	env.close()
 	return np.array(frames,dtype=np.float32)
+
+def log_run_text(fname,max_words=100000):
+    with open(fname,'r',encoding='ISO-8859-1') as source:
+        data = source.read()
+        data = data[:max_words]
+        len_data = len(data)
+        ords = [min(255,ord(c)) for c in data]
+        data = np.zeros((len_data,256))
+        data[np.arange(len_data),ords] = 1.0
+        return np.array([data[i:i+8] for i in range(len_data-7)]).reshape((-1,8,256,1))
 
 def get_batch(data):
     inds = np.random.choice(range(data.shape[0]), batch_size, False)
@@ -85,8 +95,8 @@ def train_last_ae(aes,data,num_epochs,seq_len=32):
         data = stack_(encode_(data,ae),offset=offset,blimit=len(data)-offset*(seq_len-1),training=True)
         offset *= seq_len
         print('.')
+        print(data.shape)
     num_sample=len(data)
-    print(data.shape)
     for epoch in range(num_epochs):
         for _ in range(num_sample // batch_size):
             batch = get_batch(data)
@@ -96,7 +106,7 @@ def train_last_ae(aes,data,num_epochs,seq_len=32):
         print('[Epoch {}] Loss: {}'.format(epoch, loss))
     print('Done!')
 
-def encode_decode_sequence(aes,data,seq_len=32):
+def encode_decode_sequence(aes,data,seq_len=32,data_type='image'):
     # Separate base data for later comparison with the reconstruction
     base_data = deepcopy(data)
     # Obtain base encodings
@@ -119,15 +129,28 @@ def encode_decode_sequence(aes,data,seq_len=32):
         data = unstack_(data)
     print(data.shape)
     data = decode_(data,aes[-1],offset=1,base=True)
-    # Compare the reconstructions
-    im_shape = (data.shape[1],2*data.shape[2])
-    for i in range(1024): # len(data)
-        side_by_side = np.concatenate((base_data[i],data[i]),axis=1)
-        fig = plt.figure()
-        plt.imshow(side_by_side.reshape(im_shape), cmap='gray')
-        plt.savefig('/home/ronnypetson/models/rec_1024_{}.png'.format(i))
-        plt.close(fig)
+    if data_type=='text':
+        base_data = np.reshape(base_data,(-1,8,256))
+        data = np.reshape(data,(-1,8,256))
+        print(base_data.shape,data.shape)
+        base_text = [chr(np.argmax(base_data[i,0])) for i in range(len(base_data))]
+        decoded_text = [chr(np.argmax(data[i,0])) for i in range(len(data))]
+        print(''.join(base_text))
+        print()
+        print(''.join(decoded_text))
+    else:
+        # Compare the reconstructions
+        im_shape = (data.shape[1],2*data.shape[2])
+        for i in range(1024): # len(data)
+            side_by_side = np.concatenate((base_data[i],data[i]),axis=1)
+            fig = plt.figure()
+            plt.imshow(side_by_side.reshape(im_shape), cmap='gray')
+            plt.savefig('/home/ronnypetson/models/rec_1024_{}.png'.format(i))
+            plt.close(fig)
 
+'''
+    To be deprecated
+'''
 def get_encodings(frames,model,enc_shape=[-1,32,128,1],meta=False):
     enc = []
     num_batches = (len(frames)+batch_size)//batch_size
