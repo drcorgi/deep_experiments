@@ -195,10 +195,11 @@ if __name__ == '__main__':
     #train_last_ae(aes,log_run(20000),20)
     encode_decode_sequence(aes,log_run(1024))
     '''
-    aes = [VanillaAutoencoder([None,8,256,1],1e-3,batch_size,128,'/home/ronnypetson/models/Vanilla_AE_text2'),\
-           VanillaAutoencoder([None,32,128,1],1e-3,batch_size,512,'/home/ronnypetson/models/Vanilla_AE2_text',False)]
-    text_data = log_run_text('/home/ronnypetson/Documents/lusiadas.txt')
-    split = int(0.8*len(text_data))
-    train_last_ae(aes[:1],text_data[:300000],30)
-    #encode_decode_sequence(aes[:1],text_data[-256:],data_type='text')
+    aes = [DenseAutoencoder([None,64,27,1],1e-3,batch_size,16,'/home/ronnypetson/models/Dense_AE_text8'),\
+           DenseAutoencoder([None,32,16,1],1e-3,batch_size,32,'/home/ronnypetson/models/Dense_AE2_text32'),\
+           DenseAutoencoder([None,32,32,1],1e-3,batch_size,64,'/home/ronnypetson/models/Dense_AE3_text64')]
+    text_data = log_run_text('/home/ronnypetson/Documents/lusiadas.txt',wlen=64)
+    print(text_data.shape)
+    train_last_ae(aes,text_data[:90000],30)
+    #encode_decode_sequence(aes,text_data[-64*32*32:],data_type='text')
 

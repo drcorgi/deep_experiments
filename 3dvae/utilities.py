@@ -29,15 +29,49 @@ def log_run(num_it=10000):
 	env.close()
 	return np.array(frames,dtype=np.float32)
 
-def log_run_text(fname,max_words=100000):
+def treat_string(s):
+    s_ = ''
+    for c in s:
+        if ord(c) < 97 or ord(c) > 122:
+            c = ' '
+        s_ += c
+    return s_
+
+def get_ords(s):
+    ords = []
+    for c in s:
+        if c == ' ':
+            ords.append(26)
+        else:
+            ords.append(ord(c)-97)
+    return ords
+
+def get_str(ords):
+    s = ''
+    for o in ords:
+        if o == 26:
+            s += ' '
+        else:
+            s += chr(o+97)
+    return s
+
+def log_run_text(fname,max_chars=100000,wlen=32):
     with open(fname,'r',encoding='ISO-8859-1') as source:
-        data = source.read()
-        data = data[:max_words]
+        data = source.read().lower()
+        data = data[:max_chars]
+        data = treat_string(data)
         len_data = len(data)
-        ords = [min(255,ord(c)) for c in data]
-        data = np.zeros((len_data,256))
-        data[np.arange(len_data),ords] = 1.0
-        return np.array([data[i:i+8] for i in range(len_data-7)]).reshape((-1,8,256,1))
+        ords = get_ords(data)
+        np_data = np.zeros((len_data,27))
+        np_data[np.arange(len_data),ords] = 1.0
+        print(len_data)
+        return np.array([np_data[i:i+wlen] for i in range(0,len_data-wlen+1,wlen)]).reshape((-1,wlen,27,1))
+
+def cat2text(data):
+    ords = []
+    for w in data:
+        ords += [np.argmax(c) for c in w]
+    return get_str(ords)
 
 def get_batch(data):
     inds = np.random.choice(range(data.shape[0]), batch_size, False)
@@ -107,39 +141,32 @@ def train_last_ae(aes,data,num_epochs,seq_len=32):
     print('Done!')
 
 def encode_decode_sequence(aes,data,seq_len=32,data_type='image'):
-    # Separate base data for later comparison with the reconstruction
     base_data = deepcopy(data)
-    # Obtain base encodings
     data = encode_(data,aes[0])
     offset = seq_len
-    # Obtain meta-encodings from the middle
     for ae in aes[1:]:
         print(data.shape)
         data = stack_(data,offset=offset,blimit=len(data)-(seq_len-1))
-        #offset = 1
         data = encode_(data,ae)
     offset = 1 #1024
-    # Reconstruct original data
     aes.reverse()
     for ae in aes[:-1]:
         print(data.shape)
         data = decode_(data,ae,offset=offset)
         print(data.shape)
-        #offset = 1
         data = unstack_(data)
     print(data.shape)
     data = decode_(data,aes[-1],offset=1,base=True)
     if data_type=='text':
-        base_data = np.reshape(base_data,(-1,8,256))
-        data = np.reshape(data,(-1,8,256))
+        base_data = np.reshape(base_data,(-1,64,27))
+        data = np.reshape(data,(-1,64,27))
         print(base_data.shape,data.shape)
-        base_text = [chr(np.argmax(base_data[i,0])) for i in range(len(base_data))]
-        decoded_text = [chr(np.argmax(data[i,0])) for i in range(len(data))]
-        print(''.join(base_text))
+        base_text = cat2text(base_data)
+        decoded_text = cat2text(data)
+        print(base_text)
         print()
-        print(''.join(decoded_text))
+        print(decoded_text)
     else:
-        # Compare the reconstructions
         im_shape = (data.shape[1],2*data.shape[2])
         for i in range(1024): # len(data)
             side_by_side = np.concatenate((base_data[i],data[i]),axis=1)
