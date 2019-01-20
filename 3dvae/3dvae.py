@@ -195,11 +195,28 @@ if __name__ == '__main__':
     #train_last_ae(aes,log_run(20000),20)
     encode_decode_sequence(aes,log_run(1024))
     '''
-    aes = [DenseAutoencoder([None,64,27,1],1e-3,batch_size,16,'/home/ronnypetson/models/Dense_AE_text8'),\
-           DenseAutoencoder([None,32,16,1],1e-3,batch_size,32,'/home/ronnypetson/models/Dense_AE2_text32'),\
-           DenseAutoencoder([None,32,32,1],1e-3,batch_size,64,'/home/ronnypetson/models/Dense_AE3_text64')]
+
+    paes = [DenseAutoencoder([None,64,27,1],1e-3,batch_size,16,'/home/ronnypetson/models/Dense_AE_text16_','dense_64_27_1__16'),\
+           DenseAutoencoder([None,32,16,1],1e-3,batch_size,32,'/home/ronnypetson/models/Dense_AE2_text32_','dense_32_16_1__32'),\
+           DenseAutoencoder([None,32,32,1],1e-3,batch_size,64,'/home/ronnypetson/models/Dense_AE3_text64_','dense_32_32_1__64',False)]
     text_data = log_run_text('/home/ronnypetson/Documents/lusiadas.txt',wlen=64)
     print(text_data.shape)
-    train_last_ae(aes,text_data[:90000],30)
-    #encode_decode_sequence(aes,text_data[-64*32*32:],data_type='text')
+    #train_last_ae(paes,text_data[:90000],30)
+    #encode_decode_sequence(paes,text_data[-32*32:],data_type='text')
+
+    tf.reset_default_graph()
+
+    eaes = [DenseAutoencoder([None,64,27,1],1e-3,batch_size,32,'/home/ronnypetson/models/text/Dense_AE_eng_text32_','dense_eng_64_27_1__32'),\
+           DenseAutoencoder([None,32,32,1],1e-3,batch_size,32,'/home/ronnypetson/models/text/Dense_AE2_eng_text32_','dense_eng_32_32_1__32'),\
+           DenseAutoencoder([None,32,32,1],1e-3,batch_size,64,'/home/ronnypetson/models/text/Dense_AE3_eng_text64_','dense_eng_32_32_1__64',False)]
+    eng_text_data = log_run_text('/home/ronnypetson/Documents/eng_lusiads.txt',wlen=64)
+    print(eng_text_data.shape)
+    #train_last_ae(eaes,eng_text_data[:90000],30)
+    #encode_decode_sequence(eaes,eng_text_data[-32*32:],data_type='text')
+
+    t = Transition([None,32],[None,32],model_fname='/home/ronnypetson/models/Vanilla_transition_text')
+    #train_translator(t,paes[:-1],eaes[:-1],text_data,eng_text_data,30)
+    data = up_(paes[:-1],text_data[:32])[0]
+    data = t.forward([data])
+    down_(eaes[:-1],data,text_data[:32])
 

@@ -77,6 +77,13 @@ def get_batch(data):
     inds = np.random.choice(range(data.shape[0]), batch_size, False)
     return np.array([data[i] for i in inds],dtype=np.float32)
 
+def get_batch_(datax,datay):
+    assert len(datax) == len(datay)
+    inds = np.random.choice(range(datax.shape[0]), batch_size, False)
+    batchx = np.array([datax[i] for i in inds],dtype=np.float32)
+    batchy = np.array([datay[i] for i in inds],dtype=np.float32)
+    return batchx, batchy
+
 def encode_(data,ae):
     enc = []
     num_batches = (len(data)+batch_size)//batch_size
@@ -120,6 +127,50 @@ def plot_data(data):
         plt.imshow(data[i].reshape(im_shape), cmap='gray')
         plt.savefig('/home/ronnypetson/models/data_plot_{}.png'.format(i))
         plt.close(fig)
+
+def up_(aes,data,seq_len=32,training=False):
+    offset = 1
+    for ae in aes[:-1]:
+        data = stack_(encode_(data,ae),offset=offset,blimit=len(data)-offset*(seq_len-1),training=training)
+        offset *= seq_len
+        print(data.shape)
+    data = encode_(data,aes[-1])
+    return data
+
+def down_(aes,data,base_data,seq_len=32,training=False,data_type='text'):
+    aes.reverse()
+    for ae in aes[:-1]:
+        print(data.shape)
+        data = decode_(data,ae,offset=1)
+        print(data.shape)
+        data = unstack_(data)
+    print(data.shape)
+    data = decode_(data,aes[-1],offset=1,base=True)
+    if data_type=='text':
+        base_data = np.reshape(base_data,(-1,64,27))
+        data = np.reshape(data,(-1,64,27))
+        print(base_data.shape,data.shape)
+        base_text = cat2text(base_data)
+        decoded_text = cat2text(data)
+        print(base_text)
+        print(decoded_text)
+
+def train_translator(t,paes,eaes,pdata,edata,num_epochs,seq_len=32):
+    pdata = up_(paes,pdata,seq_len,True)
+    edata = up_(eaes,edata,seq_len,True)
+    print('shapes')
+    print(pdata.shape,edata.shape)
+    num_sample = min(len(pdata),len(edata))
+    pdata = pdata[:num_sample]
+    edata = edata[:num_sample]
+    for epoch in range(num_epochs):
+        for _ in range(num_sample//batch_size):
+            pbatch, ebatch = get_batch_(pdata,edata)
+            loss = t.run_single_step(pbatch,ebatch)
+        if epoch%10==9:
+            t.save_model()
+        print('[Epoch {}] Loss: {}'.format(epoch, loss))
+    print('Done!')
 
 def train_last_ae(aes,data,num_epochs,seq_len=32):
     current = aes[-1]

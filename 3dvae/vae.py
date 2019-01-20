@@ -141,16 +141,18 @@ class MetaVanillaAutoencoder(object):
         self.sess.close()
 
 class DenseAutoencoder(object):
-    def __init__(self, input_dim=[None,32,128,1], learning_rate=1e-3, batch_size=64, n_z=128, model_fname='/home/ronnypetson/models/Dense_AE', load=True):
+    def __init__(self, input_dim=[None,32,128,1], learning_rate=1e-3, batch_size=64, n_z=128, model_fname='/home/ronnypetson/models/Dense_AE',var_scope='dense',load=True):
         self.input_dim = input_dim
         self.learning_rate = learning_rate
         self.batch_size = batch_size
         self.n_z = n_z
         self.model_fname = model_fname
-        self.build()
-        self.sess = tf.InteractiveSession() # Interactive
-        self.saver = tf.train.Saver()
-        if load: self.load()
+        self.var_scope = var_scope
+        with tf.name_scope(self.var_scope):
+            self.build()
+            self.sess = tf.InteractiveSession() # Interactive
+            self.saver = tf.train.Saver()
+            if load: self.load()
 
     # Build the network and the loss functions
     def build(self):
@@ -172,7 +174,6 @@ class DenseAutoencoder(object):
         self.x_hat = tf.layers.conv2d_transpose(dec3, 1, (3,3), (1,1), padding='same', activation=None)
         self.total_loss = tf.losses.mean_squared_error(self.x,self.x_hat)
         self.train_op = tf.train.AdamOptimizer(learning_rate=self.learning_rate).minimize(self.total_loss)
-        return
 
     def load(self):
         if os.path.isfile(self.model_fname+'.meta'):
