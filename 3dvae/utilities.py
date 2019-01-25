@@ -1,6 +1,8 @@
 import numpy as np
 import gym
 import cv2
+import os
+import re
 from copy import deepcopy
 from matplotlib import pyplot as plt
 
@@ -29,10 +31,71 @@ def log_run(num_it=10000):
 	env.close()
 	return np.array(frames,dtype=np.float32)
 
+def plot_data(data,ddir='/home/ronnypetson/models',dlen=32):
+    im_shape = (data.shape[1],data.shape[2])
+    for i in range(dlen): # len(data)
+        fig = plt.figure()
+        plt.imshow(data[i].reshape(im_shape), cmap='gray')
+        plt.savefig(ddir+'/data_plot_{}.png'.format(i))
+        plt.close(fig)
+
+def log_run_penn(num_it=10000,fdir='/home/ronnypetson/Documents/penncosyvio/data/tango_bottom/af/frames'):
+    frames = []
+    fnames = os.listdir(fdir)
+    fnames = sorted(fnames,key=lambda x: int(x[:-4]))
+    for fname in fnames:
+        f = cv2.imread(fdir+'/'+fname,0)
+        f = cv2.resize(f,img_shape[:-1])
+        f = cv2.Laplacian(f,cv2.CV_64F).reshape(img_shape)
+        frames.append(f/255.0)
+    frames = np.array(frames,dtype=np.float32)
+    plot_data(frames,dlen=128)
+    return frames
+
+def log_run_video(num_it=10000,fdir='/home/ronnypetson/Documents/penncosyvio/data/tango_bottom/af/seq_af.mp4'):
+    frames = []
+    tstamps = []
+    it = 0
+    cap = cv2.VideoCapture(fdir)
+    while cap.isOpened() and it < num_it:
+        it += 1
+        f_exists, f = cap.read()
+        if f_exists:
+            tstamps.append(cap.get(cv2.CAP_PROP_POS_MSEC)/1000.0)
+            f = cv2.cvtColor(f,cv2.COLOR_BGR2GRAY)
+            f = cv2.resize(f,img_shape[:-1])
+            f = cv2.Laplacian(f,cv2.CV_64F).reshape(img_shape)
+            frames.append(f/255.0)
+        else:
+            break
+    cap.release()
+    frames = np.array(frames,dtype=np.float32)
+    plot_data(frames,dlen=128)
+    return frames, tstamps
+
+def load_penn_odom(tstamps,fdir='/home/ronnypetson/Documents/penncosyvio/data/tango_bottom/af/pose.txt'):
+    with open(fdir) as f:
+        content = f.readlines()
+    poses = [l.split() for l in content]
+    poses = [ [ float(p) for p in l ] for l in poses ]
+    return np.array(poses)
+
 def treat_string(s):
     s_ = ''
     for c in s:
-        if ord(c) < 97 or ord(c) > 122:
+        if c in 'ãàá':
+            c = 'a'
+        elif c in 'ẽèé':
+            c = 'e'
+        elif c in 'õòó':
+            c = 'o'
+        elif c in 'ìí':
+            c = 'i'
+        elif c in 'ùú':
+            c = 'u'
+        elif c == 'ç':
+            c = 'c'
+        elif ord(c) < 97 or ord(c) > 122:
             c = ' '
         s_ += c
     return s_
@@ -120,14 +183,6 @@ def unstack_(data,seq_len=32): # Ex.: (1,32,128,1) -> (32,128)
     d = np.array(d,dtype=np.float32)
     return d #data.reshape((-1,data.shape[-2]))
 
-def plot_data(data):
-    im_shape = (data.shape[1],data.shape[2])
-    for i in range(32): # len(data)
-        fig = plt.figure()
-        plt.imshow(data[i].reshape(im_shape), cmap='gray')
-        plt.savefig('/home/ronnypetson/models/data_plot_{}.png'.format(i))
-        plt.close(fig)
-
 def up_(aes,data,seq_len=32,training=False):
     offset = 1
     for ae in aes[:-1]:
@@ -147,8 +202,8 @@ def down_(aes,data,base_data,seq_len=32,training=False,data_type='text'):
     print(data.shape)
     data = decode_(data,aes[-1],offset=1,base=True)
     if data_type=='text':
-        base_data = np.reshape(base_data,(-1,64,27))
-        data = np.reshape(data,(-1,64,27))
+        base_data = np.reshape(base_data,(-1,8,27))
+        data = np.reshape(data,(-1,8,27))
         print(base_data.shape,data.shape)
         base_text = cat2text(base_data)
         decoded_text = cat2text(data)
@@ -209,8 +264,8 @@ def encode_decode_sequence(aes,data,seq_len=32,data_type='image'):
     print(data.shape)
     data = decode_(data,aes[-1],offset=1,base=True)
     if data_type=='text':
-        base_data = np.reshape(base_data,(-1,64,27))
-        data = np.reshape(data,(-1,64,27))
+        base_data = np.reshape(base_data,(-1,8,27))
+        data = np.reshape(data,(-1,8,27))
         print(base_data.shape,data.shape)
         base_text = cat2text(base_data)
         decoded_text = cat2text(data)

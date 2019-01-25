@@ -187,36 +187,43 @@ def train_ae(num_epochs):
     model.close_session()
     print('Done!')
 
+def text_test():    
+    paes = [DenseAutoencoder([None,8,27,1],1e-3,batch_size,32,'/home/ronnypetson/models/Dense_AE_text32_','dense_8_27_1__32'),\
+            DenseAutoencoder([None,32,32,1],1e-3,batch_size,64,'/home/ronnypetson/models/Dense_AE2_text64_','dense_32_32_1__64'),\
+            DenseAutoencoder([None,32,64,1],1e-3,batch_size,128,'/home/ronnypetson/models/Dense_AE3_text128__','dense_32_64_1__128_')]
+    text_data = log_run_text('/home/ronnypetson/Documents/lusiadas.txt',wlen=8)
+    #text_data = log_run_text('/home/ronnypetson/Documents/corruption',wlen=8)
+    print(text_data.shape)
+    #train_last_ae(paes,text_data[:90000],20)
+    encode_decode_sequence(paes,text_data[-32*32:],data_type='text')
+
+    '''
+    tf.reset_default_graph()
+    
+    eaes = [DenseAutoencoder([None,8,27,1],1e-3,batch_size,32,'/home/ronnypetson/models/text/Dense_AE_eng_text32__','dense_eng_8_27_1__32')]#,\
+           #DenseAutoencoder([None,32,32,1],1e-3,batch_size,128,'/home/ronnypetson/models/text/Dense_AE2_eng_text32_','dense_eng_32_32_1__128',False),\
+           #DenseAutoencoder([None,32,32,1],1e-3,batch_size,64,'/home/ronnypetson/models/text/Dense_AE3_eng_text64_','dense_eng_32_32_1__64',False)]
+    eng_text_data = log_run_text('/home/ronnypetson/Documents/eng_lusiads.txt',wlen=8)
+    print(eng_text_data.shape)
+    #train_last_ae(eaes[:1],eng_text_data[:90000],30)
+    #encode_decode_sequence(eaes[:1],eng_text_data[-256:],data_type='text')
+    '''
+
+    #pt_text = text_data[-512:-480] # log_run_text('/home/ronnypetson/Documents/corruption',wlen=8)
+    #t = Transition([None,32],[None,32],model_fname='/home/ronnypetson/models/Vanilla_transition_text__')
+    #train_translator(t,paes,paes,text_data[:-32],text_data[32:],120)
+    #data = up_(paes,pt_text)
+    #data = t.forward(data)
+    #down_(paes,data,pt_text)
+
 if __name__ == '__main__':
     '''
-    aes = [VanillaAutoencoder([None,h,w,1],1e-3,batch_size,latent_dim,'/home/ronnypetson/models/Vanilla_AE_assault'),\
-           MetaVanillaAutoencoder([None,32,128,1],1e-3,batch_size,256,'/home/ronnypetson/models/Vanilla_Meta1_AE_assault'),\
-           MetaVanillaAutoencoder([None,32,256,1],1e-3,batch_size,256,'/home/ronnypetson/models/Vanilla_Meta2_AE_assault')]
-    #train_last_ae(aes,log_run(20000),20)
-    encode_decode_sequence(aes,log_run(1024))
+    aes = [VanillaAutoencoder([None,h,w,1],1e-3,batch_size,latent_dim,'/home/ronnypetson/models/Vanilla_AE_penncosyvio'),\
+           MetaVanillaAutoencoder([None,32,128,1],1e-3,batch_size,256,'/home/ronnypetson/models/Vanilla_Meta1_AE_penncosyvio',False),\
+           MetaVanillaAutoencoder([None,32,256,1],1e-3,batch_size,256,'/home/ronnypetson/models/Vanilla_Meta2_AE_penncosyvio',False)]
+    train_last_ae(aes,log_run_penn(1000),20)
     '''
-
-    paes = [DenseAutoencoder([None,64,27,1],1e-3,batch_size,16,'/home/ronnypetson/models/Dense_AE_text16_','dense_64_27_1__16'),\
-           DenseAutoencoder([None,32,16,1],1e-3,batch_size,32,'/home/ronnypetson/models/Dense_AE2_text32_','dense_32_16_1__32'),\
-           DenseAutoencoder([None,32,32,1],1e-3,batch_size,64,'/home/ronnypetson/models/Dense_AE3_text64_','dense_32_32_1__64',False)]
-    text_data = log_run_text('/home/ronnypetson/Documents/lusiadas.txt',wlen=64)
-    print(text_data.shape)
-    #train_last_ae(paes,text_data[:90000],30)
-    #encode_decode_sequence(paes,text_data[-32*32:],data_type='text')
-
-    tf.reset_default_graph()
-
-    eaes = [DenseAutoencoder([None,64,27,1],1e-3,batch_size,32,'/home/ronnypetson/models/text/Dense_AE_eng_text32_','dense_eng_64_27_1__32'),\
-           DenseAutoencoder([None,32,32,1],1e-3,batch_size,32,'/home/ronnypetson/models/text/Dense_AE2_eng_text32_','dense_eng_32_32_1__32'),\
-           DenseAutoencoder([None,32,32,1],1e-3,batch_size,64,'/home/ronnypetson/models/text/Dense_AE3_eng_text64_','dense_eng_32_32_1__64',False)]
-    eng_text_data = log_run_text('/home/ronnypetson/Documents/eng_lusiads.txt',wlen=64)
-    print(eng_text_data.shape)
-    #train_last_ae(eaes,eng_text_data[:90000],30)
-    #encode_decode_sequence(eaes,eng_text_data[-32*32:],data_type='text')
-
-    t = Transition([None,32],[None,32],model_fname='/home/ronnypetson/models/Vanilla_transition_text')
-    #train_translator(t,paes[:-1],eaes[:-1],text_data,eng_text_data,30)
-    data = up_(paes[:-1],text_data[:32])[0]
-    data = t.forward([data])
-    down_(eaes[:-1],data,text_data[:32])
+    #encode_decode_sequence(aes,log_run(1024))
+    _, tstamps = log_run_video(num_it=10000)
+    poses = load_penn_odom(None)
 
