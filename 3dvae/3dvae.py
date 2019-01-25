@@ -225,5 +225,5 @@ if __name__ == '__main__':
     '''
     #encode_decode_sequence(aes,log_run(1024))
     _, tstamps = log_run_video(num_it=10000)
-    poses = load_penn_odom(None)
+    tstamps, poses = load_penn_odom(tstamps)
 

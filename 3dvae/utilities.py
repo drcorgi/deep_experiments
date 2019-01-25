@@ -78,7 +78,20 @@ def load_penn_odom(tstamps,fdir='/home/ronnypetson/Documents/penncosyvio/data/ta
         content = f.readlines()
     poses = [l.split() for l in content]
     poses = [ [ float(p) for p in l ] for l in poses ]
-    return np.array(poses)
+    selected_poses = []
+    selected_tstamps = []
+    i = 0
+    j = 0
+    while i < len(tstamps):
+        while j < len(poses):
+            if abs(tstamps[i]-poses[j][0]) < 5e-2:
+                selected_poses.append(poses[j][1:])
+                selected_tstamps.append(tstamps[i])
+                j += 1
+                break
+            j += 1
+        i += 1
+    return np.array(selected_tstamps), np.array(selected_poses)
 
 def treat_string(s):
     s_ = ''
