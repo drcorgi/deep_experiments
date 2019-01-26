@@ -61,23 +61,26 @@ def log_run_penn(num_it=10000,fdir='/home/ronnypetson/Documents/penncosyvio/data
     plot_data(frames,dlen=128)
     return frames
 
-def log_run_video(num_it=10000,fdir='/home/ronnypetson/Documents/penncosyvio/data/tango_bottom/af/seq_af.mp4'):
+def log_run_video(num_it=10000,fdir='/home/ronnypetson/Documents/penncosyvio/data/tango_bottom/af'):
     frames = []
     tstamps = []
     it = 0
-    cap = cv2.VideoCapture(fdir)
-    while cap.isOpened() and it < num_it:
-        it += 1
-        f_exists, f = cap.read()
-        if f_exists:
-            tstamps.append(cap.get(cv2.CAP_PROP_POS_MSEC)/1000.0)
-            f = cv2.cvtColor(f,cv2.COLOR_BGR2GRAY)
-            f = cv2.resize(f,img_shape[:-1])
-            f = cv2.Laplacian(f,cv2.CV_64F).reshape(img_shape)
-            frames.append(f/255.0)
-        else:
-            break
-    cap.release()
+    caps = [cv2.VideoCapture(fdir+'/'+fname) for fname in os.listdir(fdir)]
+    for cap in caps:
+        print(cap.isOpened())
+        while cap.isOpened() and it < num_it:
+            it += 1
+            f_exists, f = cap.read()
+            if f_exists:
+                tstamps.append(cap.get(cv2.CAP_PROP_POS_MSEC)/1000.0)
+                f = cv2.cvtColor(f,cv2.COLOR_BGR2GRAY)
+                f = cv2.resize(f,img_shape[:-1])
+                f = cv2.Canny(f,100,200) #cv2.Laplacian(f,cv2.CV_64F)
+                f = f.reshape(img_shape)
+                frames.append(f/255.0)
+            else:
+                break
+        cap.release()
     frames = np.array(frames,dtype=np.float32)
     return frames, tstamps
 
