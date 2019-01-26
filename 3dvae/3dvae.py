@@ -217,16 +217,25 @@ def text_test():
     #down_(paes,data,pt_text)
 
 if __name__ == '__main__':
+    # Loading the data
     frames, tstamps = log_run_video(num_it=10000)
     tstamps, poses = load_penn_odom(tstamps) # Supposing all frame timestamps have a correspondent pose
+    print(len(tstamps),len(frames))
+    # Loading the encoder models
     aes = [VanillaAutoencoder([None,h,w,1],1e-3,batch_size,latent_dim,'/home/ronnypetson/models/Vanilla_AE_penncosyvio_3'),\
            MetaVanillaAutoencoder([None,32,128,1],1e-3,batch_size,256,'/home/ronnypetson/models/Vanilla_Meta1_AE_penncosyvio'),\
            MetaVanillaAutoencoder([None,32,256,1],1e-3,batch_size,256,'/home/ronnypetson/models/Vanilla_Meta2_AE_penncosyvio',False)]
     #train_last_ae(aes[:2],frames[:3000],300)
     #encode_decode_sequence(aes[:2],frames[:128])
+    # Mapping from state to pose
     t = Transition([None,256],[None,12],model_fname='/home/ronnypetson/models/Vanilla_transition_penn')
     data_x = up_(aes[:2],frames,training=True)
     tf.reset_default_graph()
-    print(len(data_x),len(poses[31:]))
-    train_transition(t,data_x,poses[31:],200)
+    #train_transition(t,data_x,poses[31:],200)
+    # Checking the estimated poses
+    rmse, estimated = test_transition(t,data_x,poses[31:])
+    gt_points = get_3d_points(poses[31:])
+    est_points = get_3d_points(estimated)
+    plot_3d_points_(gt_points,est_points)
+    print(rmse)
 

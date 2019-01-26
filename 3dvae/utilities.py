@@ -5,6 +5,7 @@ import os
 import re
 from copy import deepcopy
 from matplotlib import pyplot as plt
+from mpl_toolkits.mplot3d import Axes3D
 
 from vae import *
 from transition import *
@@ -38,6 +39,14 @@ def plot_data(data,ddir='/home/ronnypetson/models',dlen=32):
         plt.imshow(data[i].reshape(im_shape), cmap='gray')
         plt.savefig(ddir+'/data_plot_{}.png'.format(i))
         plt.close(fig)
+
+def plot_3d_points_(gt,est,ddir='/home/ronnypetson/models'):
+    fig = plt.figure()
+    ax = fig.add_subplot(111,projection='3d')
+    ax.plot(gt[:,0],gt[:,1],gt[:,2],'g')
+    ax.plot(est[:,0],est[:,1],est[:,2],'b')
+    plt.savefig(ddir+'/path_plot.png')
+    plt.close(fig)
 
 def log_run_penn(num_it=10000,fdir='/home/ronnypetson/Documents/penncosyvio/data/tango_bottom/af/frames'):
     frames = []
@@ -73,7 +82,7 @@ def log_run_video(num_it=10000,fdir='/home/ronnypetson/Documents/penncosyvio/dat
     plot_data(frames,dlen=128)
     return frames, tstamps
 
-def load_penn_odom(tstamps,fdir='/home/ronnypetson/Documents/penncosyvio/data/tango_bottom/af/pose.txt'):
+def load_penn_odom(tstamps,fdir='/home/ronnypetson/Documents/penncosyvio/data/ground_truth/af/pose.txt'):
     with open(fdir) as f:
         content = f.readlines()
     poses = [l.split() for l in content]
@@ -84,7 +93,7 @@ def load_penn_odom(tstamps,fdir='/home/ronnypetson/Documents/penncosyvio/data/ta
     j = 0
     while i < len(tstamps):
         while j < len(poses):
-            if abs(tstamps[i]-poses[j][0]) < 5e-2:
+            if abs(tstamps[i]-poses[j][0]) < 5e-1:
                 selected_poses.append(poses[j][1:])
                 selected_tstamps.append(tstamps[i])
                 j += 1
@@ -148,6 +157,9 @@ def cat2text(data):
     for w in data:
         ords += [np.argmax(c) for c in w]
     return get_str(ords)
+
+def get_3d_points(poses):
+    return np.array([ [p[3],p[7],p[11]] for p in poses ])
 
 def get_batch(data):
     inds = np.random.choice(range(data.shape[0]), batch_size, False)
@@ -250,6 +262,17 @@ def train_transition(t,data_x,data_y,num_epochs):
             t.save_model()
         print('[Epoch {}] Loss: {}'.format(epoch, loss))
     print('Done!')
+
+def test_transition(t,test_x,test_y):
+    #assert len(test_x) == len(test_y)
+    rec = []
+    num_batches = (len(test_x)+batch_size)//batch_size
+    for i in range(num_batches):
+        bx = test_x[i*batch_size:(i+1)*batch_size]
+        if len(bx) > 0:
+            rec += t.forward(bx).tolist()
+    rec = np.array(rec)
+    return np.sum((rec[:len(test_y)]-test_y)**2)**0.5, rec
 
 def train_last_ae(aes,data,num_epochs,seq_len=32):
     current = aes[-1]
