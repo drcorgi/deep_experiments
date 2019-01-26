@@ -55,7 +55,7 @@ def log_run_penn(num_it=10000,fdir='/home/ronnypetson/Documents/penncosyvio/data
     for fname in fnames:
         f = cv2.imread(fdir+'/'+fname,0)
         f = cv2.resize(f,img_shape[:-1])
-        f = cv2.Laplacian(f,cv2.CV_64F).reshape(img_shape)
+        f = cv2.Canny(f,100,200) #cv2.Laplacian(f,cv2.CV_64F).reshape(img_shape)
         frames.append(f/255.0)
     frames = np.array(frames,dtype=np.float32)
     plot_data(frames,dlen=128)
@@ -79,7 +79,6 @@ def log_run_video(num_it=10000,fdir='/home/ronnypetson/Documents/penncosyvio/dat
             break
     cap.release()
     frames = np.array(frames,dtype=np.float32)
-    plot_data(frames,dlen=128)
     return frames, tstamps
 
 def load_penn_odom(tstamps,fdir='/home/ronnypetson/Documents/penncosyvio/data/ground_truth/af/pose.txt'):
@@ -93,10 +92,10 @@ def load_penn_odom(tstamps,fdir='/home/ronnypetson/Documents/penncosyvio/data/gr
     j = 0
     while i < len(tstamps):
         while j < len(poses):
-            if abs(tstamps[i]-poses[j][0]) < 5e-1:
+            if abs(tstamps[i]-poses[j][0]) < 2e-2:
                 selected_poses.append(poses[j][1:])
                 selected_tstamps.append(tstamps[i])
-                j += 1
+                #j += 1
                 break
             j += 1
         i += 1
@@ -167,6 +166,7 @@ def get_batch(data):
 
 def get_batch_(datax,datay):
     assert len(datax) == len(datay)
+    #datax = datax[:len(datay)]
     inds = np.random.choice(range(datax.shape[0]), batch_size, False)
     batchx = np.array([datax[i] for i in inds],dtype=np.float32)
     batchy = np.array([datay[i] for i in inds],dtype=np.float32)
@@ -264,7 +264,7 @@ def train_transition(t,data_x,data_y,num_epochs):
     print('Done!')
 
 def test_transition(t,test_x,test_y):
-    #assert len(test_x) == len(test_y)
+    assert len(test_x) == len(test_y)
     rec = []
     num_batches = (len(test_x)+batch_size)//batch_size
     for i in range(num_batches):
@@ -272,7 +272,7 @@ def test_transition(t,test_x,test_y):
         if len(bx) > 0:
             rec += t.forward(bx).tolist()
     rec = np.array(rec)
-    return np.sum((rec[:len(test_y)]-test_y)**2)**0.5, rec
+    return np.sum((rec-test_y)**2)**0.5, rec
 
 def train_last_ae(aes,data,num_epochs,seq_len=32):
     current = aes[-1]
@@ -321,7 +321,7 @@ def encode_decode_sequence(aes,data,seq_len=32,data_type='image'):
         print(decoded_text)
     else:
         im_shape = (data.shape[1],2*data.shape[2])
-        for i in range(128): # len(data)
+        for i in range(len(data)): # len(data)
             side_by_side = np.concatenate((base_data[i],data[i]),axis=1)
             fig = plt.figure()
             plt.imshow(side_by_side.reshape(im_shape), cmap='gray')
