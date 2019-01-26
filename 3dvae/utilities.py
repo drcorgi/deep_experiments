@@ -240,6 +240,17 @@ def train_translator(t,paes,eaes,pdata,edata,num_epochs,seq_len=32):
         print('[Epoch {}] Loss: {}'.format(epoch, loss))
     print('Done!')
 
+def train_transition(t,data_x,data_y,num_epochs):
+    num_sample = len(data_x)
+    for epoch in range(num_epochs):
+        for _ in range(num_sample//batch_size):
+            batch_x, batch_y = get_batch_(data_x,data_y)
+            loss = t.run_single_step(batch_x,batch_y)
+        if epoch%50==49:
+            t.save_model()
+        print('[Epoch {}] Loss: {}'.format(epoch, loss))
+    print('Done!')
+
 def train_last_ae(aes,data,num_epochs,seq_len=32):
     current = aes[-1]
     base = aes[:-1]
@@ -287,11 +298,11 @@ def encode_decode_sequence(aes,data,seq_len=32,data_type='image'):
         print(decoded_text)
     else:
         im_shape = (data.shape[1],2*data.shape[2])
-        for i in range(1024): # len(data)
+        for i in range(128): # len(data)
             side_by_side = np.concatenate((base_data[i],data[i]),axis=1)
             fig = plt.figure()
             plt.imshow(side_by_side.reshape(im_shape), cmap='gray')
-            plt.savefig('/home/ronnypetson/models/rec_1024_{}.png'.format(i))
+            plt.savefig('/home/ronnypetson/models/rec_128_{}.png'.format(i))
             plt.close(fig)
 
 '''
