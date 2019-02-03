@@ -9,7 +9,7 @@ from vae import *
 from transition import *
 from utilities import *
 
-img_shape = [32,32,1]
+img_shape = [64,64,1]
 batch_size = 64
 latent_dim = 128
 h, w, _ = img_shape
@@ -218,23 +218,37 @@ def text_test():
 
 if __name__ == '__main__':
     # Loading the data
-    frames, tstamps = log_run_video(num_it=10000,fdir='/home/ronnypetson/Videos/Webcam')
+    # Penn COSYVIO
+    #frames, tstamps = log_run_video(num_it=10000) # ,fdir='/home/ronnypetson/Videos/Webcam'
     #tstamps, poses = load_penn_odom(tstamps) # Supposing all frame timestamps have a correspondent pose
+    # KITTI
+
+    '''frames, sdivs = log_run_kitti_all()
+    poses, poses_abs = load_kitti_odom_all()
+    print(frames.shape, len(sdivs))
+    print(poses.shape, poses_abs.shape)
+    assert len(poses_abs)-len(sdivs)*31 == len(poses)
+    exit()'''
+
+    frames, sdivs = log_run_kitti_all()
+    poses, poses_abs = load_kitti_odom_all()
     # Loading the encoder models
-    aes = [VanillaAutoencoder([None,h,w,1],1e-3,batch_size,latent_dim,'/home/ronnypetson/models/Vanilla_AE_penncosyvio_3_canny'),\
-           MetaVanillaAutoencoder([None,32,128,1],1e-3,batch_size,256,'/home/ronnypetson/models/Vanilla_Meta1_AE_penncosyvio_canny',False),\
-           MetaVanillaAutoencoder([None,32,256,1],1e-3,batch_size,256,'/home/ronnypetson/models/Vanilla_Meta2_AE_penncosyvio_canny',False)]
-    #train_last_ae(aes[:1],frames,100)
-    encode_decode_sequence(aes[:1],frames[:256])
+    aes = [VanillaAutoencoder([None,h,w,1],1e-3,batch_size,128,'/home/ronnypetson/models/Vanilla_AE_64x64_kitti'),\
+           MetaVanillaAutoencoder([None,32,128,1],1e-3,batch_size,256,'/home/ronnypetson/models/Vanilla_Meta1_AE_kitti',False),\
+           MetaVanillaAutoencoder([None,32,256,1],1e-3,batch_size,256,'/home/ronnypetson/models/Vanilla_Meta2_AE_kitti',False)]
+    train_last_ae(aes[:1],frames,30)
+    #encode_decode_sequence(aes[:1],frames[:129])
     # Mapping from state to pose
-    '''t = Transition([None,256],[None,12],model_fname='/home/ronnypetson/models/Vanilla_transition_penn_canny')
+    '''t = Transition([None,256],[None,12],model_fname='/home/ronnypetson/models/Vanilla_transition_kitti')
     data_x = up_(aes[:2],frames,training=True)
     tf.reset_default_graph()
-    #train_transition(t,data_x,poses[31:],200)
+    print(len(data_x),len(poses))
+    train_transition(t,data_x,poses,200)
     # Checking the estimated poses
-    rmse, estimated = test_transition(t,data_x,poses[31:])
-    gt_points = np.zeros((31,3)) #get_3d_points(poses[31:])
-    est_points = get_3d_points(estimated)
+    rmse, estimated = test_transition(t,data_x,poses)
+    gt_points = get_3d_points(poses, poses_abs)
+    est_points = get_3d_points(estimated, poses_abs)
     plot_3d_points_(gt_points,est_points)
+    plot_2d_points_(gt_points,est_points)
     print(rmse)'''
 

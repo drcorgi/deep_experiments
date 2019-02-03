@@ -10,7 +10,7 @@ from mpl_toolkits.mplot3d import Axes3D
 from vae import *
 from transition import *
 
-img_shape = (32,32,1)
+img_shape = (64,64,1)
 batch_size = 64
 latent_dim = 128
 h, w, _ = img_shape
@@ -40,12 +40,43 @@ def plot_data(data,ddir='/home/ronnypetson/models',dlen=32):
         plt.savefig(ddir+'/data_plot_{}.png'.format(i))
         plt.close(fig)
 
+def log_run_kitti(fdir='/home/ronnypetson/Documents/deep_odometry/kitti/dataset_frames/sequences/02/image_0'):
+    frames = []
+    fnames = os.listdir(fdir)
+    fnames = sorted(fnames,key=lambda x: int(x[:-4]))
+    for fname in fnames:
+        f = cv2.imread(fdir+'/'+fname,0)
+        f = cv2.resize(f,img_shape[:-1]).reshape(img_shape)
+        frames.append(f/255.0)
+    frames = np.array(frames,dtype=np.float32)
+    plot_data(frames,dlen=32)
+    return frames
+
+def log_run_kitti_all(re_dir='/home/ronnypetson/Documents/deep_odometry/kitti/dataset_frames/sequences/{}/image_0'):
+    seqs = ['00','01','02','03','04','05','06','07','08','09','10']
+    frames = log_run_kitti(re_dir.format(seqs[0]))
+    seq_divs = [len(frames)]
+    for s in seqs[1:]:
+        sframes = log_run_kitti(re_dir.format(s))
+        seq_divs.append(len(sframes))
+        frames = np.concatenate((frames,sframes),axis=0)
+    return frames, seq_divs
+
 def plot_3d_points_(gt,est,ddir='/home/ronnypetson/models'):
     fig = plt.figure()
     ax = fig.add_subplot(111,projection='3d')
     ax.plot(gt[:,0],gt[:,1],gt[:,2],'g')
     ax.plot(est[:,0],est[:,1],est[:,2],'b')
-    plt.savefig(ddir+'/path_plot.png')
+    plt.savefig(ddir+'/3d_path_plot.png')
+    plt.close(fig)
+
+def plot_2d_points_(gt,est,ign=1,ddir='/home/ronnypetson/models'):
+    fig = plt.figure()
+    ax = fig.add_subplot(111)
+    if ign == 1:
+        ax.plot(gt[:,0],gt[:,2],'g')
+        ax.plot(est[:,0],est[:,2],'b')
+    plt.savefig(ddir+'/2d_path_plot.png')
     plt.close(fig)
 
 def log_run_penn(num_it=10000,fdir='/home/ronnypetson/Documents/penncosyvio/data/tango_bottom/af/frames'):
@@ -61,48 +92,85 @@ def log_run_penn(num_it=10000,fdir='/home/ronnypetson/Documents/penncosyvio/data
     plot_data(frames,dlen=128)
     return frames
 
-def log_run_video(num_it=10000,fdir='/home/ronnypetson/Documents/penncosyvio/data/tango_bottom/af'):
+def log_run_video(num_it=10000,fdir='/home/ronnypetson/Documents/penncosyvio/data/tango_bottom/af/video'):
     frames = []
     tstamps = []
     it = 0
     caps = [cv2.VideoCapture(fdir+'/'+fname) for fname in os.listdir(fdir)]
+    prev_tstamp = 0.0
     for cap in caps:
-        print(cap.isOpened())
         while cap.isOpened() and it < num_it:
             it += 1
             f_exists, f = cap.read()
             if f_exists:
-                tstamps.append(cap.get(cv2.CAP_PROP_POS_MSEC)/1000.0)
+                tstamps.append(prev_tstamp+cap.get(cv2.CAP_PROP_POS_MSEC)/1000.0)
                 f = cv2.cvtColor(f,cv2.COLOR_BGR2GRAY)
                 f = cv2.resize(f,img_shape[:-1])
-                f = cv2.Canny(f,100,200) #cv2.Laplacian(f,cv2.CV_64F)
+                #f = cv2.Laplacian(f,cv2.CV_64F) # cv2.Canny(f,100,200)
                 f = f.reshape(img_shape)
                 frames.append(f/255.0)
             else:
+                prev_tstamp = np.max(tstamps)
                 break
         cap.release()
     frames = np.array(frames,dtype=np.float32)
+    plot_data(frames)
     return frames, tstamps
+
+def fast_argmin(x,sorted_arr,lambda_): # Supposing that lambda_ is non-decreasing in [0,1,2,...,n]
+    ind = len(sorted_arr)//2
+    inc = ind//2
+    arg_min = ind
+    while inc > 0:
+        inc = inc//2
+        if lambda_(x,sorted_arr[ind]) > 0:
+            ind -= inc
+        else:
+            ind += inc
+    return ind
+
+def homogen(x):
+    return np.array(x.tolist()+[0.0,0.0,0.0,1.0]).reshape((4,4))
+
+def flat_homogen(x):
+    return np.array(x.reshape(16)[:-4])
+
+def load_kitti_odom(fdir='/home/ronnypetson/Documents/deep_odometry/kitti/dataset/poses/02.txt'):
+    with open(fdir) as f:
+        content = f.readlines()
+    poses = [l.split() for l in content]
+    poses = np.array([ [ float(p) for p in l ] for l in poses ])
+    poses_ = [homogen(p) for p in poses]
+    poses_ = [np.matmul(poses_[i],np.linalg.inv(poses_[i-31])) for i in range(31,len(poses_),1)]
+    poses_ = [flat_homogen(p) for p in poses_]
+    return np.array(poses_), poses
+
+def load_kitti_odom_all(fdir='/home/ronnypetson/Documents/deep_odometry/kitti/dataset/poses'):
+    fns = os.listdir(fdir)
+    fns = sorted(fns,key=lambda x: int(x[:-4]))
+    rposes, aposes = load_kitti_odom(fdir+'/'+fns[0])
+    for fn in fns[1:]:
+        rp, ap = load_kitti_odom(fdir+'/'+fn)
+        rposes = np.concatenate((rposes,rp),axis=0)
+        aposes = np.concatenate((aposes,ap),axis=0)
+    return rposes, aposes
 
 def load_penn_odom(tstamps,fdir='/home/ronnypetson/Documents/penncosyvio/data/ground_truth/af/pose.txt'):
     with open(fdir) as f:
         content = f.readlines()
     poses = [l.split() for l in content]
-    poses = [ [ float(p) for p in l ] for l in poses ]
-    selected_poses = []
-    selected_tstamps = []
+    poses = np.array([ [ float(p) for p in l ] for l in poses ])
+    poses = [p-poses[0] for p in poses] # Only works for translation
+    new_poses = []
     i = 0
-    j = 0
-    while i < len(tstamps):
-        while j < len(poses):
-            if abs(tstamps[i]-poses[j][0]) < 2e-2:
-                selected_poses.append(poses[j][1:])
-                selected_tstamps.append(tstamps[i])
-                #j += 1
-                break
-            j += 1
-        i += 1
-    return np.array(selected_tstamps), np.array(selected_poses)
+    for t in tstamps:
+        new_poses.append(poses[np.argmin([abs(t-p[0]) for p in poses])][1:]) # O(mn)
+        '''true_indx = np.argmin([abs(t-p[0]) for p in poses])
+        indx = fast_argmin(t,poses,lambda x,y: x-y[0])
+        print(t-poses[indx][0],t-poses[true_indx][0])
+        new_poses.append(poses[indx][1:])''' # O(m*log(n))
+    assert len(tstamps) == len(new_poses)
+    return np.array(tstamps), np.array(new_poses)
 
 def treat_string(s):
     s_ = ''
@@ -160,8 +228,10 @@ def cat2text(data):
         ords += [np.argmax(c) for c in w]
     return get_str(ords)
 
-def get_3d_points(poses):
-    return np.array([ [p[3],p[7],p[11]] for p in poses ])
+def get_3d_points(poses,poses_abs): # Under unit test
+    assert len(poses)+31 == len(poses_abs)
+    poses = [ np.matmul( homogen(poses[i]), homogen(poses_abs[i])) for i in range(len(poses))]
+    return np.array([ [p[0,3],p[1,3],p[2,3]] for p in poses ])
 
 def get_batch(data):
     inds = np.random.choice(range(data.shape[0]), batch_size, False)
@@ -169,7 +239,6 @@ def get_batch(data):
 
 def get_batch_(datax,datay):
     assert len(datax) == len(datay)
-    #datax = datax[:len(datay)]
     inds = np.random.choice(range(datax.shape[0]), batch_size, False)
     batchx = np.array([datax[i] for i in inds],dtype=np.float32)
     batchy = np.array([datay[i] for i in inds],dtype=np.float32)
