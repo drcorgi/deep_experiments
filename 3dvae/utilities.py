@@ -44,23 +44,22 @@ def log_run_kitti(fdir='/home/ronnypetson/Documents/deep_odometry/kitti/dataset_
     frames = []
     fnames = os.listdir(fdir)
     fnames = sorted(fnames,key=lambda x: int(x[:-4]))
-    for fname in fnames:
-        f = cv2.imread(fdir+'/'+fname,0)
-        f = cv2.resize(f,img_shape[:-1]).reshape(img_shape)
+    imgs = [cv2.imread(fdir+'/'+fname,0) for fname in fnames]
+    for f in imgs:
+        f = cv2.resize(f,img_shape[:-1],interpolation=cv2.INTER_LINEAR).reshape(img_shape)
         frames.append(f/255.0)
-    frames = np.array(frames,dtype=np.float32)
-    plot_data(frames,dlen=32)
+    frames = np.array(frames)
+    #plot_data(frames,dlen=32)
     return frames
 
 def log_run_kitti_all(re_dir='/home/ronnypetson/Documents/deep_odometry/kitti/dataset_frames/sequences/{}/image_0'):
     seqs = ['00','01','02','03','04','05','06','07','08','09','10']
     frames = log_run_kitti(re_dir.format(seqs[0]))
-    seq_divs = [len(frames)]
     for s in seqs[1:]:
+        print('Loading sequence from '+s)
         sframes = log_run_kitti(re_dir.format(s))
-        seq_divs.append(len(sframes))
         frames = np.concatenate((frames,sframes),axis=0)
-    return frames, seq_divs
+    return frames
 
 def plot_3d_points_(gt,est,ddir='/home/ronnypetson/models'):
     fig = plt.figure()
@@ -141,7 +140,8 @@ def load_kitti_odom(fdir='/home/ronnypetson/Documents/deep_odometry/kitti/datase
     poses = [l.split() for l in content]
     poses = np.array([ [ float(p) for p in l ] for l in poses ])
     poses_ = [homogen(p) for p in poses]
-    poses_ = [np.matmul(poses_[i],np.linalg.inv(poses_[i-31])) for i in range(31,len(poses_),1)]
+    #poses_ = [np.matmul(poses_[i],np.linalg.inv(poses_[i-31])) for i in range(31,len(poses_),1)]
+    poses_ = [np.matmul(poses_[i],np.linalg.inv(poses_[max(0,i-31)])) for i in range(len(poses_))]
     poses_ = [flat_homogen(p) for p in poses_]
     return np.array(poses_), poses
 
@@ -229,7 +229,7 @@ def cat2text(data):
     return get_str(ords)
 
 def get_3d_points(poses,poses_abs): # Under unit test
-    assert len(poses)+31 == len(poses_abs)
+    #assert len(poses)+31 == len(poses_abs)
     poses = [ np.matmul( homogen(poses[i]), homogen(poses_abs[i])) for i in range(len(poses))]
     return np.array([ [p[0,3],p[1,3],p[2,3]] for p in poses ])
 
@@ -336,7 +336,8 @@ def train_transition(t,data_x,data_y,num_epochs):
     print('Done!')
 
 def test_transition(t,test_x,test_y):
-    assert len(test_x) == len(test_y)
+    #assert len(test_x) == len(test_y)
+    print(len(test_x),len(test_y))
     rec = []
     num_batches = (len(test_x)+batch_size)//batch_size
     for i in range(num_batches):

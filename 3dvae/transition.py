@@ -28,7 +28,11 @@ class Transition(object):
         self.x = tf.placeholder(name='x', dtype=tf.float32, shape=self.input_dim)
         self.x_ = tf.placeholder(name='x_', dtype=tf.float32, shape=self.output_dim)
         # Layers
-        d1 = tf.layers.dense(self.x, 1024, activation=tf.nn.relu)
+        r1 = tf.reshape(self.x,[-1,self.input_dim[1],1])
+        conv1 = tf.layers.conv1d(r1, 64, (3,), padding='same', activation=tf.nn.relu)
+        conv2 = tf.layers.conv1d(conv1, 64, (3,), padding='same', activation=tf.nn.relu)
+        f1 = tf.layers.flatten(conv2)
+        d1 = tf.layers.dense(f1, 1024, activation=tf.nn.relu)
         d1 = tf.layers.dense(d1, 1024, activation=tf.nn.relu)
         self.x_hat = tf.layers.dense(d1, self.output_dim[1], activation=None) # tf.nn.relu
         # Loss and train operations
