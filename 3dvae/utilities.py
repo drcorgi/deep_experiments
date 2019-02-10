@@ -142,20 +142,21 @@ def load_kitti_odom(fdir='/home/ronnypetson/Documents/deep_odometry/kitti/datase
     poses_ = [homogen(p) for p in poses]
     #[np.matmul(poses_[i],np.linalg.inv(poses_[max(0,i-31)])) for i in range(len(poses_))]
     rposes = []
-    for i in range(len(poses_)-31):
+    for i in range(len(poses_)-31): # hack, -31
         rposes.append([flat_homogen(np.matmul(poses_[j],np.linalg.inv(poses_[i]))) for j in range(i,i+32,1)])
     return np.array(rposes), poses
 
 def load_kitti_odom_all(fdir='/home/ronnypetson/Documents/deep_odometry/kitti/dataset/poses'):
     fns = os.listdir(fdir)
     fns = sorted(fns,key=lambda x: int(x[:-4]))
-    print(fns)
     rposes, aposes = load_kitti_odom(fdir+'/'+fns[0])
+    limits = [len(aposes)]
     for fn in fns[1:]:
         rp, ap = load_kitti_odom(fdir+'/'+fn)
         rposes = np.concatenate((rposes,rp),axis=0)
         aposes = np.concatenate((aposes,ap),axis=0)
-    return rposes, aposes
+        limits.append(len(aposes))
+    return rposes, aposes, np.reshape([range(l-31,l,1) for l in limits],(-1,))
 
 def load_penn_odom(tstamps,fdir='/home/ronnypetson/Documents/penncosyvio/data/ground_truth/af/pose.txt'):
     with open(fdir) as f:
