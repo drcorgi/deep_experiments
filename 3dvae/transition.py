@@ -28,13 +28,65 @@ class Transition(object):
         self.x = tf.placeholder(name='x', dtype=tf.float32, shape=self.input_dim)
         self.x_ = tf.placeholder(name='x_', dtype=tf.float32, shape=self.output_dim)
         # Layers
-        r1 = tf.reshape(self.x,[-1,self.input_dim[1],1])
+        '''r1 = tf.reshape(self.x,[-1,self.input_dim[1],1])
         conv1 = tf.layers.conv1d(r1, 64, (3,), padding='same', activation=tf.nn.relu)
         conv2 = tf.layers.conv1d(conv1, 64, (3,), padding='same', activation=tf.nn.relu)
-        f1 = tf.layers.flatten(conv2)
-        d1 = tf.layers.dense(f1, 1024, activation=tf.nn.relu)
+        f1 = tf.layers.flatten(conv2)'''
+        d1 = tf.layers.dense(self.x, 1024, activation=tf.nn.relu)
         d1 = tf.layers.dense(d1, 1024, activation=tf.nn.relu)
+        d1 = tf.layers.dense(d1, 256, activation=tf.nn.relu)
         self.x_hat = tf.layers.dense(d1, self.output_dim[1], activation=None) # tf.nn.relu
+        # Loss and train operations
+        self.total_loss = tf.losses.mean_squared_error(self.x_,self.x_hat)
+        self.train_op = tf.train.AdamOptimizer(learning_rate=self.learning_rate).minimize(self.total_loss)
+        return
+
+    # Execute the forward and the backward pass
+    def run_single_step(self, x, x_):
+        _, loss = self.sess.run(
+            [self.train_op, self.total_loss],
+            feed_dict={self.x: x, self.x_: x_}
+        )
+        return loss
+    # x -> x_hat
+    def forward(self, x):
+        x_hat = self.sess.run(self.x_hat, feed_dict={self.x: x})
+        return x_hat
+    def save_model(self):
+        self.saver.save(self.sess, self.model_fname)
+    def close_session(self):
+        self.sess.close()
+
+class Matcher(object):
+    def __init__(self, input_dim=[None,512], output_dim=[None,32,12], learning_rate=1e-3, batch_size=64, model_fname='/home/ronnypetson/models/Vanilla_transition'):
+        self.input_dim = input_dim
+        self.output_dim = output_dim
+        self.learning_rate = learning_rate
+        self.batch_size = batch_size
+        self.model_fname = model_fname
+        self.build()
+        self.sess = tf.InteractiveSession()
+        self.saver = tf.train.Saver()
+        if os.path.isfile(self.model_fname+'.meta'):
+            try:
+                self.saver.restore(self.sess,self.model_fname)
+            except ValueError:
+                self.sess.run(tf.global_variables_initializer())
+                print('Cannot restore model')
+        else:
+            print('Model file not found')
+            self.sess.run(tf.global_variables_initializer())
+
+    # Build the netowrk and the loss functions
+    def build(self):
+        # Placeholders
+        self.x = tf.placeholder(name='x', dtype=tf.float32, shape=self.input_dim)
+        self.x_ = tf.placeholder(name='x_', dtype=tf.float32, shape=self.output_dim)
+        # Layers
+        d1 = tf.layers.dense(self.x, 1024, activation=tf.nn.relu)
+        d1 = tf.layers.dense(d1, 1024, activation=tf.nn.relu)
+        d1 = tf.layers.dense(d1, np.prod(self.output_dim[1:]))
+        self.x_hat = tf.reshape(d1,[-1]+self.output_dim[1:]) # tf.nn.relu
         # Loss and train operations
         self.total_loss = tf.losses.mean_squared_error(self.x_,self.x_hat)
         self.train_op = tf.train.AdamOptimizer(learning_rate=self.learning_rate).minimize(self.total_loss)

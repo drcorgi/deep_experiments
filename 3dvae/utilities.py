@@ -140,14 +140,16 @@ def load_kitti_odom(fdir='/home/ronnypetson/Documents/deep_odometry/kitti/datase
     poses = [l.split() for l in content]
     poses = np.array([ [ float(p) for p in l ] for l in poses ])
     poses_ = [homogen(p) for p in poses]
-    #poses_ = [np.matmul(poses_[i],np.linalg.inv(poses_[i-31])) for i in range(31,len(poses_),1)]
-    poses_ = [np.matmul(poses_[i],np.linalg.inv(poses_[max(0,i-31)])) for i in range(len(poses_))]
-    poses_ = [flat_homogen(p) for p in poses_]
-    return np.array(poses_), poses
+    #[np.matmul(poses_[i],np.linalg.inv(poses_[max(0,i-31)])) for i in range(len(poses_))]
+    rposes = []
+    for i in range(len(poses_)-31):
+        rposes.append([flat_homogen(np.matmul(poses_[j],np.linalg.inv(poses_[i]))) for j in range(i,i+32,1)])
+    return np.array(rposes), poses
 
 def load_kitti_odom_all(fdir='/home/ronnypetson/Documents/deep_odometry/kitti/dataset/poses'):
     fns = os.listdir(fdir)
     fns = sorted(fns,key=lambda x: int(x[:-4]))
+    print(fns)
     rposes, aposes = load_kitti_odom(fdir+'/'+fns[0])
     for fn in fns[1:]:
         rp, ap = load_kitti_odom(fdir+'/'+fn)
@@ -229,9 +231,19 @@ def cat2text(data):
     return get_str(ords)
 
 def get_3d_points(poses,poses_abs): # Under unit test
-    #assert len(poses)+31 == len(poses_abs)
-    poses = [ np.matmul( homogen(poses[i]), homogen(poses_abs[i])) for i in range(len(poses))]
-    return np.array([ [p[0,3],p[1,3],p[2,3]] for p in poses ])
+    poses = np.array([[np.matmul(homogen(poses[i,j]), homogen(poses_abs[i])) for j in range(32)] for i in range(len(poses))])
+    #print(poses.shape)
+    poses_ = []
+    for i in range(len(poses)):
+        p = []
+        for j in range(max(0,i-31),min(i+1,len(poses)-31),1):
+            p.append(poses[j,i-j])
+        #print(np.array(p).shape,np.mean(p,axis=0).shape)
+        poses_.append(np.median(p,axis=0))
+    #print([p.shape for p in poses_])
+    poses_ = np.array([[p[0,3],p[1,3],p[2,3]] for p in poses_])
+    #print(poses_.shape)
+    return poses_
 
 def get_batch(data):
     inds = np.random.choice(range(data.shape[0]), batch_size, False)
@@ -345,7 +357,7 @@ def test_transition(t,test_x,test_y):
         if len(bx) > 0:
             rec += t.forward(bx).tolist()
     rec = np.array(rec)
-    return np.sum((rec-test_y)**2)**0.5, rec
+    return np.sum((rec-test_y)**2)**0.5/len(rec), rec
 
 def train_last_ae(aes,data,num_epochs,seq_len=32):
     current = aes[-1]
