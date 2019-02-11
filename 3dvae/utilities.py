@@ -54,8 +54,8 @@ def log_run_kitti(fdir='/home/ronnypetson/Documents/deep_odometry/kitti/dataset_
 
 def log_run_kitti_all(re_dir='/home/ronnypetson/Documents/deep_odometry/kitti/dataset_frames/sequences/{}/image_0'):
     seqs = ['00','01','02','03','04','05','06','07','08','09','10']
-    frames = log_run_kitti(re_dir.format(seqs[0]))
-    for s in seqs[1:]:
+    frames = log_run_kitti(re_dir.format(seqs[1]))
+    for s in seqs[1:1]:
         print('Loading sequence from '+s)
         sframes = log_run_kitti(re_dir.format(s))
         frames = np.concatenate((frames,sframes),axis=0)
@@ -65,7 +65,7 @@ def plot_3d_points_(gt,est,ddir='/home/ronnypetson/models'):
     fig = plt.figure()
     ax = fig.add_subplot(111,projection='3d')
     ax.plot(gt[:,0],gt[:,1],gt[:,2],'g')
-    ax.plot(est[:,0],est[:,1],est[:,2],'b')
+    #ax.plot(est[:,0],est[:,1],est[:,2],'b')
     plt.savefig(ddir+'/3d_path_plot.png')
     plt.close(fig)
 
@@ -149,9 +149,9 @@ def load_kitti_odom(fdir='/home/ronnypetson/Documents/deep_odometry/kitti/datase
 def load_kitti_odom_all(fdir='/home/ronnypetson/Documents/deep_odometry/kitti/dataset/poses'):
     fns = os.listdir(fdir)
     fns = sorted(fns,key=lambda x: int(x[:-4]))
-    rposes, aposes = load_kitti_odom(fdir+'/'+fns[0])
+    rposes, aposes = load_kitti_odom(fdir+'/'+fns[1])
     limits = [len(aposes)]
-    for fn in fns[1:]:
+    for fn in fns[1:1]:
         rp, ap = load_kitti_odom(fdir+'/'+fn)
         rposes = np.concatenate((rposes,rp),axis=0)
         aposes = np.concatenate((aposes,ap),axis=0)
@@ -231,19 +231,42 @@ def cat2text(data):
         ords += [np.argmax(c) for c in w]
     return get_str(ords)
 
+def get_3d_points_(rposes):
+    rposes = [[homogen(p) for p in r] for r in rposes]
+    '''pt = np.array([0.0,0.0,0.0,1.0])
+    pts = []
+    for rp in rposes[::32]:
+        pts += [np.matmul(p,pt) for p in rp]
+        pt = np.matmul(rp[-1],pt)'''
+    aposes = [rposes[0]]
+    for i in range(1,len(rposes),1):
+        if i%32 == 0 and i//32 > 0:
+            in_p = aposes[32*(i//32)-1][(i+1)%32]
+        else:
+            in_p = aposes[32*(i//32)][i%32]
+        new_p = [np.matmul(rposes[i][j],in_p) for j in range(32)]
+        aposes.append(new_p)
+    aposes_ = np.reshape(aposes[::32],(-1,4,4))
+    '''poses_ = []
+    for i in range(len(aposes)):
+        p = []
+        for j in range(max(0,i-31),min(i+1,len(aposes)-31),1):
+            p.append(aposes[j][i-j])
+        poses_.append(np.mean(p,axis=0))
+    poses_ = np.array([[p[0,3],p[1,3],p[2,3]] for p in poses_])
+    return poses_'''
+    return np.array([[p[0,3],p[1,3],p[2,3]] for p in aposes_[:-500]])
+    '''return np.array([p[:-1] for p in pts])'''
+
 def get_3d_points(poses,poses_abs): # Under unit test
     poses = np.array([[np.matmul(homogen(poses[i,j]), homogen(poses_abs[i])) for j in range(32)] for i in range(len(poses))])
-    #print(poses.shape)
     poses_ = []
     for i in range(len(poses)):
         p = []
         for j in range(max(0,i-31),min(i+1,len(poses)-31),1):
             p.append(poses[j,i-j])
-        #print(np.array(p).shape,np.mean(p,axis=0).shape)
-        poses_.append(np.median(p,axis=0))
-    #print([p.shape for p in poses_])
+        poses_.append(np.mean(p,axis=0))
     poses_ = np.array([[p[0,3],p[1,3],p[2,3]] for p in poses_])
-    #print(poses_.shape)
     return poses_
 
 def get_batch(data):
