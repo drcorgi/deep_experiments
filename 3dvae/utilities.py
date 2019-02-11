@@ -65,7 +65,7 @@ def plot_3d_points_(gt,est,ddir='/home/ronnypetson/models'):
     fig = plt.figure()
     ax = fig.add_subplot(111,projection='3d')
     ax.plot(gt[:,0],gt[:,1],gt[:,2],'g')
-    #ax.plot(est[:,0],est[:,1],est[:,2],'b')
+    ax.plot(est[:,0],est[:,1],est[:,2],'b')
     plt.savefig(ddir+'/3d_path_plot.png')
     plt.close(fig)
 
@@ -240,22 +240,26 @@ def get_3d_points_(rposes):
         pt = np.matmul(rp[-1],pt)'''
     aposes = [rposes[0]]
     for i in range(1,len(rposes),1):
-        if i%32 == 0 and i//32 > 0:
+        '''if i%32 == 0 and i//32 > 0:
             in_p = aposes[32*(i//32)-1][(i+1)%32]
         else:
-            in_p = aposes[32*(i//32)][i%32]
+            in_p = aposes[32*(i//32)][i%32]'''
+        p = []
+        for j in range(max(0,i-31),min(i,len(rposes)-31),1):
+            p.append(aposes[j][i-j])
+        in_p = np.mean(p,axis=0)
         new_p = [np.matmul(rposes[i][j],in_p) for j in range(32)]
         aposes.append(new_p)
-    aposes_ = np.reshape(aposes[::32],(-1,4,4))
-    '''poses_ = []
+    #aposes_ = np.reshape(aposes[::32],(-1,4,4))
+    poses_ = []
     for i in range(len(aposes)):
         p = []
         for j in range(max(0,i-31),min(i+1,len(aposes)-31),1):
             p.append(aposes[j][i-j])
         poses_.append(np.mean(p,axis=0))
-    poses_ = np.array([[p[0,3],p[1,3],p[2,3]] for p in poses_])
-    return poses_'''
-    return np.array([[p[0,3],p[1,3],p[2,3]] for p in aposes_[:-500]])
+    poses_ = np.array([[p[0,3],p[1,3],p[2,3]] for p in poses_[:512]])
+    return poses_
+    #return np.array([[p[0,3],p[1,3],p[2,3]] for p in aposes_[:512]])
     '''return np.array([p[:-1] for p in pts])'''
 
 def get_3d_points(poses,poses_abs): # Under unit test
