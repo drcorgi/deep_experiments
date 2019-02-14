@@ -33,10 +33,10 @@ if __name__ == '__main__':
     poses, poses_abs, avoid = load_kitti_odom_all()
     # Loading the encoder models
     aes = [Vanilla2DAutoencoder([None,h,w],1e-3,batch_size,128,'/home/ronnypetson/models/VanillaAE2D_128x128_kitti'),\
-           Vanilla1DAutoencoder([None,32,128],1e-3,batch_size,256,'/home/ronnypetson/models/VanillaAE1D_kitti_256',False),\
-           Vanilla1DAutoencoder([None,32,256],1e-3,batch_size,512,'/home/ronnypetson/models/VanillaAE1D_kitti_512',False)]
-    train_last_ae(aes[:1],frames,30)
-    encode_decode_sequence(aes[:1],frames[:32])
+           Vanilla1DAutoencoder([None,32,128],1e-3,batch_size,256,'/home/ronnypetson/models/VanillaAE1D_kitti_256'),\
+           Vanilla1DAutoencoder([None,32,256],1e-3,batch_size,512,'/home/ronnypetson/models/VanillaAE1D_kitti_512')]
+    train_last_ae(aes[:3],frames,30)
+    encode_decode_sequence(aes[:3],frames[:32])
     # Mapping from state to pose
     '''t = Matcher([None,512],[None,32,12],model_fname='/home/ronnypetson/models/Matcher_kitti_512_32')
     data_x = up_(aes[:2],frames,training=True)
