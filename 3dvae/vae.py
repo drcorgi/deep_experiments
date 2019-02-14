@@ -12,9 +12,9 @@ class VanillaAutoencoder(object):
         self.batch_size = batch_size
         self.n_z = n_z
         self.model_fname = model_fname
-        self.build()
-        self.sess = tf.InteractiveSession() # Interactive
-        self.saver = tf.train.Saver()
+        #self.build()
+        #self.sess = tf.InteractiveSession() # Interactive
+        #self.saver = tf.train.Saver()
         if load: self.load()
 
     # Build the netowrk and the loss functions
@@ -39,6 +39,9 @@ class VanillaAutoencoder(object):
         self.train_op = tf.train.AdamOptimizer(learning_rate=self.learning_rate).minimize(self.total_loss)
 
     def load(self):
+        self.build()
+        self.sess = tf.InteractiveSession() # Interactive
+        self.saver = tf.train.Saver()
         if os.path.isfile(self.model_fname+'.meta'):
             try:
                 self.saver.restore(self.sess,self.model_fname)
@@ -79,9 +82,9 @@ class MetaVanillaAutoencoder(object):
         self.batch_size = batch_size
         self.n_z = n_z
         self.model_fname = model_fname
-        self.build()
-        self.sess = tf.InteractiveSession() # Interactive
-        self.saver = tf.train.Saver()
+        #self.build()
+        #self.sess = tf.InteractiveSession() # Interactive
+        #self.saver = tf.train.Saver()
         if load: self.load()
 
     # Build the network and the loss functions
@@ -104,9 +107,153 @@ class MetaVanillaAutoencoder(object):
         self.x_hat = tf.layers.conv2d_transpose(dec3, 1, (5,5), (2,2), padding='same', activation=None)
         self.total_loss = tf.losses.mean_squared_error(self.x,self.x_hat)
         self.train_op = tf.train.AdamOptimizer(learning_rate=self.learning_rate).minimize(self.total_loss)
-        return
 
     def load(self):
+        self.build()
+        self.sess = tf.InteractiveSession() # Interactive
+        self.saver = tf.train.Saver()
+        if os.path.isfile(self.model_fname+'.meta'):
+            try:
+                self.saver.restore(self.sess,self.model_fname)
+            except ValueError:
+                print('Cannot restore model')
+        else:
+            print('Model file not found')
+            self.sess.run(tf.global_variables_initializer())
+
+    # Execute the forward and the backward pass
+    def run_single_step(self, x):
+        _, loss = self.sess.run(
+            [self.train_op, self.total_loss],
+            feed_dict={self.x: x}
+        )
+        return loss
+    # x -> x_hat
+    def reconstructor(self, x):
+        x_hat = self.sess.run(self.x_hat, feed_dict={self.x: x})
+        return x_hat
+    # z -> x
+    def generator(self, z):
+        x_hat = self.sess.run(self.x_hat, feed_dict={self.z: z})
+        return x_hat
+    # x -> z
+    def transformer(self, x):
+        z = self.sess.run(self.z, feed_dict={self.x: x})
+        return z
+    def save_model(self):
+        self.saver.save(self.sess, self.model_fname)
+    def close_session(self):
+        self.sess.close()
+
+class Vanilla1DAutoencoder(object):
+    def __init__(self, input_dim=[None,64,64], learning_rate=1e-3, batch_size=64, n_z=128, model_fname='/home/ronnypetson/models/VanillaAE1D', load=True):
+        self.input_dim = input_dim
+        self.learning_rate = learning_rate
+        self.batch_size = batch_size
+        self.n_z = n_z
+        self.model_fname = model_fname
+        #self.build()
+        #self.sess = tf.InteractiveSession() # Interactive
+        #self.saver = tf.train.Saver()
+        if load: self.load()
+
+    # Build the netowrk and the loss functions
+    def build(self):
+        self.x = tf.placeholder(name='x', dtype=tf.float32, shape=self.input_dim)
+        # Encode
+        # x -> z
+        conv1 = tf.layers.conv1d(self.x, 32, (3,), (1,), padding='same', activation=tf.nn.relu)
+        conv2 = tf.layers.conv1d(conv1, 64, (3,), (1,), padding='same', activation=tf.nn.relu)
+        conv3 = tf.layers.conv1d(conv2, 64, (3,), (1,), padding='same', activation=tf.nn.relu)
+        flat1 = tf.layers.flatten(conv3)
+        self.z = tf.layers.dense(flat1,self.n_z)
+        # Decode
+        # z -> x_hat
+        new_dim = [-1,self.input_dim[1],64]
+        dec1 = tf.layers.dense(self.z,np.prod(new_dim[1:]),activation=tf.nn.relu) # tf.shape(flat1)
+        dec1 = tf.reshape(dec1,new_dim) # tf.shape(conv3)
+        dec2 = tf.layers.conv1d(dec1, 64, (3,), (1,), padding='same', activation=tf.nn.relu)
+        dec3 = tf.layers.conv1d(dec2, 64, (3,), (1,), padding='same', activation=tf.nn.relu)
+        self.x_hat = tf.layers.conv1d(dec3, self.input_dim[-1], (3,), (1,), padding='same', activation=None) # None
+        self.total_loss = tf.losses.mean_squared_error(self.x,self.x_hat)
+        self.train_op = tf.train.AdamOptimizer(learning_rate=self.learning_rate).minimize(self.total_loss)
+
+    def load(self):
+        self.build()
+        self.sess = tf.InteractiveSession() # Interactive
+        self.saver = tf.train.Saver()
+        if os.path.isfile(self.model_fname+'.meta'):
+            try:
+                self.saver.restore(self.sess,self.model_fname)
+            except ValueError:
+                print('Cannot restore model')
+        else:
+            print('Model file not found')
+            self.sess.run(tf.global_variables_initializer())
+
+    # Execute the forward and the backward pass
+    def run_single_step(self, x):
+        _, loss = self.sess.run(
+            [self.train_op, self.total_loss],
+            feed_dict={self.x: x}
+        )
+        return loss
+    # x -> x_hat
+    def reconstructor(self, x):
+        x_hat = self.sess.run(self.x_hat, feed_dict={self.x: x})
+        return x_hat
+    # z -> x
+    def generator(self, z):
+        x_hat = self.sess.run(self.x_hat, feed_dict={self.z: z})
+        return x_hat
+    # x -> z
+    def transformer(self, x):
+        z = self.sess.run(self.z, feed_dict={self.x: x})
+        return z
+    def save_model(self):
+        self.saver.save(self.sess, self.model_fname)
+    def close_session(self):
+        self.sess.close()
+
+class Vanilla2DAutoencoder(object):
+    def __init__(self, input_dim=[None,64,64], learning_rate=1e-3, batch_size=64, n_z=128, model_fname='/home/ronnypetson/models/Vanilla_AE_pong', load=True):
+        self.input_dim = input_dim
+        self.learning_rate = learning_rate
+        self.batch_size = batch_size
+        self.n_z = n_z
+        self.model_fname = model_fname
+        #self.build()
+        #self.sess = tf.InteractiveSession() # Interactive
+        #self.saver = tf.train.Saver()
+        if load: self.load()
+
+    # Build the netowrk and the loss functions
+    def build(self):
+        self.x = tf.placeholder(name='x', dtype=tf.float32, shape=self.input_dim)
+        # Encode
+        # x -> z
+        x_1 = tf.reshape(self.x,[-1,self.input_dim[1],self.input_dim[2],1])
+        conv1 = tf.layers.conv2d(x_1, 32, (5,5), (2,2), padding='same', activation=tf.nn.relu)
+        conv2 = tf.layers.conv2d(conv1, 64, (3,3), (2,2), padding='same', activation=tf.nn.relu)
+        conv3 = tf.layers.conv2d(conv2, 64, (3,3), (1,1), padding='same', activation=tf.nn.relu)
+        flat1 = tf.layers.flatten(conv3)
+        self.z = tf.layers.dense(flat1,self.n_z)
+        # Decode
+        # z -> x_hat
+        new_dim = [-1,self.input_dim[1]//4,self.input_dim[2]//4,64]
+        dec1 = tf.layers.dense(self.z,np.prod(new_dim[1:]),activation=tf.nn.relu) # tf.shape(flat1)
+        dec1 = tf.reshape(dec1,new_dim) # tf.shape(conv3)
+        dec2 = tf.layers.conv2d_transpose(dec1, 64, (3,3), (1,1), padding='same', activation=tf.nn.relu)
+        dec3 = tf.layers.conv2d_transpose(dec2, 64, (3,3), (2,2), padding='same', activation=tf.nn.relu)
+        x_hat = tf.layers.conv2d_transpose(dec3, 1, (5,5), (2,2), padding='same', activation=None) # None
+        self.x_hat = tf.reshape(x_hat,[-1,self.input_dim[1],self.input_dim[2]])
+        self.total_loss = tf.losses.mean_squared_error(self.x,self.x_hat)
+        self.train_op = tf.train.AdamOptimizer(learning_rate=self.learning_rate).minimize(self.total_loss)
+
+    def load(self):
+        self.build()
+        self.sess = tf.InteractiveSession() # Interactive
+        self.saver = tf.train.Saver()
         if os.path.isfile(self.model_fname+'.meta'):
             try:
                 self.saver.restore(self.sess,self.model_fname)

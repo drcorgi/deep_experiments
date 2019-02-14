@@ -1,0 +1,4 @@
+[VanillaAutoencoder([None,h,w,1],1e-3,batch_size,128,'/home/ronnypetson/models/Vanilla_AE_128x128_kitti'),\
+    MetaVanillaAutoencoder([None,32,128,1],1e-3,batch_size,256,'/home/ronnypetson/models/Vanilla_Meta1_AE_kitti_256',False),\
+    MetaVanillaAutoencoder([None,32,256,1],1e-3,batch_size,512,'/home/ronnypetson/models/Vanilla_Meta2_AE_kitti_512',False)]
+

@@ -10,7 +10,7 @@ from mpl_toolkits.mplot3d import Axes3D
 from vae import *
 from transition import *
 
-img_shape = (64,64,1)
+img_shape = (128,128,1)
 batch_size = 64
 latent_dim = 128
 h, w, _ = img_shape
@@ -46,7 +46,7 @@ def log_run_kitti(fdir='/home/ronnypetson/Documents/deep_odometry/kitti/dataset_
     fnames = sorted(fnames,key=lambda x: int(x[:-4]))
     imgs = [cv2.imread(fdir+'/'+fname,0) for fname in fnames]
     for f in imgs:
-        f = cv2.resize(f,img_shape[:-1],interpolation=cv2.INTER_LINEAR).reshape(img_shape)
+        f = cv2.resize(f,img_shape[:-1],interpolation=cv2.INTER_LINEAR)#.reshape(img_shape[:-1])
         frames.append(f/255.0)
     frames = np.array(frames)
     #plot_data(frames,dlen=32)
@@ -54,8 +54,8 @@ def log_run_kitti(fdir='/home/ronnypetson/Documents/deep_odometry/kitti/dataset_
 
 def log_run_kitti_all(re_dir='/home/ronnypetson/Documents/deep_odometry/kitti/dataset_frames/sequences/{}/image_0'):
     seqs = ['00','01','02','03','04','05','06','07','08','09','10']
-    frames = log_run_kitti(re_dir.format(seqs[1]))
-    for s in seqs[1:1]:
+    frames = log_run_kitti(re_dir.format(seqs[0]))
+    for s in seqs[1:]:
         print('Loading sequence from '+s)
         sframes = log_run_kitti(re_dir.format(s))
         frames = np.concatenate((frames,sframes),axis=0)
@@ -149,9 +149,9 @@ def load_kitti_odom(fdir='/home/ronnypetson/Documents/deep_odometry/kitti/datase
 def load_kitti_odom_all(fdir='/home/ronnypetson/Documents/deep_odometry/kitti/dataset/poses'):
     fns = os.listdir(fdir)
     fns = sorted(fns,key=lambda x: int(x[:-4]))
-    rposes, aposes = load_kitti_odom(fdir+'/'+fns[1])
+    rposes, aposes = load_kitti_odom(fdir+'/'+fns[0])
     limits = [len(aposes)]
-    for fn in fns[1:1]:
+    for fn in fns[1:]:
         rp, ap = load_kitti_odom(fdir+'/'+fn)
         rposes = np.concatenate((rposes,rp),axis=0)
         aposes = np.concatenate((aposes,ap),axis=0)
@@ -257,7 +257,7 @@ def get_3d_points_(rposes):
         for j in range(max(0,i-31),min(i+1,len(aposes)-31),1):
             p.append(aposes[j][i-j])
         poses_.append(np.mean(p,axis=0))
-    poses_ = np.array([[p[0,3],p[1,3],p[2,3]] for p in poses_[:512]])
+    poses_ = np.array([[p[0,3],p[1,3],p[2,3]] for p in poses_])
     return poses_
     #return np.array([[p[0,3],p[1,3],p[2,3]] for p in aposes_[:512]])
     '''return np.array([p[:-1] for p in pts])'''
@@ -287,14 +287,16 @@ def get_batch_(datax,datay):
 def encode_(data,ae):
     enc = []
     num_batches = (len(data)+batch_size)//batch_size
+    #ae.load()
     for i in range(num_batches):
         b = data[i*batch_size:(i+1)*batch_size]
         if len(b) > 0:
             enc += ae.transformer(b).tolist()
+    #ae.close_session()
     return np.array(enc,dtype=np.float32)
 
 def stack_(data,seq_len=32,offset=1,blimit=1,training=False): # change offset for higher encodings
-    sshape = (seq_len,data.shape[1],1)
+    sshape = (seq_len,data.shape[1]) # ,1 for images
     if training:
         stacked = [np.array(data[range(i,i+offset*seq_len,offset)]).reshape(sshape) for i in range(blimit)]
     else:
@@ -307,16 +309,18 @@ def decode_(data,ae,seq_len=32,offset=1,start=0,base=False):
     #if not base: data = data[range(start,start+offset*seq_len,offset)]
     if not base: data = data[range(start,len(data),offset)]
     num_batches = (len(data)+batch_size)//batch_size
+    #ae.load()
     for i in range(num_batches):
         b = data[i*batch_size:(i+1)*batch_size]
         if len(b) > 0:
             dec += ae.generator(b).tolist() # .reshape(seq_len,data.shape[-1])
+    #ae.close_session()
     return np.array(dec,dtype=np.float32)
 
 def unstack_(data,seq_len=32): # Ex.: (1,32,128,1) -> (32,128)
     d = []
     for a in data:
-        d += a.reshape((seq_len,data.shape[-2])).tolist()
+        d += a.reshape((seq_len,data.shape[-1])).tolist() # -2 for images
     d = np.array(d,dtype=np.float32)
     return d #data.reshape((-1,data.shape[-2]))
 
@@ -392,10 +396,13 @@ def train_last_ae(aes,data,num_epochs,seq_len=32):
     base = aes[:-1]
     offset = 1
     for ae in base:
+        #ae.load()
         data = stack_(encode_(data,ae),offset=offset,blimit=len(data)-offset*(seq_len-1),training=True)
+        #ae.close_session()
         offset *= seq_len
         print('.')
         print(data.shape)
+    #current.load()
     num_sample=len(data)
     for epoch in range(num_epochs):
         for _ in range(num_sample // batch_size):
@@ -404,25 +411,34 @@ def train_last_ae(aes,data,num_epochs,seq_len=32):
         if epoch%10==9:
             current.save_model()
         print('[Epoch {}] Loss: {}'.format(epoch, loss))
+    #current.close_session()
     print('Done!')
 
 def encode_decode_sequence(aes,data,seq_len=32,data_type='image'):
     base_data = deepcopy(data)
+    #aes[0].load()
     data = encode_(data,aes[0])
+    #aes[0].close_session()
     offset = seq_len
     for ae in aes[1:]:
         print(data.shape)
         data = stack_(data,offset=offset,blimit=len(data)-(seq_len-1))
+        #ae.load()
         data = encode_(data,ae)
+        #ae.close_session()
     offset = 1 #1024
     aes.reverse()
     for ae in aes[:-1]:
         print(data.shape)
+        #ae.load()
         data = decode_(data,ae,offset=offset)
+        #ae.close_session()
         print(data.shape)
         data = unstack_(data)
     print(data.shape)
+    #aes[-1].load()
     data = decode_(data,aes[-1],offset=1,base=True)
+    #aes[-1].close_session() 
     if data_type=='text':
         base_data = np.reshape(base_data,(-1,8,27))
         data = np.reshape(data,(-1,8,27))
