@@ -151,9 +151,8 @@ def load_kitti_odom(fdir='/home/ronnypetson/Documents/deep_odometry/kitti/datase
     poses = [l.split() for l in content]
     poses = np.array([ [ float(p) for p in l ] for l in poses ])
     poses_ = [homogen(p) for p in poses]
-    #[np.matmul(poses_[i],np.linalg.inv(poses_[max(0,i-31)])) for i in range(len(poses_))]
     rposes = []
-    for i in range(len(poses_)-(seq_len-1)): # hack, -31
+    for i in range(len(poses_)-(seq_len-1)):
         rposes.append([flat_homogen(np.matmul(poses_[j],np.linalg.inv(poses_[i]))) for j in range(i,i+seq_len,1)])
     return np.array(rposes), poses
 
@@ -251,27 +250,24 @@ def get_3d_points_(rposes,seq_len=32):
         for j in range(max(0,i-(seq_len-1)),i,1):
             p.append(aposes[j][i-j])
         in_p = np.mean(p,axis=0)
-        print(in_p)
         new_p = [np.matmul(rposes[i][j],in_p) for j in range(seq_len)]
         aposes.append(new_p)
-    print(np.array(aposes).shape)
-    poses_ = np.reshape(aposes[::seq_len],(-1,4,4))
-    return np.array([[p[0,3],p[1,3],p[2,3]] for p in poses_])
-    #poses_ = []
-    '''for i in range(len(aposes)):
+    #poses_ = np.reshape(aposes[::seq_len],(-1,4,4))
+    #return np.array([[p[0,3],p[1,3],p[2,3]] for p in poses_])
+    poses_ = []
+    for i in range(len(aposes)+seq_len-1):
         p = []
         # range(max(0,i-(seq_len-1)),min(i+1,len(aposes)-(seq_len-1)),1)
         # range(max(0,i-(seq_len-1)),min(i+1,len(aposes)),1)
         for j in range(max(0,i-(seq_len-1)),min(len(aposes),max(0,i-(seq_len-1))+seq_len),1):
             p.append(aposes[j][i-j])
-        poses_.append(np.mean(p,axis=0))'''
+        poses_.append(np.mean(p,axis=0))
     '''for i in range(0,len(aposes),seq_len):
         poses_ += aposes[i]
-    poses_ += aposes[-1][(i+1)*seq_len:]
+    poses_ += aposes[-1][(i+1)*seq_len:]'''
     poses_ = np.array([[p[0,3],p[1,3],p[2,3]] for p in poses_])
-    return poses_'''
+    return poses_
     #return np.array([[p[0,3],p[1,3],p[2,3]] for p in aposes_[:512]])
-    '''return np.array([p[:-1] for p in pts])'''
 
 def get_3d_points(poses,poses_abs,seq_len=32): # Under unit test
     poses = np.array([[np.matmul(homogen(poses[i,j]), homogen(poses_abs[i])) for j in range(seq_len)] for i in range(len(poses))])

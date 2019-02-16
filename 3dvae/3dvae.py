@@ -32,7 +32,7 @@ if __name__ == '__main__':
     exit()'''
 
     frames = log_run_kitti_all()
-    poses, poses_abs, avoid = load_kitti_odom_all(seq_len=1024)
+    poses, poses_abs, avoid = load_kitti_odom_all(seq_len=wsize)
     # Loading the encoder models
     aes = [Vanilla2DAutoencoder([None,h,w],1e-3,batch_size,128,'/home/ronnypetson/models/VanillaAE2D_128x128_kitti'),\
            Vanilla1DAutoencoder([None,32,128],1e-3,batch_size,256,'/home/ronnypetson/models/VanillaAE1D_kitti_256'),\
@@ -46,7 +46,7 @@ if __name__ == '__main__':
     data_x = np.array([data_x[i] for i in range(len(data_x)) if i not in avoid])
     tf.reset_default_graph()
     print(len(data_x),len(poses))
-    #train_transition(t,data_x,poses,500)
+    train_transition(t,data_x,poses,500)
     # Checking the estimated poses
     rmse, estimated = test_transition(t,data_x[:2048],poses[:2048])
     #gt_points = get_3d_points(poses[:2048], poses_abs[:2048]) # get_3d_points_(poses[:2048],seq_len=1024)
