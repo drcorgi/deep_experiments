@@ -145,29 +145,29 @@ def homogen(x):
 def flat_homogen(x):
     return np.array(x.reshape(16)[:-4])
 
-def load_kitti_odom(fdir='/home/ronnypetson/Documents/deep_odometry/kitti/dataset/poses/02.txt',seq_len=32):
+def load_kitti_odom(fdir='/home/ronnypetson/Documents/deep_odometry/kitti/dataset/poses/02.txt',wsize=32):
     with open(fdir) as f:
         content = f.readlines()
     poses = [l.split() for l in content]
     poses = np.array([ [ float(p) for p in l ] for l in poses ])
     poses_ = [homogen(p) for p in poses]
     rposes = []
-    for i in range(len(poses_)-(seq_len-1)):
-        rposes.append([flat_homogen(np.matmul(poses_[j],np.linalg.inv(poses_[i]))) for j in range(i,i+seq_len,1)])
+    for i in range(len(poses_)-(wsize-1)):
+        rposes.append([flat_homogen(np.matmul(poses_[j],np.linalg.inv(poses_[i]))) for j in range(i,i+wsize,1)])
     return np.array(rposes), poses
 
-def load_kitti_odom_all(fdir='/home/ronnypetson/Documents/deep_odometry/kitti/dataset/poses',seq_len=32):
+def load_kitti_odom_all(fdir='/home/ronnypetson/Documents/deep_odometry/kitti/dataset/poses',wsize=32):
     fns = os.listdir(fdir)
     fns = sorted(fns,key=lambda x: int(x[:-4]))
     #fns = [fn for fn in fns if fn not in fns[3:5]] #
-    rposes, aposes = load_kitti_odom(fdir+'/'+fns[5],seq_len)
+    rposes, aposes = load_kitti_odom(fdir+'/'+fns[5],wsize)
     limits = [len(aposes)]
     for fn in fns[1:1]:
-        rp, ap = load_kitti_odom(fdir+'/'+fn,seq_len)
+        rp, ap = load_kitti_odom(fdir+'/'+fn,wsize)
         rposes = np.concatenate((rposes,rp),axis=0)
         aposes = np.concatenate((aposes,ap),axis=0)
         limits.append(len(aposes))
-    return rposes, aposes, np.reshape([range(l-(seq_len-1),l,1) for l in limits],(-1,))
+    return rposes, aposes, np.reshape([range(l-(wsize-1),l,1) for l in limits],(-1,))
 
 def load_penn_odom(tstamps,fdir='/home/ronnypetson/Documents/penncosyvio/data/ground_truth/af/pose.txt'):
     with open(fdir) as f:
@@ -334,7 +334,7 @@ def unstack_(data,seq_len=32): # Ex.: (1,32,128,1) -> (32,128)
 def up_(aes,data,seq_len=32,training=False):
     offset = 1
     for ae in aes[:-1]:
-        data = stack_(encode_(data,ae),offset=offset,seq_len=seq_len,blimit=len(data)-offset*(seq_len)+1,training=training) # *(seq_len-1)
+        data = stack_(encode_(data,ae),offset=offset,seq_len=seq_len,blimit=len(data)-offset*(seq_len-1),training=training) # *(seq_len-1)
         offset *= seq_len
         print(data.shape)
     data = encode_(data,aes[-1])
@@ -404,7 +404,7 @@ def train_last_ae(aes,data,num_epochs,seq_len=32):
     offset = 1
     for ae in base:
         #ae.load()
-        data = stack_(encode_(data,ae),seq_len=seq_len,offset=offset,blimit=len(data)-offset*(seq_len)+1,training=True) # -offset*(seq_len-1)
+        data = stack_(encode_(data,ae),seq_len=seq_len,offset=offset,blimit=len(data)-offset*(seq_len-1),training=True) # -offset*(seq_len-1)
         #ae.close_session()
         offset *= seq_len
         print('.')

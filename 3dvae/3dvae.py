@@ -33,22 +33,24 @@ if __name__ == '__main__':
     exit()'''
 
     frames = log_run_kitti_all()
-    poses, poses_abs, avoid = load_kitti_odom_all(seq_len=wsize)
+    poses, poses_abs, avoid = load_kitti_odom_all(wsize=wsize)
     # Loading the encoder models
     aes = [Vanilla2DAutoencoder([None,h,w],1e-3,batch_size,128,'/home/ronnypetson/models/VanillaAE2D_128x128_kitti'),\
            Vanilla1DAutoencoder([None,seq_len,128],1e-3,batch_size,256,'/home/ronnypetson/models/VanillaAE1D_kitti_256_16'),\
            Vanilla1DAutoencoder([None,seq_len,256],1e-3,batch_size,512,'/home/ronnypetson/models/VanillaAE1D_kitti_512_16')]
-    train_last_ae(aes[:2],frames,40,seq_len=seq_len)
-    train_last_ae(aes[:3],frames,40,seq_len=seq_len)
-    encode_decode_sequence(aes[:3],frames[:32],seq_len=seq_len)
+    #train_last_ae(aes[:2],frames,40,seq_len=seq_len)
+    #train_last_ae(aes[:3],frames,40,seq_len=seq_len)
+    encode_decode_sequence(aes[:3],frames[:256],seq_len=seq_len)
     # Mapping from state to pose
     #t = Matcher([None,512],[None,1024,12],model_fname='/home/ronnypetson/models/Matcher_kitti_512_1024')
     #t = Matcher([None,256],[None,wsize,12],model_fname='/home/ronnypetson/models/Matcher_kitti_256_32')
     t = Matcher([None,512],[None,wsize,12],model_fname='/home/ronnypetson/models/Matcher_kitti_512_256')
-    data_x = up_(aes[:3],frames,training=True)
+    data_x = up_(aes[:3],frames,seq_len=seq_len,training=True)
+    print(len(data_x))
     data_x = np.array([data_x[i] for i in range(len(data_x)) if i not in avoid])
     tf.reset_default_graph()
-    print(len(data_x),len(poses))
+    #print(avoid)
+    print(len(data_x),len(poses),len(avoid)+len(data_x))
     data_x_train = data_x[1024:]
     data_x_test = data_x[:1024]
     poses_train = poses[1024:]
