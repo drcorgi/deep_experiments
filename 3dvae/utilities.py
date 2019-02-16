@@ -53,10 +53,10 @@ def log_run_kitti(fdir='/home/ronnypetson/Documents/deep_odometry/kitti/dataset_
     return frames
 
 def log_run_kitti_all(re_dir='/home/ronnypetson/Documents/deep_odometry/kitti/dataset_frames/sequences/{}/image_0'):
-    #seqs = ['00','01','02','03','04','05','06','07','08','09','10']
-    seqs = seqs = ['00','01','02','05','06','07','08','09','10']
-    frames = log_run_kitti(re_dir.format(seqs[5]))
-    for s in seqs[2:2]:
+    seqs = ['00','01','02','03','04','05','06','07','08','09','10']
+    #seqs = ['00','01','02','05','06','07','08','09','10']
+    frames = log_run_kitti(re_dir.format(seqs[0]))
+    for s in seqs[1:]:
         print('Loading sequence from '+s)
         sframes = log_run_kitti(re_dir.format(s))
         frames = np.concatenate((frames,sframes),axis=0)
@@ -159,10 +159,10 @@ def load_kitti_odom(fdir='/home/ronnypetson/Documents/deep_odometry/kitti/datase
 def load_kitti_odom_all(fdir='/home/ronnypetson/Documents/deep_odometry/kitti/dataset/poses',seq_len=32):
     fns = os.listdir(fdir)
     fns = sorted(fns,key=lambda x: int(x[:-4]))
-    fns = [fn for fn in fns if fn not in fns[3:5]] #
-    rposes, aposes = load_kitti_odom(fdir+'/'+fns[5],seq_len)
+    #fns = [fn for fn in fns if fn not in fns[3:5]] #
+    rposes, aposes = load_kitti_odom(fdir+'/'+fns[0],seq_len)
     limits = [len(aposes)]
-    for fn in fns[2:2]:
+    for fn in fns[1:]:
         rp, ap = load_kitti_odom(fdir+'/'+fn,seq_len)
         rposes = np.concatenate((rposes,rp),axis=0)
         aposes = np.concatenate((aposes,ap),axis=0)
