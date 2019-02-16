@@ -16,6 +16,8 @@ latent_dim = 128
 h, w, _ = img_shape
 '''
 
+wsize = 32
+
 if __name__ == '__main__':
     # Loading the data
     # Penn COSYVIO
@@ -30,25 +32,27 @@ if __name__ == '__main__':
     exit()'''
 
     frames = log_run_kitti_all()
-    poses, poses_abs, avoid = load_kitti_odom_all()
+    poses, poses_abs, avoid = load_kitti_odom_all(seq_len=1024)
     # Loading the encoder models
     aes = [Vanilla2DAutoencoder([None,h,w],1e-3,batch_size,128,'/home/ronnypetson/models/VanillaAE2D_128x128_kitti'),\
            Vanilla1DAutoencoder([None,32,128],1e-3,batch_size,256,'/home/ronnypetson/models/VanillaAE1D_kitti_256'),\
-           Vanilla1DAutoencoder([None,32,256],1e-3,batch_size,512,'/home/ronnypetson/models/VanillaAE1D_kitti_512')]
-    train_last_ae(aes[:3],frames,30)
-    encode_decode_sequence(aes[:3],frames[:32])
+           Vanilla1DAutoencoder([None,32,256],1e-3,batch_size,512,'/home/ronnypetson/models/VanillaAE1D_kitti_512',False)]
+    #train_last_ae(aes[:1],frames,10)
+    #encode_decode_sequence(aes[:1],frames[:32])
     # Mapping from state to pose
-    '''t = Matcher([None,512],[None,32,12],model_fname='/home/ronnypetson/models/Matcher_kitti_512_32')
+    #t = Matcher([None,512],[None,1024,12],model_fname='/home/ronnypetson/models/Matcher_kitti_512_1024')
+    t = Matcher([None,256],[None,wsize,12],model_fname='/home/ronnypetson/models/Matcher_kitti_256_32')
     data_x = up_(aes[:2],frames,training=True)
     data_x = np.array([data_x[i] for i in range(len(data_x)) if i not in avoid])
     tf.reset_default_graph()
     print(len(data_x),len(poses))
     #train_transition(t,data_x,poses,500)
     # Checking the estimated poses
-    rmse, estimated = test_transition(t,data_x[:32],poses[:32])
-    gt_points = get_3d_points_(poses[:32]) #get_3d_points(poses[:2048], poses_abs[:2048])
-    est_points = get_3d_points_(estimated) #get_3d_points(estimated, poses_abs[:2048])
-    plot_3d_points_(gt_points,est_points)
-    plot_2d_points_(gt_points,est_points)
-    print(rmse)'''
+    rmse, estimated = test_transition(t,data_x[:2048],poses[:2048])
+    #gt_points = get_3d_points(poses[:2048], poses_abs[:2048]) # get_3d_points_(poses[:2048],seq_len=1024)
+    est_points = get_3d_points_(estimated,wsize)#get_3d_points_(estimated,seq_len=1024)
+    #plot_3d_points_(poses_abs,poses_abs)
+    plot_abs(poses_abs[:2048],estimated)
+    plot_2d_points_(est_points,est_points)
+    print(rmse)
 
