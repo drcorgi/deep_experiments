@@ -55,8 +55,8 @@ def log_run_kitti(fdir='/home/ronnypetson/Documents/deep_odometry/kitti/dataset_
 def log_run_kitti_all(re_dir='/home/ronnypetson/Documents/deep_odometry/kitti/dataset_frames/sequences/{}/image_0'):
     seqs = ['00','01','02','03','04','05','06','07','08','09','10']
     #seqs = ['00','01','02','05','06','07','08','09','10']
-    frames = log_run_kitti(re_dir.format(seqs[0]))
-    for s in seqs[1:]:
+    frames = log_run_kitti(re_dir.format(seqs[5]))
+    for s in seqs[1:1]:
         print('Loading sequence from '+s)
         sframes = log_run_kitti(re_dir.format(s))
         frames = np.concatenate((frames,sframes),axis=0)
@@ -160,9 +160,9 @@ def load_kitti_odom_all(fdir='/home/ronnypetson/Documents/deep_odometry/kitti/da
     fns = os.listdir(fdir)
     fns = sorted(fns,key=lambda x: int(x[:-4]))
     #fns = [fn for fn in fns if fn not in fns[3:5]] #
-    rposes, aposes = load_kitti_odom(fdir+'/'+fns[0],seq_len)
+    rposes, aposes = load_kitti_odom(fdir+'/'+fns[5],seq_len)
     limits = [len(aposes)]
-    for fn in fns[1:]:
+    for fn in fns[1:1]:
         rp, ap = load_kitti_odom(fdir+'/'+fn,seq_len)
         rposes = np.concatenate((rposes,rp),axis=0)
         aposes = np.concatenate((aposes,ap),axis=0)
@@ -311,7 +311,7 @@ def stack_(data,seq_len=32,offset=1,blimit=1,training=False): # change offset fo
     stacked = np.stack(stacked,axis=0)
     return stacked
 
-def decode_(data,ae,seq_len=32,offset=1,start=0,base=False):
+def decode_(data,ae,offset=1,start=0,base=False):
     dec = []
     #if not base: data = data[range(start,start+offset*seq_len,offset)]
     if not base: data = data[range(start,len(data),offset)]
@@ -334,7 +334,7 @@ def unstack_(data,seq_len=32): # Ex.: (1,32,128,1) -> (32,128)
 def up_(aes,data,seq_len=32,training=False):
     offset = 1
     for ae in aes[:-1]:
-        data = stack_(encode_(data,ae),offset=offset,blimit=len(data)-offset*(seq_len-1),training=training)
+        data = stack_(encode_(data,ae),offset=offset,seq_len=seq_len,blimit=len(data)-offset*(seq_len)+1,training=training) # *(seq_len-1)
         offset *= seq_len
         print(data.shape)
     data = encode_(data,aes[-1])
@@ -346,7 +346,7 @@ def down_(aes,data,base_data,seq_len=32,training=False,data_type='text'):
         print(data.shape)
         data = decode_(data,ae,offset=1)
         print(data.shape)
-        data = unstack_(data)
+        data = unstack_(data,seq_len=seq_len)
     print(data.shape)
     data = decode_(data,aes[-1],offset=1,base=True)
     if data_type=='text':
@@ -404,7 +404,7 @@ def train_last_ae(aes,data,num_epochs,seq_len=32):
     offset = 1
     for ae in base:
         #ae.load()
-        data = stack_(encode_(data,ae),offset=offset,blimit=len(data)-offset*(seq_len-1),training=True)
+        data = stack_(encode_(data,ae),seq_len=seq_len,offset=offset,blimit=len(data)-offset*(seq_len)+1,training=True) # -offset*(seq_len-1)
         #ae.close_session()
         offset *= seq_len
         print('.')
@@ -429,7 +429,7 @@ def encode_decode_sequence(aes,data,seq_len=32,data_type='image'):
     offset = seq_len
     for ae in aes[1:]:
         print(data.shape)
-        data = stack_(data,offset=offset,blimit=len(data)-(seq_len-1))
+        data = stack_(data,offset=offset,seq_len=seq_len,blimit=len(data)-(seq_len-1))
         #ae.load()
         data = encode_(data,ae)
         #ae.close_session()
@@ -441,7 +441,7 @@ def encode_decode_sequence(aes,data,seq_len=32,data_type='image'):
         data = decode_(data,ae,offset=offset)
         #ae.close_session()
         print(data.shape)
-        data = unstack_(data)
+        data = unstack_(data,seq_len=seq_len)
     print(data.shape)
     #aes[-1].load()
     data = decode_(data,aes[-1],offset=1,base=True)

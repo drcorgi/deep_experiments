@@ -16,8 +16,8 @@ latent_dim = 128
 h, w, _ = img_shape
 '''
 
-wsize = 32
-seq_len = 32
+wsize = 256
+seq_len = 16
 
 if __name__ == '__main__':
     # Loading the data
@@ -36,14 +36,16 @@ if __name__ == '__main__':
     poses, poses_abs, avoid = load_kitti_odom_all(seq_len=wsize)
     # Loading the encoder models
     aes = [Vanilla2DAutoencoder([None,h,w],1e-3,batch_size,128,'/home/ronnypetson/models/VanillaAE2D_128x128_kitti'),\
-           Vanilla1DAutoencoder([None,seq_len,128],1e-3,batch_size,256,'/home/ronnypetson/models/VanillaAE1D_kitti_256',False),\
-           Vanilla1DAutoencoder([None,seq_len,256],1e-3,batch_size,512,'/home/ronnypetson/models/VanillaAE1D_kitti_512',False)]
-    train_last_ae(aes[:1],frames,30)
-    encode_decode_sequence(aes[:1],frames[:32])
+           Vanilla1DAutoencoder([None,seq_len,128],1e-3,batch_size,256,'/home/ronnypetson/models/VanillaAE1D_kitti_256_16'),\
+           Vanilla1DAutoencoder([None,seq_len,256],1e-3,batch_size,512,'/home/ronnypetson/models/VanillaAE1D_kitti_512_16')]
+    train_last_ae(aes[:2],frames,40,seq_len=seq_len)
+    train_last_ae(aes[:3],frames,40,seq_len=seq_len)
+    encode_decode_sequence(aes[:3],frames[:32],seq_len=seq_len)
     # Mapping from state to pose
     #t = Matcher([None,512],[None,1024,12],model_fname='/home/ronnypetson/models/Matcher_kitti_512_1024')
-    '''t = Matcher([None,256],[None,wsize,12],model_fname='/home/ronnypetson/models/Matcher_kitti_256_32')
-    data_x = up_(aes[:2],frames,training=True)
+    #t = Matcher([None,256],[None,wsize,12],model_fname='/home/ronnypetson/models/Matcher_kitti_256_32')
+    t = Matcher([None,512],[None,wsize,12],model_fname='/home/ronnypetson/models/Matcher_kitti_512_256')
+    data_x = up_(aes[:3],frames,training=True)
     data_x = np.array([data_x[i] for i in range(len(data_x)) if i not in avoid])
     tf.reset_default_graph()
     print(len(data_x),len(poses))
@@ -59,5 +61,5 @@ if __name__ == '__main__':
     #plot_3d_points_(poses_abs,poses_abs)
     plot_abs(poses_abs[:1024],estimated)
     plot_2d_points_(est_points,est_points)
-    print(rmse)'''
+    print(rmse)
 
