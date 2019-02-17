@@ -25,13 +25,6 @@ if __name__ == '__main__':
     #frames, tstamps = log_run_video(num_it=10000) # ,fdir='/home/ronnypetson/Videos/Webcam'
     #tstamps, poses = load_penn_odom(tstamps) # Supposing all frame timestamps have a correspondent pose
     # KITTI
-
-    '''frames, sdivs = log_run_kitti_all()
-    poses, poses_abs = load_kitti_odom_all()
-    print(frames.shape, len(sdivs))
-    print(poses.shape, poses_abs.shape)
-    exit()'''
-
     frames = log_run_kitti_all()
     poses, poses_abs, avoid = load_kitti_odom_all(wsize=wsize)
     # Loading the encoder models
@@ -40,28 +33,25 @@ if __name__ == '__main__':
            Vanilla1DAutoencoder([None,seq_len,256],1e-3,batch_size,512,'/home/ronnypetson/models/VanillaAE1D_kitti_512_16')]
     #train_last_ae(aes[:2],frames,40,seq_len=seq_len)
     #train_last_ae(aes[:3],frames,40,seq_len=seq_len)
-    encode_decode_sequence(aes[:3],frames[:256],seq_len=seq_len)
+    #encode_decode_sequence(aes[:3],frames[:256],seq_len=seq_len)
     # Mapping from state to pose
     #t = Matcher([None,512],[None,1024,12],model_fname='/home/ronnypetson/models/Matcher_kitti_512_1024')
     #t = Matcher([None,256],[None,wsize,12],model_fname='/home/ronnypetson/models/Matcher_kitti_256_32')
     t = Matcher([None,512],[None,wsize,12],model_fname='/home/ronnypetson/models/Matcher_kitti_512_256')
     data_x = up_(aes[:3],frames,seq_len=seq_len,training=True)
-    print(len(data_x))
     data_x = np.array([data_x[i] for i in range(len(data_x)) if i not in avoid])
     tf.reset_default_graph()
-    #print(avoid)
-    print(len(data_x),len(poses),len(avoid)+len(data_x))
-    data_x_train = data_x[1024:]
-    data_x_test = data_x[:1024]
-    poses_train = poses[1024:]
-    poses_test = poses[:1024]
-    train_transition(t,data_x_train,poses_train,300)
+    data_x_train = data_x[:]
+    data_x_test = data_x[:]
+    poses_train = poses[:]
+    poses_test = poses[:]
+    #train_transition(t,data_x_train,poses_train,300)
     # Checking the estimated poses
     rmse, estimated = test_transition(t,data_x_test,poses_test)
-    #gt_points = get_3d_points(poses[:2048], poses_abs[:2048]) # get_3d_points_(poses[:2048],seq_len=1024)
-    est_points = get_3d_points_(estimated,wsize)#get_3d_points_(estimated,seq_len=1024)
-    #plot_3d_points_(poses_abs,poses_abs)
-    plot_abs(poses_abs[:1024],estimated)
-    plot_2d_points_(est_points,est_points)
+    gt_points = get_3d_points_(poses,wsize)
+    est_points = get_3d_points_(estimated,wsize)
+    #plot_abs(poses_abs[:],estimated)
+    plot_2d_points_(gt_points,est_points)
+    plot_3d_points_(gt_points,est_points)
     print(rmse)
 

@@ -140,25 +140,31 @@ def fast_argmin(x,sorted_arr,lambda_): # Supposing that lambda_ is non-decreasin
     return ind
 
 def homogen(x):
+    assert len(x) == 12
     return np.array(x.tolist()+[0.0,0.0,0.0,1.0]).reshape((4,4))
 
 def flat_homogen(x):
+    assert x.shape == (4,4)
     return np.array(x.reshape(16)[:-4])
 
 def load_kitti_odom(fdir='/home/ronnypetson/Documents/deep_odometry/kitti/dataset/poses/02.txt',wsize=32):
+    '''
+        Returns relative poses (window-wise) and absolute poses (frame-wise) in flat homogen form
+    '''
     with open(fdir) as f:
         content = f.readlines()
     poses = [l.split() for l in content]
     poses = np.array([ [ float(p) for p in l ] for l in poses ])
     poses_ = [homogen(p) for p in poses]
     rposes = []
-    for i in range(len(poses_)-(wsize-1)):
-        rposes.append([flat_homogen(np.matmul(poses_[j],np.linalg.inv(poses_[i]))) for j in range(i,i+wsize,1)])
+    for i in range(len(poses_)-(wsize-1)): # aparentemente tem um pobrema aqui
+        #rposes.append([flat_homogen(np.matmul(poses_[j],np.linalg.inv(poses_[i]))) for j in range(i,i+wsize,1)])
+        rposes.append([flat_homogen(np.matmul(np.linalg.inv(poses_[i]),poses_[j])) for j in range(i,i+wsize,1)])
     return np.array(rposes), poses
 
 def load_kitti_odom_all(fdir='/home/ronnypetson/Documents/deep_odometry/kitti/dataset/poses',wsize=32):
     fns = os.listdir(fdir)
-    fns = sorted(fns,key=lambda x: int(x[:-4]))
+    fns = sorted(fns,key=lambda x: int(x[:-4])) # pode ser que não esteja na ordem certa
     #fns = [fn for fn in fns if fn not in fns[3:5]] #
     rposes, aposes = load_kitti_odom(fdir+'/'+fns[5],wsize)
     limits = [len(aposes)]
@@ -242,31 +248,32 @@ def cat2text(data):
         ords += [np.argmax(c) for c in w]
     return get_str(ords)
 
-def get_3d_points_(rposes,seq_len=32):
+def get_3d_points_(rposes,wlen=32):
     rposes = [[homogen(p) for p in r] for r in rposes]
     aposes = [rposes[0]]
     for i in range(1,len(rposes),1):
         p = []
-        for j in range(max(0,i-(seq_len-1)),i,1):
+        for j in range(max(0,i-(wlen-1)),i,1):
             p.append(aposes[j][i-j])
         in_p = np.mean(p,axis=0)
-        new_p = [np.matmul(rposes[i][j],in_p) for j in range(seq_len)]
+        new_p = [np.matmul(in_p,rposes[i][j]) for j in range(wlen)]
         aposes.append(new_p)
-    #poses_ = np.reshape(aposes[::seq_len],(-1,4,4))
-    #return np.array([[p[0,3],p[1,3],p[2,3]] for p in poses_])
-    poses_ = []
-    for i in range(len(aposes)+seq_len-1):
+    remainder = wlen-(len(rposes)+wlen-1)%wlen
+    aposes0 = np.reshape(aposes[::wlen],(-1,4,4))
+    aposes1 = np.reshape(aposes[-1][remainder:],(-1,4,4))
+    poses_ = np.concatenate((aposes0,aposes1),axis=0)
+    return np.array([[p[0,3],p[1,3],p[2,3]] for p in poses_])
+    #return np.array([[p[0,3],p[1,3],p[2,3]] for p in rposes[255]])
+    '''poses_ = []
+    for i in range(len(aposes)+wlen-1):
         p = []
         # range(max(0,i-(seq_len-1)),min(i+1,len(aposes)-(seq_len-1)),1)
         # range(max(0,i-(seq_len-1)),min(i+1,len(aposes)),1)
-        for j in range(max(0,i-(seq_len-1)),min(len(aposes),max(0,i-(seq_len-1))+seq_len),1):
+        for j in range(max(0,i-(wlen-1)),min(len(aposes),max(0,i-(wlen-1))+wlen),1):
             p.append(aposes[j][i-j])
         poses_.append(np.mean(p,axis=0))
-    '''for i in range(0,len(aposes),seq_len):
-        poses_ += aposes[i]
-    poses_ += aposes[-1][(i+1)*seq_len:]'''
     poses_ = np.array([[p[0,3],p[1,3],p[2,3]] for p in poses_])
-    return poses_
+    return poses_'''
     #return np.array([[p[0,3],p[1,3],p[2,3]] for p in aposes_[:512]])
 
 def get_3d_points(poses,poses_abs,seq_len=32): # Under unit test
