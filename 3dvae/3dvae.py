@@ -38,17 +38,18 @@ if __name__ == '__main__':
     #t = Matcher([None,512],[None,1024,12],model_fname='/home/ronnypetson/models/Matcher_kitti_512_1024')
     #t = Matcher([None,256],[None,wsize,12],model_fname='/home/ronnypetson/models/Matcher_kitti_256_32')
     t = Matcher([None,512],[None,wsize,12],model_fname='/home/ronnypetson/models/Matcher_kitti_512_256')
+    #t = Matcher([None,256],[None,wsize,12],model_fname='/home/ronnypetson/models/Matcher_kitti_256_16')
     data_x = up_(aes[:3],frames,seq_len=seq_len,training=True)
     data_x = np.array([data_x[i] for i in range(len(data_x)) if i not in avoid])
     tf.reset_default_graph()
-    data_x_train = data_x[:]
-    data_x_test = data_x[:]
-    poses_train = poses[:]
-    poses_test = poses[:]
+    data_x_train = data_x[128:]
+    data_x_test = data_x[:1024]
+    poses_train = poses[128:]
+    poses_test = poses[:1024]
     #train_transition(t,data_x_train,poses_train,300)
     # Checking the estimated poses
     rmse, estimated = test_transition(t,data_x_test,poses_test)
-    gt_points = get_3d_points_(poses,wsize)
+    gt_points = get_3d_points_(poses_test,wsize)
     est_points = get_3d_points_(estimated,wsize)
     #plot_abs(poses_abs[:],estimated)
     plot_2d_points_(gt_points,est_points)
