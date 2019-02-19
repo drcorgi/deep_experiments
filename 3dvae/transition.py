@@ -231,12 +231,28 @@ class ConvTransition(object):
         self.sess.close()
 
 class Conv1DTransition(object):
-    def __init__(self, input_dim=[None,256,1], learning_rate=1e-3, batch_size=64, model_fname='/home/ronnypetson/models/Conv1D_transition'):
+    def __init__(self, input_dim=[None,16,128], output_dim=[None,16,12], learning_rate=1e-3, batch_size=64, model_fname='/home/ronnypetson/models/Conv1D_transition'):
         self.input_dim = input_dim
-        self.output_dim = input_dim
+        self.output_dim = output_dim
         self.learning_rate = learning_rate
         self.batch_size = batch_size
         self.model_fname = model_fname
+        self.load()
+
+    # Build the netowrk and the loss functions
+    def build(self):
+        self.x = tf.placeholder(name='x', dtype=tf.float32, shape=self.input_dim)
+        self.y = tf.placeholder(name='y', dtype=tf.float32, shape=self.output_dim)
+        conv1 = tf.layers.conv1d(self.x, 64, (3,), padding='same', activation=tf.nn.relu)
+        conv2 = tf.layers.conv1d(conv1, 64, (3,), padding='same', activation=tf.nn.relu)
+        conv3 = tf.layers.conv1d(conv2, 64, (3,), padding='same', activation=tf.nn.relu)
+        dense1 = tf.layers.dense(tf.layers.flatten(conv3),1024, activation=tf.nn.relu)
+        dense2 = tf.layers.dense(dense1,np.prod(self.output_dim[1:]), activation=None)
+        self.y_ = tf.reshape(dense2,[-1]+self.output_dim[1:])
+        self.total_loss = tf.losses.mean_squared_error(self.y_,self.y)
+        self.train_op = tf.train.AdamOptimizer(learning_rate=self.learning_rate).minimize(self.total_loss)
+
+    def load(self):
         self.build()
         self.sess = tf.InteractiveSession()
         self.saver = tf.train.Saver()
@@ -250,31 +266,17 @@ class Conv1DTransition(object):
             print('Model file not found')
             self.sess.run(tf.global_variables_initializer())
 
-    # Build the netowrk and the loss functions
-    def build(self):
-        self.x = tf.placeholder(name='x', dtype=tf.float32, shape=self.input_dim)
-        self.x_ = tf.placeholder(name='x_', dtype=tf.float32, shape=self.output_dim)
-        conv1 = tf.layers.conv1d(self.x, 64, (3,), padding='same', activation=tf.nn.relu)
-        conv2 = tf.layers.conv1d(conv1, 64, (3,), padding='same', activation=tf.nn.relu)
-        conv3 = tf.layers.conv1d(conv2, 64, (3,), padding='same', activation=tf.nn.relu)
-        #self.x_hat = tf.layers.conv1d(conv3, self.input_dim[-1], (3,), padding='same', activation=None)
-        dense1 = tf.layers.dense(tf.layers.flatten(conv3),1024, activation=tf.nn.relu)
-        dense2 = tf.layers.dense(dense1,np.prod(self.input_dim[1:]), activation=None)
-        self.x_hat = tf.reshape(dense2,[-1]+self.input_dim[1:])
-        self.total_loss = tf.losses.mean_squared_error(self.x_,self.x_hat)
-        self.train_op = tf.train.AdamOptimizer(learning_rate=self.learning_rate).minimize(self.total_loss)
-
     # Execute the forward and the backward pass
-    def run_single_step(self, x, x_):
+    def run_single_step(self, x, y):
         _, loss = self.sess.run(
             [self.train_op, self.total_loss],
-            feed_dict={self.x: x, self.x_: x_}
+            feed_dict={self.x: x, self.y: y}
         )
         return loss
     # x -> x_hat
     def forward(self, x):
-        x_hat = self.sess.run(self.x_hat, feed_dict={self.x: x})
-        return x_hat
+        y_ = self.sess.run(self.y_, feed_dict={self.x: x})
+        return y_
     def save_model(self):
         self.saver.save(self.sess, self.model_fname)
     def close_session(self):
