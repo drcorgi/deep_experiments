@@ -3,9 +3,11 @@ import gym
 import cv2
 import os
 import re
+import time
 from copy import deepcopy
 from matplotlib import pyplot as plt
 from mpl_toolkits.mplot3d import Axes3D
+from multiprocessing import Pool
 
 from vae import *
 from transition import *
@@ -40,23 +42,26 @@ def plot_data(data,ddir='/home/ronnypetson/models',dlen=32):
         plt.savefig(ddir+'/data_plot_{}.png'.format(i))
         plt.close(fig)
 
+def imread_0(fpath):
+    return cv2.imread(fpath,0)
+
 def log_run_kitti(fdir='/home/ronnypetson/Documents/deep_odometry/kitti/dataset_frames/sequences/02/image_0'):
     frames = []
     fnames = os.listdir(fdir)
     fnames = sorted(fnames,key=lambda x: int(x[:-4]))
     imgs = [cv2.imread(fdir+'/'+fname,0) for fname in fnames]
+    #with Pool(5) as p:
+    #    imgs = p.map(imread_0,[fdir+'/'+fname for fname in fnames])
     for f in imgs:
         f = cv2.resize(f,img_shape[:-1],interpolation=cv2.INTER_LINEAR)#.reshape(img_shape[:-1])
         frames.append(f/255.0)
-    frames = np.array(frames)
-    #plot_data(frames,dlen=32)
-    return frames
+    return np.array(frames)
 
 def log_run_kitti_all(re_dir='/home/ronnypetson/Documents/deep_odometry/kitti/dataset_frames/sequences/{}/image_0'):
     seqs = ['00','01','02','03','04','05','06','07','08','09','10']
     #seqs = ['00','01','02','05','06','07','08','09','10']
     frames = log_run_kitti(re_dir.format(seqs[0]))
-    for s in seqs[1:1]:
+    for s in seqs[1:]:
         print('Loading sequence from '+s)
         sframes = log_run_kitti(re_dir.format(s))
         frames = np.concatenate((frames,sframes),axis=0)
@@ -116,8 +121,7 @@ def log_run_video(num_it=10000,fdir='/home/ronnypetson/Documents/penncosyvio/dat
                 tstamps.append(prev_tstamp+cap.get(cv2.CAP_PROP_POS_MSEC)/1000.0)
                 f = cv2.cvtColor(f,cv2.COLOR_BGR2GRAY)
                 f = cv2.resize(f,img_shape[:-1])
-                #f = cv2.Laplacian(f,cv2.CV_64F) # cv2.Canny(f,100,200)
-                f = f.reshape(img_shape)
+                #f = f.reshape(img_shape)
                 frames.append(f/255.0)
             else:
                 prev_tstamp = np.max(tstamps)
@@ -126,18 +130,6 @@ def log_run_video(num_it=10000,fdir='/home/ronnypetson/Documents/penncosyvio/dat
     frames = np.array(frames,dtype=np.float32)
     plot_data(frames)
     return frames, tstamps
-
-def fast_argmin(x,sorted_arr,lambda_): # Supposing that lambda_ is non-decreasing in [0,1,2,...,n]
-    ind = len(sorted_arr)//2
-    inc = ind//2
-    arg_min = ind
-    while inc > 0:
-        inc = inc//2
-        if lambda_(x,sorted_arr[ind]) > 0:
-            ind -= inc
-        else:
-            ind += inc
-    return ind
 
 def homogen(x):
     assert len(x) == 12
@@ -168,7 +160,7 @@ def load_kitti_odom_all(fdir='/home/ronnypetson/Documents/deep_odometry/kitti/da
     #fns = [fn for fn in fns if fn not in fns[3:5]] #
     rposes, aposes = load_kitti_odom(fdir+'/'+fns[0],wsize)
     limits = [len(aposes)]
-    for fn in fns[1:1]:
+    for fn in fns[1:]:
         rp, ap = load_kitti_odom(fdir+'/'+fn,wsize)
         rposes = np.concatenate((rposes,rp),axis=0)
         aposes = np.concatenate((aposes,ap),axis=0)
@@ -263,7 +255,6 @@ def get_3d_points_(rposes,wlen=32):
     #aposes1 = np.reshape(aposes[-1][remainder:],(-1,4,4))
     #poses_ = np.concatenate((aposes0,aposes1),axis=0)
     return np.array([[p[0,3],p[1,3],p[2,3]] for p in aposes0])
-    #return np.array([[p[0,3],p[1,3],p[2,3]] for p in rposes[255]])
     '''poses_ = []
     for i in range(len(aposes)+wlen-1):
         p = []
@@ -297,6 +288,18 @@ def get_batch_(datax,datay):
     batchx = np.array([datax[i] for i in inds],dtype=np.float32)
     batchy = np.array([datay[i] for i in inds],dtype=np.float32)
     return batchx, batchy
+
+def get_inds(batch_size,dlen,nbatches):
+    return np.random.choice(range(dlen),(nbatches,batch_size))
+
+def get_batch_inds(datax,datay,inds):
+    assert len(datax) == len(datay)
+    batchx = np.array([datax[i] for i in inds],dtype=np.float32)
+    batchy = np.array([datay[i] for i in inds],dtype=np.float32)
+    return batchx, batchy
+
+def get_batchinds(data,inds):
+    return np.array([data[i] for i in inds],dtype=np.float32)
 
 def encode_(data,ae):
     enc = []
@@ -385,12 +388,14 @@ def train_translator(t,paes,eaes,pdata,edata,num_epochs,seq_len=32):
 def train_transition(t,data_x,data_y,num_epochs):
     num_sample = len(data_x)
     for epoch in range(num_epochs):
-        for _ in range(num_sample//batch_size):
-            batch_x, batch_y = get_batch_(data_x,data_y)
+        num_batches = num_sample//batch_size
+        inds = get_inds(batch_size,num_sample,num_batches)
+        for i in range(num_batches):
+            batch_x, batch_y = get_batch_inds(data_x,data_y,inds[i])
             loss = t.run_single_step(batch_x,batch_y)
+        print('[Epoch {}] Loss: {}'.format(epoch, loss))
         if epoch%50==49:
             t.save_model()
-        print('[Epoch {}] Loss: {}'.format(epoch, loss))
     print('Done!')
 
 def test_transition(t,test_x,test_y):
@@ -419,12 +424,14 @@ def train_last_ae(aes,data,num_epochs,seq_len=32):
     #current.load()
     num_sample=len(data)
     for epoch in range(num_epochs):
-        for _ in range(num_sample // batch_size):
-            batch = get_batch(data)
+        num_batches = num_sample//batch_size
+        inds = get_inds(batch_size,num_sample,num_batches)
+        for i in range(num_batches):
+            batch = get_batchinds(data,inds[i])
             loss = current.run_single_step(batch)
+            print('[Epoch {}] Loss: {}'.format(epoch, loss))
         if epoch%10==9:
             current.save_model()
-        print('[Epoch {}] Loss: {}'.format(epoch, loss))
     #current.close_session()
     print('Done!')
 
