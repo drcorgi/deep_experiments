@@ -249,6 +249,8 @@ class Conv1DTransition(object):
         dense1 = tf.layers.dense(tf.layers.flatten(conv3),1024, activation=tf.nn.relu)
         dense2 = tf.layers.dense(dense1,np.prod(self.output_dim[1:]), activation=None)
         self.y_ = tf.reshape(dense2,[-1]+self.output_dim[1:])
+        #pweights = np.array([[[(i-self.output_dim[1]//2)**2+1.0 for _ in range(self.output_dim[2])]
+        #                            for i in range(self.output_dim[1])] for _ in range(self.batch_size)])
         self.total_loss = tf.losses.mean_squared_error(self.y_,self.y)
         self.train_op = tf.train.AdamOptimizer(learning_rate=self.learning_rate).minimize(self.total_loss)
 

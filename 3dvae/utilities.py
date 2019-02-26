@@ -45,28 +45,6 @@ def plot_data(data,ddir='/home/ronnypetson/models',dlen=32):
 def imread_0(fpath):
     return cv2.imread(fpath,0)
 
-def log_run_kitti(fdir='/home/ronnypetson/Documents/deep_odometry/kitti/dataset_frames/sequences/02/image_0'):
-    frames = []
-    fnames = os.listdir(fdir)
-    fnames = sorted(fnames,key=lambda x: int(x[:-4]))
-    imgs = [cv2.imread(fdir+'/'+fname,0) for fname in fnames]
-    #with Pool(5) as p:
-    #    imgs = p.map(imread_0,[fdir+'/'+fname for fname in fnames])
-    for f in imgs:
-        f = cv2.resize(f,img_shape[:-1],interpolation=cv2.INTER_LINEAR)#.reshape(img_shape[:-1])
-        frames.append(f/255.0)
-    return np.array(frames)
-
-def log_run_kitti_all(re_dir='/home/ronnypetson/Documents/deep_odometry/kitti/dataset_frames/sequences/{}/image_0'):
-    seqs = ['00','01','02','03','04','05','06','07','08','09','10']
-    #seqs = ['00','01','02','05','06','07','08','09','10']
-    frames = log_run_kitti(re_dir.format(seqs[0]))
-    for s in seqs[1:]:
-        print('Loading sequence from '+s)
-        sframes = log_run_kitti(re_dir.format(s))
-        frames = np.concatenate((frames,sframes),axis=0)
-    return frames
-
 def plot_abs(gt,est,ddir='/home/ronnypetson/models'):
     fig = plt.figure()
     ax = fig.add_subplot(111)
@@ -139,6 +117,28 @@ def flat_homogen(x):
     assert x.shape == (4,4)
     return np.array(x.reshape(16)[:-4])
 
+def log_run_kitti(fdir='/home/ronnypetson/Documents/deep_odometry/kitti/dataset_frames/sequences/02/image_0'):
+    frames = []
+    fnames = os.listdir(fdir)
+    fnames = sorted(fnames,key=lambda x: int(x[:-4]))
+    imgs = [cv2.imread(fdir+'/'+fname,0) for fname in fnames]
+    #with Pool(5) as p:
+    #    imgs = p.map(imread_0,[fdir+'/'+fname for fname in fnames])
+    for f in imgs:
+        f = cv2.resize(f,img_shape[:-1],interpolation=cv2.INTER_LINEAR)#.reshape(img_shape[:-1])
+        frames.append(f/255.0)
+    return np.array(frames)
+
+def log_run_kitti_all(re_dir='/home/ronnypetson/Documents/deep_odometry/kitti/dataset_frames/sequences/{}/image_0'):
+    seqs = ['00','01','02','03','04','05','06','07','08','09','10']
+    #seqs = ['00','01','02','05','06','07','08','09','10']
+    frames = log_run_kitti(re_dir.format(seqs[0]))
+    for s in seqs[1:1]:
+        print('Loading sequence from '+s)
+        sframes = log_run_kitti(re_dir.format(s))
+        frames = np.concatenate((frames,sframes),axis=0)
+    return frames
+
 def load_kitti_odom(fdir='/home/ronnypetson/Documents/deep_odometry/kitti/dataset/poses/02.txt',wsize=32):
     '''
         Returns relative poses (window-wise) and absolute poses (frame-wise) in flat homogen form
@@ -149,7 +149,7 @@ def load_kitti_odom(fdir='/home/ronnypetson/Documents/deep_odometry/kitti/datase
     poses = np.array([ [ float(p) for p in l ] for l in poses ])
     poses_ = [homogen(p) for p in poses]
     rposes = []
-    for i in range(len(poses_)-(wsize-1)): # aparentemente tem um pobrema aqui
+    for i in range(len(poses_)-(wsize-1)):
         #rposes.append([flat_homogen(np.matmul(poses_[j],np.linalg.inv(poses_[i]))) for j in range(i,i+wsize,1)])
         rposes.append([flat_homogen(np.matmul(np.linalg.inv(poses_[i]),poses_[j])) for j in range(i,i+wsize,1)])
     return np.array(rposes), poses
@@ -160,7 +160,7 @@ def load_kitti_odom_all(fdir='/home/ronnypetson/Documents/deep_odometry/kitti/da
     #fns = [fn for fn in fns if fn not in fns[3:5]] #
     rposes, aposes = load_kitti_odom(fdir+'/'+fns[0],wsize)
     limits = [len(aposes)]
-    for fn in fns[1:]:
+    for fn in fns[1:1]:
         rp, ap = load_kitti_odom(fdir+'/'+fn,wsize)
         rposes = np.concatenate((rposes,rp),axis=0)
         aposes = np.concatenate((aposes,ap),axis=0)
@@ -250,21 +250,18 @@ def get_3d_points_(rposes,wlen=32):
         in_p = np.mean(p,axis=0)
         new_p = [np.matmul(in_p,rposes[i][j]) for j in range(wlen)]
         aposes.append(new_p)
-    remainder = wlen-(len(rposes)+wlen-1)%wlen
-    aposes0 = np.reshape(aposes[::wlen],(-1,4,4))
+    #remainder = wlen-(len(rposes)+wlen-1)%wlen
+    #aposes0 = np.reshape(aposes[::wlen],(-1,4,4))
     #aposes1 = np.reshape(aposes[-1][remainder:],(-1,4,4))
     #poses_ = np.concatenate((aposes0,aposes1),axis=0)
-    return np.array([[p[0,3],p[1,3],p[2,3]] for p in aposes0])
-    '''poses_ = []
+    #return np.array([[p[0,3],p[1,3],p[2,3]] for p in aposes0])
+    poses_ = []
     for i in range(len(aposes)+wlen-1):
         p = []
-        # range(max(0,i-(seq_len-1)),min(i+1,len(aposes)-(seq_len-1)),1)
-        # range(max(0,i-(seq_len-1)),min(i+1,len(aposes)),1)
-        for j in range(max(0,i-(wlen-1)),min(len(aposes),max(0,i-(wlen-1))+wlen),1):
+        for j in range(max(0,i-(wlen-1)),min(len(aposes),i+1),1):
             p.append(aposes[j][i-j])
         poses_.append(np.mean(p,axis=0))
-    poses_ = np.array([[p[0,3],p[1,3],p[2,3]] for p in poses_])
-    return poses_'''
+    return np.array([[p[0,3],p[1,3],p[2,3]] for p in poses_])
     #return np.array([[p[0,3],p[1,3],p[2,3]] for p in aposes_])
 
 def get_3d_points(poses,poses_abs,seq_len=32): # Under unit test
@@ -344,10 +341,11 @@ def unstack_(data,seq_len=32): # Ex.: (1,32,128,1) -> (32,128)
 def up_(aes,data,seq_len=32,training=False):
     offset = 1
     for ae in aes[:-1]:
-        data = stack_(encode_(data,ae),offset=offset,seq_len=seq_len,blimit=len(data)-offset*(seq_len-1),training=training) # *(seq_len-1)
+        data = stack_(encode_(data,ae),offset=offset,seq_len=seq_len,blimit=len(data)-offset*seq_len+1,training=training) # *(seq_len-1)
         offset *= seq_len
         print(data.shape)
     data = encode_(data,aes[-1])
+    print(data.shape)
     return data
 
 def down_(aes,data,base_data,seq_len=32,training=False,data_type='text'):
@@ -416,7 +414,7 @@ def train_last_ae(aes,data,num_epochs,seq_len=32):
     offset = 1
     for ae in base:
         #ae.load()
-        data = stack_(encode_(data,ae),seq_len=seq_len,offset=offset,blimit=len(data)-offset*(seq_len-1),training=True) # -offset*(seq_len-1)
+        data = stack_(encode_(data,ae),seq_len=seq_len,offset=offset,blimit=len(data)-offset*seq_len+1,training=True) # -offset*(seq_len-1)
         #ae.close_session()
         offset *= seq_len
         print('.')
