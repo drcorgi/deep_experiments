@@ -133,7 +133,7 @@ def log_run_kitti_all(re_dir='/home/ronnypetson/Documents/deep_odometry/kitti/da
     seqs = ['00','01','02','03','04','05','06','07','08','09','10']
     #seqs = ['00','01','02','05','06','07','08','09','10']
     frames = log_run_kitti(re_dir.format(seqs[0]))
-    for s in seqs[1:1]:
+    for s in seqs[1:]:
         print('Loading sequence from '+s)
         sframes = log_run_kitti(re_dir.format(s))
         frames = np.concatenate((frames,sframes),axis=0)
@@ -160,7 +160,7 @@ def load_kitti_odom_all(fdir='/home/ronnypetson/Documents/deep_odometry/kitti/da
     #fns = [fn for fn in fns if fn not in fns[3:5]] #
     rposes, aposes = load_kitti_odom(fdir+'/'+fns[0],wsize)
     limits = [len(aposes)]
-    for fn in fns[1:1]:
+    for fn in fns[1:]:
         rp, ap = load_kitti_odom(fdir+'/'+fn,wsize)
         rposes = np.concatenate((rposes,rp),axis=0)
         aposes = np.concatenate((aposes,ap),axis=0)
@@ -396,6 +396,20 @@ def train_transition(t,data_x,data_y,num_epochs):
             t.save_model()
     print('Done!')
 
+def train_transition_(t,data_x,cont,data_y,num_epochs):
+    num_sample = len(data_x)
+    for epoch in range(num_epochs):
+        num_batches = num_sample//batch_size
+        inds = get_inds(batch_size,num_sample,num_batches)
+        for i in range(num_batches):
+            batch_x, batch_y = get_batch_inds(data_x,data_y,inds[i])
+            batch_cont = get_batchinds(cont,inds[i])
+            loss = t.run_single_step(batch_x,batch_cont,batch_y)
+        print('[Epoch {}] Loss: {}'.format(epoch, loss))
+        if epoch%50==49:
+            t.save_model()
+    print('Done!')
+
 def test_transition(t,test_x,test_y):
     #assert len(test_x) == len(test_y)
     print(len(test_x),len(test_y))
@@ -405,6 +419,19 @@ def test_transition(t,test_x,test_y):
         bx = test_x[i*batch_size:(i+1)*batch_size]
         if len(bx) > 0:
             rec += t.forward(bx).tolist()
+    rec = np.array(rec)
+    return np.sum((rec-test_y)**2)**0.5/len(rec), rec
+
+def test_transition_(t,test_x,test_cont,test_y):
+    print(len(test_x),len(test_y))
+    assert len(test_x) == len(test_y)
+    rec = []
+    num_batches = (len(test_x)+batch_size)//batch_size
+    for i in range(num_batches):
+        bx = test_x[i*batch_size:(i+1)*batch_size]
+        bc = test_cont[i*batch_size:(i+1)*batch_size]
+        if len(bx) > 0:
+            rec += t.forward(bx,bc).tolist()
     rec = np.array(rec)
     return np.sum((rec-test_y)**2)**0.5/len(rec), rec
 
