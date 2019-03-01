@@ -120,18 +120,19 @@ def flat_homogen(x):
 def log_run_kitti(fdir='/home/ronnypetson/Documents/deep_odometry/kitti/dataset_frames/sequences/02/image_0'):
     frames = []
     fnames = os.listdir(fdir)
+    fnames = [f for f in fnames if os.path.isfile(fdir+'/'+f)]
     fnames = sorted(fnames,key=lambda x: int(x[:-4]))
     imgs = [cv2.imread(fdir+'/'+fname,0) for fname in fnames]
     #with Pool(5) as p:
     #    imgs = p.map(imread_0,[fdir+'/'+fname for fname in fnames])
     for f in imgs:
-        f = cv2.resize(f,img_shape[:-1],interpolation=cv2.INTER_LINEAR)#.reshape(img_shape[:-1])
+        #f = cv2.resize(f,img_shape[:-1],interpolation=cv2.INTER_LINEAR)#.reshape(img_shape[:-1])
         frames.append(f/255.0)
     return np.array(frames)
 
-def log_run_kitti_all(re_dir='/home/ronnypetson/Documents/deep_odometry/kitti/dataset_frames/sequences/{}/image_0'):
-    seqs = ['00','01','02','03','04','05','06','07','08','09','10']
-    #seqs = ['00','01','02','05','06','07','08','09','10']
+def log_run_kitti_all(re_dir='/home/ronnypetson/Documents/deep_odometry/kitti/dataset_frames/sequences/{}/image_0/128x128'):
+    seqs = ['00','01','02','03','04','05','06','07','08','09','10']#,'11',\
+             #'12','13','14','15','16','17','18','19','20','21']
     frames = log_run_kitti(re_dir.format(seqs[0]))
     for s in seqs[1:]:
         print('Loading sequence from '+s)
