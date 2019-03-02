@@ -117,6 +117,13 @@ def flat_homogen(x):
     assert x.shape == (4,4)
     return np.array(x.reshape(16)[:-4])
 
+def get_opt_flows(frames):
+    flows = []
+    for i in range(len(frames)-1):
+        flow = cv2.calcOpticalFlowFarneback(frames[i],frames[i+1],None,0.5,3,15,3,5,1.2,0)
+        flows.append(flow)
+    return flows
+
 def log_run_kitti(fdir='/home/ronnypetson/Documents/deep_odometry/kitti/dataset_frames/sequences/02/image_0'):
     frames = []
     fnames = os.listdir(fdir)
@@ -127,7 +134,7 @@ def log_run_kitti(fdir='/home/ronnypetson/Documents/deep_odometry/kitti/dataset_
     #    imgs = p.map(imread_0,[fdir+'/'+fname for fname in fnames])
     for f in imgs:
         #f = cv2.resize(f,img_shape[:-1],interpolation=cv2.INTER_LINEAR)#.reshape(img_shape[:-1])
-        frames.append(f/255.0)
+        frames.append(f) # /255.0
     return np.array(frames)
 
 def log_run_kitti_all(re_dir='/home/ronnypetson/Documents/deep_odometry/kitti/dataset_frames/sequences/{}/image_0/128x128'):

@@ -12,9 +12,6 @@ class VanillaAutoencoder(object):
         self.batch_size = batch_size
         self.n_z = n_z
         self.model_fname = model_fname
-        #self.build()
-        #self.sess = tf.InteractiveSession() # Interactive
-        #self.saver = tf.train.Saver()
         if load: self.load()
 
     # Build the netowrk and the loss functions
@@ -34,7 +31,7 @@ class VanillaAutoencoder(object):
         dec1 = tf.reshape(dec1,new_dim) # tf.shape(conv3)
         dec2 = tf.layers.conv2d_transpose(dec1, 64, (3,3), (1,1), padding='same', activation=tf.nn.relu)
         dec3 = tf.layers.conv2d_transpose(dec2, 64, (3,3), (2,2), padding='same', activation=tf.nn.relu)
-        self.x_hat = tf.layers.conv2d_transpose(dec3, 1, (5,5), (2,2), padding='same', activation=None) # None
+        self.x_hat = tf.layers.conv2d_transpose(dec3, self.input_dim[-1], (5,5), (2,2), padding='same', activation=None) # None
         self.total_loss = tf.losses.mean_squared_error(self.x,self.x_hat)
         self.train_op = tf.train.AdamOptimizer(learning_rate=self.learning_rate).minimize(self.total_loss)
 
