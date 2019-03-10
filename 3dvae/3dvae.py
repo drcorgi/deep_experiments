@@ -17,7 +17,7 @@ test_len = 16
 
 basedir = '/home/ronnypetson/Downloads/'
 date = '2011_09_26'
-drive = '0001'
+drive = '0005'
 data = pykitti.raw(basedir, date, drive)
 
 def save_flows():
@@ -25,8 +25,9 @@ def save_flows():
     save_opt_flows(frames)
 
 def get_test_poses():
-    poses = [flat_homogen(d[1]) for d in data.oxts]
-    return np.array([poses[i:i+wsize] for i in range(len(poses)-wsize+1)])
+    poses = [d[1] for d in data.oxts]
+    poses = [[np.matmul(np.linalg.inv(poses[i]),poses[j]) for j in range(i,i+wsize,1)] for i in range(len(poses)-wsize+1)]
+    return np.array([[flat_homogen(p) for p in seq] for seq in poses])
 
 def get_test_imu():
     imu = [d[0][6:-7] for d in data.oxts]
@@ -34,7 +35,7 @@ def get_test_imu():
 
 def opt_flow():
     #frames = log_run_kitti_all()
-    frames = get_opt_flows(flows_dir='/home/ronnypetson/Documents/deep_odometry/kitti/dataset_frames/sequences/flows_test_128x128/')
+    frames = get_opt_flows(flows_dir='/home/ronnypetson/Documents/deep_odometry/kitti/dataset_frames/sequences/flows_test_05_128x128/')
     #poses, poses_abs, avoid = load_kitti_odom_all(wsize=wsize,stride=stride)
     poses, avoid = get_test_poses(), []
     imu = get_test_imu()
@@ -49,7 +50,6 @@ def opt_flow():
                 model_fname='/home/ronnypetson/models/Conv1DTransition_kitti_flow_{}x(128+17)_{}x12_'.format(seq_len,wsize))
     data_x = up_(aes[:1],frames,seq_len=seq_len,training=True)
     data_x = [data_x[i:i+stride*seq_len:stride] for i in range(len(data_x)-stride*seq_len+1)] # for level-1
-    print(np.array(data_x).shape,imu.shape)
     data_x = [np.concatenate((data_x[i],imu[i]),axis=1) for i in range(len(data_x))]
     # Align sequences with poses
     data_x = np.array([data_x[i] for i in range(len(data_x)) if i not in avoid])

@@ -120,7 +120,7 @@ def flat_homogen(x):
 def save_opt_flows(frames):
     for i in range(len(frames)-1):
         flow = cv2.calcOpticalFlowFarneback(frames[i],frames[i+1],None,0.5,3,15,3,5,1.2,0)
-        np.save('/home/ronnypetson/Documents/deep_odometry/kitti/dataset_frames/sequences/flows_test_128x128/{}.npy'.format(i),flow)
+        np.save('/home/ronnypetson/Documents/deep_odometry/kitti/dataset_frames/sequences/flows_test_05_128x128/{}.npy'.format(i),flow)
 
 def get_opt_flows(flows_dir='/home/ronnypetson/Documents/deep_odometry/kitti/dataset_frames/sequences/flows_00-10_128x128/'):
     flows_paths = os.listdir(flows_dir)
