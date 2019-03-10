@@ -13,7 +13,7 @@ from vae import *
 from transition import *
 
 img_shape = (128,128,1)
-batch_size = 64
+batch_size = 256
 latent_dim = 128
 h, w, _ = img_shape
 env_name = 'Assault-v0' #'Breakout-v0' #'Pong-v0'
@@ -120,7 +120,7 @@ def flat_homogen(x):
 def save_opt_flows(frames):
     for i in range(len(frames)-1):
         flow = cv2.calcOpticalFlowFarneback(frames[i],frames[i+1],None,0.5,3,15,3,5,1.2,0)
-        np.save('/home/ronnypetson/Documents/deep_odometry/kitti/dataset_frames/sequences/flows_test_05_128x128/{}.npy'.format(i),flow)
+        np.save('/home/ronnypetson/Documents/deep_odometry/kitti/dataset_frames/sequences/flows_ae_00-21_128x128/{}.npy'.format(i),flow)
 
 def get_opt_flows(flows_dir='/home/ronnypetson/Documents/deep_odometry/kitti/dataset_frames/sequences/flows_00-10_128x128/'):
     flows_paths = os.listdir(flows_dir)
@@ -252,6 +252,20 @@ def cat2text(data):
         ords += [np.argmax(c) for c in w]
     return get_str(ords)
 
+def get_3d_points_fast(rposes,wlen=32):
+    rposes = [[homogen(p) for p in r] for r in rposes]
+    aposes = [rposes[0][0]]
+    for i in range(1,len(rposes),1):
+        pos_seq_idx = max(0,i-wlen//2)
+        pos_subseq_idx = wlen//2
+        if i < pos_subseq_idx:
+            pos_subseq_idx = i
+        #elif i > len(rposes)-pos_subseq_idx+1:
+        #    pos_subseq_idx = i-(len(rposes)-wlen+1)
+        abs_pose = np.matmul(aposes[pos_seq_idx],rposes[pos_seq_idx][pos_subseq_idx])
+        aposes.append(abs_pose)
+    return np.array([[p[0,3],p[1,3],p[2,3]] for p in aposes])
+
 def get_3d_points_(rposes,wlen=32):
     rposes = [[homogen(p) for p in r] for r in rposes]
     aposes = [rposes[0]]
@@ -306,12 +320,13 @@ def get_inds(batch_size,dlen,nbatches):
 
 def get_batch_inds(datax,datay,inds):
     assert len(datax) == len(datay)
-    batchx = np.array([datax[i] for i in inds],dtype=np.float32)
-    batchy = np.array([datay[i] for i in inds],dtype=np.float32)
+    batchx = [datax[i] for i in inds]
+    batchy = [datay[i] for i in inds]
     return batchx, batchy
 
 def get_batchinds(data,inds):
-    return np.array([data[i] for i in inds],dtype=np.float32)
+    #return np.array([data[i] for i in inds],dtype=np.float32)
+    return [data[i] for i in inds]
 
 def encode_(data,ae):
     enc = []
@@ -435,7 +450,7 @@ def test_transition(t,test_x,test_y):
         if len(bx) > 0:
             rec += t.forward(bx).tolist()
     rec = np.array(rec)
-    return np.sum((rec-test_y)**2)**0.5/len(rec), rec
+    return np.sum((rec-test_y)**2/len(rec))**0.5, rec
 
 def test_transition_(t,test_x,test_cont,test_y):
     print(len(test_x),len(test_y))
@@ -470,7 +485,7 @@ def train_last_ae(aes,data,num_epochs,seq_len=32):
             batch = get_batchinds(data,inds[i])
             loss = current.run_single_step(batch)
             print('[Epoch {}] Loss: {}'.format(epoch, loss))
-        if epoch%10==9:
+        if epoch%10==0:
             current.save_model()
     #current.close_session()
     print('Done!')

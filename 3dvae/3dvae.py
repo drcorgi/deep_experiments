@@ -4,63 +4,54 @@ import numpy as np
 import gym
 import cv2
 import matplotlib.pyplot as plt
-import pykitti
 
 from vae import *
 from transition import *
 from utilities import *
+from kitti_loader import *
 
-wsize = 16
+wsize = 256
 seq_len = 16
 stride = 1
-test_len = 16
-
-basedir = '/home/ronnypetson/Downloads/'
-date = '2011_09_26'
-drive = '0005'
-data = pykitti.raw(basedir, date, drive)
-
-def save_flows():
-    frames = [cv2.resize(np.array(f),(128,128)) for f in data.cam0]
-    save_opt_flows(frames)
-
-def get_test_poses():
-    poses = [d[1] for d in data.oxts]
-    poses = [[np.matmul(np.linalg.inv(poses[i]),poses[j]) for j in range(i,i+wsize,1)] for i in range(len(poses)-wsize+1)]
-    return np.array([[flat_homogen(p) for p in seq] for seq in poses])
-
-def get_test_imu():
-    imu = [d[0][6:-7] for d in data.oxts]
-    return np.array([imu[i:i+wsize] for i in range(len(imu)-wsize+1)])
+test_len = 1024
 
 def opt_flow():
-    #frames = log_run_kitti_all()
-    frames = get_opt_flows(flows_dir='/home/ronnypetson/Documents/deep_odometry/kitti/dataset_frames/sequences/flows_test_05_128x128/')
-    #poses, poses_abs, avoid = load_kitti_odom_all(wsize=wsize,stride=stride)
-    poses, avoid = get_test_poses(), []
+    frames = get_opt_flows()
+    poses, poses_abs, avoid = load_kitti_odom_all(wsize=wsize,stride=stride)
+    poses = poses[:-seq_len]
+    #frames = get_opt_flows(flows_dir='/home/ronnypetson/Documents/deep_odometry/kitti/dataset_frames/sequences/flows_test_28_128x128/')
+    '''poses, avoid = get_test_poses(), []
     imu = get_test_imu()
     poses = poses[:-1]
-    imu = imu[:-1]
+    imu = imu[:-1]'''
     # Loading the encoder models
-    aes = [VanillaAutoencoder([None,h,w,2],1e-3,batch_size,128,'/home/ronnypetson/models/VanillaAE_flow_128x128_kitti')]
-    #train_last_ae(aes[:1],frames[1024:],20,seq_len=seq_len)
+    aes = [VanillaAutoencoder([None,h,w,2],1e-3,batch_size,128,'/home/ronnypetson/models/VanillaAE_flow_128x128_kitti_'),\
+           Vanilla1DAutoencoder([None,seq_len,128],1e-3,batch_size,256,'/home/ronnypetson/models/VanillaAE1D_flow_16x128')]
+    #train_last_ae(aes[:2],frames,40,seq_len=seq_len)
     #train_last_ae(aes[:3],frames,40,seq_len=seq_len)
     #encode_decode_sequence(aes[:1],frames[:32],seq_len=seq_len)
-    t = Conv1DTransition([None,seq_len,128+17],[None,wsize,12],
-                model_fname='/home/ronnypetson/models/Conv1DTransition_kitti_flow_{}x(128+17)_{}x12_'.format(seq_len,wsize))
-    data_x = up_(aes[:1],frames,seq_len=seq_len,training=True)
-    data_x = [data_x[i:i+stride*seq_len:stride] for i in range(len(data_x)-stride*seq_len+1)] # for level-1
-    data_x = [np.concatenate((data_x[i],imu[i]),axis=1) for i in range(len(data_x))]
+    #t = Conv1DTransition([None,seq_len,128],[None,wsize,12],
+    #            model_fname='/home/ronnypetson/models/Conv1DTransition_kitti_flow_{}x(128)_{}x12_'.format(seq_len,wsize))
+    t = Conv1DTransition([None,seq_len,256],[None,wsize,12],
+                model_fname='/home/ronnypetson/models/Conv1DTransition_kitti_flow_{}x256_{}x12_'.format(seq_len,wsize))
+    data_x = up_(aes[:2],frames,seq_len=seq_len,training=True)
+    #data_x = [data_x[i:i+stride*seq_len:stride] for i in range(len(data_x)-stride*seq_len+1)] # for level-1
+    data_x = [data_x[i:i+seq_len*seq_len:seq_len] for i in range(len(data_x)-seq_len*seq_len+1)]
+    #data_x = [np.concatenate((data_x[i],imu[i]),axis=1) for i in range(len(data_x))]
+    '''t = Conv1DTransition([None,seq_len,0+17],[None,wsize,12],
+                model_fname='/home/ronnypetson/models/Conv1DTransition_kitti_flow_{}x(0+17)_{}x12_'.format(seq_len,wsize))
+    data_x = imu'''
     # Align sequences with poses
     data_x = np.array([data_x[i] for i in range(len(data_x)) if i not in avoid])
-    print(len(data_x),len(poses),len(imu)) #
-    assert len(data_x) == len(poses) and len(data_x) == len(imu)
+    #print(len(data_x),len(poses),len(imu)) #
+    print(len(data_x),len(poses))
+    assert len(data_x) == len(poses)# and len(data_x) == len(imu)
     #
     tf.reset_default_graph()
-    data_x_train = data_x#[test_len:]
-    data_x_test = data_x#[:test_len]
-    poses_train = poses#[test_len:]
-    poses_test = poses#[:test_len]
+    data_x_train = data_x[test_len:]
+    data_x_test = data_x[:test_len]
+    poses_train = poses[test_len:]
+    poses_test = poses[:test_len]
     train_transition(t,data_x_train,poses_train,100)
     # Checking the estimated poses
     rmse, estimated = test_transition(t,data_x_test,poses_test)
