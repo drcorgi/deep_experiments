@@ -42,8 +42,10 @@ class OptFlowsSaver:
 
     def save_seq_poses(self,base,date,drive,fname):
         data = [pykitti.raw(b,d,drv) for b,d,drv in zip(base,date,drive)]
-        poses = np.array([flat_homogen(d[1]) for d in data.oxts][1:])
-        np.save(self.flows_dir+'/'+fname,poses)
+        poses = []
+        for d_ in data:
+            poses.append([flat_homogen(d[1]) for d in d_.oxts][1:])
+        np.save(self.flows_dir+'/'+fname,np.array(poses))
 
     def save_opt_flows(self,fname):
         frames = self.load_seq_frames()
