@@ -35,17 +35,15 @@ class OptFlowsSaver:
             sframes = self.load_frames(s)
             frames = np.concatenate((frames,sframes),axis=0)
             seq_limits.append(len(frames))
-        with open(self.flows_dir+'/seq_limits.txt','w') as f:
-            for l in seq_limits:
-                f.write(str(l)+'\n')
+        np.save(self.flows_dir+'/seq_limits.npy',np.array(seq_limits))
         return frames
 
     def save_seq_poses(self,base,date,drive,fname):
         data = [pykitti.raw(b,d,drv) for b,d,drv in zip(base,date,drive)]
         poses = []
         for d_ in data:
-            poses.append([flat_homogen(d[1]) for d in d_.oxts][1:])
-        np.save(self.flows_dir+'/'+fname,np.array(poses))
+            poses += [flat_homogen(d[1]) for d in d_.oxts]
+        np.save(self.flows_dir+'/'+fname,np.array(poses[1:]))
 
     def save_opt_flows(self,fname):
         frames = self.load_seq_frames()
@@ -61,10 +59,8 @@ if __name__=='__main__':
     base = [re.findall('.*[0-9]+_[0-9]+_[0-9]+',s)[0][:-21] for s in seq_dirs]
     date = [re.findall('[0-9]+_[0-9]+_[0-9]+',s)[0] for s in seq_dirs]
     drive = [re.findall('drive_[0-9]+_sync',s)[0][6:-5] for s in seq_dirs]
-    '''for s, b, d, drv in zip(seq_dirs,base,date,drive):
-        print(s,b,d,drv)
-    exit()'''
     saver = OptFlowsSaver(seq_dirs)
-    #saver.save_opt_flows('flows_128x128_26_30.npy')
+    saver.save_opt_flows('flows_128x128_26_30.npy')
     saver.save_seq_poses(base,date,drive,'poses_flat_26-30.npy')
+    pass
 

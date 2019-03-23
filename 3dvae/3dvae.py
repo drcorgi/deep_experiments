@@ -16,14 +16,17 @@ stride = 1
 test_len = 1024
 
 def opt_flow():
-    frames = get_opt_flows()
+    '''frames = get_opt_flows()
     poses, poses_abs, avoid = load_kitti_odom_all(wsize=wsize,stride=stride)
-    poses = poses[:-1]
+    poses = poses[:-1]'''
+    frames = np.load('/home/ronnypetson/Documents/deep_odometry/kitti/dataset_frames/sequences/flows_128x128/flows_128x128_26_30.npy')
+    poses_abs = np.load('/home/ronnypetson/Documents/deep_odometry/kitti/dataset_frames/sequences/flows_128x128/poses_flat_26-30.npy')
+    limits = np.load('/home/ronnypetson/Documents/deep_odometry/kitti/dataset_frames/sequences/flows_128x128/seq_limits.npy')
+
+    print(len(frames),len(poses_abs))
+    exit()
+
     #frames = get_opt_flows(flows_dir='/home/ronnypetson/Documents/deep_odometry/kitti/dataset_frames/sequences/flows_test_28_128x128/')
-    '''poses, avoid = get_test_poses(), []
-    imu = get_test_imu()
-    poses = poses[:-1]
-    imu = imu[:-1]'''
     # Loading the encoder models
     aes = [VanillaAutoencoder([None,h,w,2],1e-3,batch_size,128,'/home/ronnypetson/models/VanillaAE_flow_128x128_kitti_'),\
            Vanilla1DAutoencoder([None,seq_len,128],1e-3,batch_size,256,'/home/ronnypetson/models/VanillaAE1D_flow_16x128',False)]
@@ -38,9 +41,6 @@ def opt_flow():
     data_x = [data_x[i:i+stride*seq_len:stride] for i in range(len(data_x)-stride*seq_len+1)] # for level-1
     #data_x = [data_x[i:i+seq_len*seq_len:seq_len] for i in range(len(data_x)-seq_len*seq_len+1)]
     #data_x = [np.concatenate((data_x[i],imu[i]),axis=1) for i in range(len(data_x))]
-    '''t = Conv1DTransition([None,seq_len,0+17],[None,wsize,12],
-                model_fname='/home/ronnypetson/models/Conv1DTransition_kitti_flow_{}x(0+17)_{}x12_'.format(seq_len,wsize))
-    data_x = imu'''
     # Align sequences with poses
     data_x = np.array([data_x[i] for i in range(len(data_x)) if i not in avoid])
     #print(len(data_x),len(poses),len(imu)) #
