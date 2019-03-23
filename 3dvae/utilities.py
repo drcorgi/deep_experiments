@@ -13,7 +13,7 @@ from vae import *
 from transition import *
 
 img_shape = (128,128,1)
-batch_size = 256
+batch_size = 64
 latent_dim = 128
 h, w, _ = img_shape
 env_name = 'Assault-v0' #'Breakout-v0' #'Pong-v0'
@@ -178,6 +178,13 @@ def load_kitti_odom_all(fdir='/home/ronnypetson/Documents/deep_odometry/kitti/da
         aposes = np.concatenate((aposes,ap),axis=0)
         limits.append(len(aposes))
     return rposes, aposes, np.reshape([range(l-(stride*wsize-1),l,1) for l in limits],(-1,))
+
+def abs2relative(abs_poses,wsize,stride):
+    poses = [homogen(p) for p in abs_poses]
+    rposes = []
+    for i in range(len(poses)-(stride*wsize-1)):
+        rposes.append([flat_homogen(np.matmul(np.linalg.inv(poses[i]),poses[j])) for j in range(i,i+stride*wsize,stride)])
+    return np.array(rposes)
 
 def load_penn_odom(tstamps,fdir='/home/ronnypetson/Documents/penncosyvio/data/ground_truth/af/pose.txt'):
     with open(fdir) as f:
