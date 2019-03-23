@@ -10,7 +10,7 @@ from transition import *
 from utilities import *
 from kitti_loader import *
 
-wsize = 256
+wsize = 16
 seq_len = 16
 stride = 1
 test_len = 1024
@@ -18,7 +18,7 @@ test_len = 1024
 def opt_flow():
     frames = get_opt_flows()
     poses, poses_abs, avoid = load_kitti_odom_all(wsize=wsize,stride=stride)
-    poses = poses[:-seq_len]
+    poses = poses[:-1]
     #frames = get_opt_flows(flows_dir='/home/ronnypetson/Documents/deep_odometry/kitti/dataset_frames/sequences/flows_test_28_128x128/')
     '''poses, avoid = get_test_poses(), []
     imu = get_test_imu()
@@ -26,17 +26,17 @@ def opt_flow():
     imu = imu[:-1]'''
     # Loading the encoder models
     aes = [VanillaAutoencoder([None,h,w,2],1e-3,batch_size,128,'/home/ronnypetson/models/VanillaAE_flow_128x128_kitti_'),\
-           Vanilla1DAutoencoder([None,seq_len,128],1e-3,batch_size,256,'/home/ronnypetson/models/VanillaAE1D_flow_16x128')]
+           Vanilla1DAutoencoder([None,seq_len,128],1e-3,batch_size,256,'/home/ronnypetson/models/VanillaAE1D_flow_16x128',False)]
     #train_last_ae(aes[:2],frames,40,seq_len=seq_len)
     #train_last_ae(aes[:3],frames,40,seq_len=seq_len)
     #encode_decode_sequence(aes[:1],frames[:32],seq_len=seq_len)
-    #t = Conv1DTransition([None,seq_len,128],[None,wsize,12],
-    #            model_fname='/home/ronnypetson/models/Conv1DTransition_kitti_flow_{}x(128)_{}x12_'.format(seq_len,wsize))
-    t = Conv1DTransition([None,seq_len,256],[None,wsize,12],
-                model_fname='/home/ronnypetson/models/Conv1DTransition_kitti_flow_{}x256_{}x12_'.format(seq_len,wsize))
-    data_x = up_(aes[:2],frames,seq_len=seq_len,training=True)
-    #data_x = [data_x[i:i+stride*seq_len:stride] for i in range(len(data_x)-stride*seq_len+1)] # for level-1
-    data_x = [data_x[i:i+seq_len*seq_len:seq_len] for i in range(len(data_x)-seq_len*seq_len+1)]
+    t = Conv1DTransition([None,seq_len,128],[None,wsize,12],
+                model_fname='/home/ronnypetson/models/Conv1DTransition_kitti_flow_{}x128_{}x12_big'.format(seq_len,wsize))
+    #t = Conv1DTransition([None,seq_len,256],[None,wsize,12],
+    #            model_fname='/home/ronnypetson/models/Conv1DTransition_kitti_flow_{}x256_{}x12_'.format(seq_len,wsize))
+    data_x = up_(aes[:1],frames,seq_len=seq_len,training=True)
+    data_x = [data_x[i:i+stride*seq_len:stride] for i in range(len(data_x)-stride*seq_len+1)] # for level-1
+    #data_x = [data_x[i:i+seq_len*seq_len:seq_len] for i in range(len(data_x)-seq_len*seq_len+1)]
     #data_x = [np.concatenate((data_x[i],imu[i]),axis=1) for i in range(len(data_x))]
     '''t = Conv1DTransition([None,seq_len,0+17],[None,wsize,12],
                 model_fname='/home/ronnypetson/models/Conv1DTransition_kitti_flow_{}x(0+17)_{}x12_'.format(seq_len,wsize))
@@ -52,7 +52,7 @@ def opt_flow():
     data_x_test = data_x[:test_len]
     poses_train = poses[test_len:]
     poses_test = poses[:test_len]
-    train_transition(t,data_x_train,poses_train,100)
+    train_transition(t,data_x_train,poses_train,200)
     # Checking the estimated poses
     rmse, estimated = test_transition(t,data_x_test,poses_test)
     gt_points = get_3d_points_(poses_test[::stride],wsize)
