@@ -45,14 +45,12 @@ def plot_data(data,ddir='/home/ronnypetson/models',dlen=32):
 def imread_0(fpath):
     return cv2.imread(fpath,0)
 
-def plot_abs(gt,est,ddir='/home/ronnypetson/models'):
+def plot_abs(gt,ddir='/home/ronnypetson/models'):
     fig = plt.figure()
-    ax = fig.add_subplot(111)
+    ax = fig.add_subplot(111,projection='3d') # ,projection='3d'
     gt = np.array([[p[3],p[7],p[11]] for p in gt])
-    est = np.array([[p[3],p[7],p[11]] for p in est[0]])
-    ax.plot(gt[:,0],gt[:,2],'g')
-    ax.plot(est[:,0],est[:,2],'b')
-    plt.savefig(ddir+'/2d_abs_plot.png')
+    ax.plot(gt[:,0],gt[:,1],gt[:,2],'g')
+    plt.savefig(ddir+'/3d_abs_plot.png')
     plt.close(fig)    
 
 def plot_3d_points_(gt,est,ddir='/home/ronnypetson/models'):
@@ -67,8 +65,8 @@ def plot_2d_points_(gt,est,ign=1,ddir='/home/ronnypetson/models'):
     fig = plt.figure()
     ax = fig.add_subplot(111)
     if ign == 1:
-        ax.plot(gt[:,0],gt[:,2],'g')
-        ax.plot(est[:,0],est[:,2],'b')
+        ax.plot(gt[:,0],gt[:,1],'g')
+        ax.plot(est[:,0],est[:,1],'b')
     plt.savefig(ddir+'/2d_path_plot.png')
     plt.close(fig)
 
@@ -108,6 +106,13 @@ def log_run_video(num_it=10000,fdir='/home/ronnypetson/Documents/penncosyvio/dat
     frames = np.array(frames,dtype=np.float32)
     plot_data(frames)
     return frames, tstamps
+
+def dummy_homogen(x):
+    assert len(x) == 12
+    x[[0,1,2]] = [1.0,0.0,0.0]
+    x[[4,5,6]] = [0.0,1.0,0.0]
+    x[8:] = [0.0,0.0,1.0,0.0]
+    return np.array(x.tolist()+[0.0,0.0,0.0,1.0]).reshape((4,4))
 
 def homogen(x):
     assert len(x) == 12
@@ -274,7 +279,7 @@ def get_3d_points_fast(rposes,wlen=32):
     return np.array([[p[0,3],p[1,3],p[2,3]] for p in aposes])
 
 def get_3d_points_(rposes,wlen=32):
-    rposes = [[homogen(p) for p in r] for r in rposes]
+    rposes = [[dummy_homogen(p) for p in r] for r in rposes]
     aposes = [rposes[0]]
     for i in range(1,len(rposes),1):
         p = []

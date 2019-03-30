@@ -21,6 +21,14 @@ def opt_flow():
     limits = np.load('/home/ronnypetson/Documents/deep_odometry/kitti/dataset_frames/sequences/flows_128x128/seq_limits.npy')
     avoid = np.reshape([range(l-wsize+1,l) for l in limits],(-1,))
 
+    for p in poses_abs:
+        p[[0,1,2]] = [1.0,0.0,0.0]
+        p[[4,5,6]] = [0.0,1.0,0.0]
+        p[8:] = [0.0,0.0,1.0,0.0]
+
+    '''plot_abs(poses_abs)
+    exit()'''
+
     # Loading the encoder models
     aes = [VanillaAutoencoder([None,h,w,2],1e-3,batch_size,128,'/home/ronnypetson/models/VanillaAE_flow_128x128_kitti')]#,\
            #Vanilla1DAutoencoder([None,seq_len,128],1e-3,batch_size,256,'/home/ronnypetson/models/VanillaAE1D_flow_16x128',False)]
@@ -42,8 +50,8 @@ def opt_flow():
     poses_train = poses[test_len:]
     poses_test = poses[:test_len]
     t = Conv1DTransition([None,seq_len,128],[None,wsize,12],
-            model_fname='/home/ronnypetson/models/Conv1DTransition_kitti_flow_{}x128_{}x12_big'.format(seq_len,wsize))
-    train_transition(t,data_x_train,poses_train,200)
+            model_fname='/home/ronnypetson/models/Conv1DTransition_kitti_flow_{}x128_{}x12'.format(seq_len,wsize))
+    train_transition(t,data_x_train,poses_train,450)
     # Checking the estimated poses
     rmse, estimated = test_transition(t,data_x_test,poses_test)
     gt_points = get_3d_points_(poses_test[::stride],wsize)
