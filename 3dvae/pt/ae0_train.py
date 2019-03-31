@@ -13,14 +13,14 @@ stride = wlen
 seq_len = 128
 valid_ids = 128
 num_classes = 5
-num_epochs = 10
+num_epochs = 5
 __train = sys.argv[1]
 
 input_fn = '/home/ronnypetson/Documents/deep_odometry/kitti/dataset_frames/sequences/flows_128x128/flows_128x128_26_30.npy'
 #input_fn_poses = '/home/ronnypetson/Documents/deep_odometry/kitti/dataset_frames/sequences/flows_128x128/poses_flat_26-30.npy'
 model_fn = '/home/ronnypetson/models/pt/ae0_.pth'
 
-min_loss = 0.0
+min_loss = 1e15
 epoch = 0
 
 def evaluate(model,data_x,loss_fn,device):
@@ -59,6 +59,8 @@ if __name__ == '__main__':
         optimizer.load_state_dict(checkpoint['optimizer_state'])
         min_loss = checkpoint['min_loss']
         epoch = checkpoint['epoch']
+    else:
+        print('Creating new model')
 
     if __train != '0': # Train
         model.train()
@@ -74,16 +76,15 @@ if __name__ == '__main__':
                 loss = loss_fn(y_,x)
                 loss.backward()
                 optimizer.step()
-                if i%50 == 0:
-                    print('Epoch {}: {}'.format(j,loss.item()))
-                    loss = evaluate(model,frames_valid,loss_fn,device)
-                    model.train()
-                    if loss < min_loss:
-                        min_loss = loss
-                        torch.save({'model_state': model.state_dict(),
-                                    'optimizer_state': optimizer.state_dict(),
-                                    'min_loss': min_loss,
-                                    'epoch': j}, model_fn)
+            print('Epoch {}: {}'.format(j,loss.item()))
+            loss = evaluate(model,frames_valid,loss_fn,device)
+            model.train()
+            if loss < min_loss:
+                min_loss = loss
+                torch.save({'model_state': model.state_dict(),
+                            'optimizer_state': optimizer.state_dict(),
+                            'min_loss': min_loss,
+                            'epoch': j+1}, model_fn)
     else: # Evaluate
         loss_fn = torch.nn.MSELoss()
         evaluate(model,frames_valid,loss_fn,device)
