@@ -94,7 +94,7 @@ class Conv1dMapper(nn.Module):
         print(self.h_shape)
         self.fc1 = nn.Linear(self.h_shape*self.filters,self.in_shape[1]//4)
         self.fc2 = nn.Linear(self.in_shape[1]//4,self.in_shape[1]//4)
-        self.fc3 = nn.Linear(self.in_shape[1]//4,out_shape)
+        self.fc3 = nn.Linear(self.in_shape[1]//4,np.prod(out_shape))
         #self.dropout1 = nn.Dropout(p=0.1)
         #self.dropout2 = nn.Dropout(p=0.5)
         #self.dropout3 = nn.Dropout(p=0.5)
@@ -111,7 +111,9 @@ class Conv1dMapper(nn.Module):
         #x = self.dropout2(x)
         x = F.relu(self.fc2(x))
         #x = self.dropout3(x)
-        x = F.softmax(self.fc3(x))
+        #x = F.softmax(self.fc3(x))
+        x = self.fc3(x)
+        x = x.view((-1,)+tuple(self.out_shape))
         return x
 
 if __name__=='__main__':
