@@ -11,16 +11,16 @@ class VanillaAutoencoder(nn.Module):
         self.filters = 32
         self.h_dim = 128
         self.conv1 = nn.Conv2d(in_shape[0],self.filters,(5,5),(2,2))
-        self.conv2 = nn.Conv2d(self.filters,2*self.filters,(3,3),(1,1))
-        self.conv3 = nn.Conv2d(2*self.filters,2*self.filters,(3,3),(1,1))
+        self.conv2 = nn.Conv2d(self.filters,self.filters,(3,3),(1,1))
+        self.conv3 = nn.Conv2d(self.filters,self.filters,(3,3),(1,1))
         self.new_h = ((((((in_shape[1]-4)//2-2)//1)-2)//1)-2)//1
         self.new_w = ((((((in_shape[2]-4)//2-2)//1)-2)//1)-2)//1
-        self.flat_dim = 2*self.new_h*self.new_w*self.filters
+        self.flat_dim = self.new_h*self.new_w*self.filters
         print(self.new_h,self.new_w)
         self.fc1 = nn.Linear(self.flat_dim,self.h_dim)
         self.fc2 = nn.Linear(self.h_dim,self.flat_dim)
-        self.deconv1 = nn.ConvTranspose2d(2*self.filters,2*self.filters,(3,3),(1,1),padding=0)
-        self.deconv2 = nn.ConvTranspose2d(2*self.filters,self.filters,(3,3),(1,1),padding=0) # ,output_padding=1
+        self.deconv1 = nn.ConvTranspose2d(self.filters,self.filters,(3,3),(1,1),padding=0)
+        self.deconv2 = nn.ConvTranspose2d(self.filters,self.filters,(3,3),(1,1),padding=0) # ,output_padding=1
         self.deconv3 = nn.ConvTranspose2d(self.filters,in_shape[0],(5,5),(2,2),padding=0,output_padding=1)
 
     def forward(self,x):
@@ -32,7 +32,7 @@ class VanillaAutoencoder(nn.Module):
         x = x.view(-1,self.flat_dim)
         x = F.relu(self.fc1(x))
         x = F.relu(self.fc2(x))
-        x = x.view(-1,2*self.filters,self.new_h,self.new_w)
+        x = x.view(-1,self.filters,self.new_h,self.new_w)
         x = F.relu(self.deconv1(x))
         x = F.max_unpool2d(x,inds,(3,3),(1,1),output_size=conv2_size)
         x = F.relu(self.deconv2(x))
