@@ -23,7 +23,7 @@ class VanillaAutoencoder(nn.Module):
         self.deconv2 = nn.ConvTranspose2d(self.filters,self.filters,(3,3),(1,1),padding=0) # ,output_padding=1
         self.deconv3 = nn.ConvTranspose2d(self.filters,in_shape[0],(5,5),(2,2),padding=0,output_padding=1)
 
-    def forward(self,x):
+    def forward_z(self,x):
         x = F.relu(self.conv1(x))
         x = F.relu(self.conv2(x))
         conv2_size = list(x.size())
@@ -31,6 +31,16 @@ class VanillaAutoencoder(nn.Module):
         x = F.relu(self.conv3(x))
         x = x.view(-1,self.flat_dim)
         x = F.relu(self.fc1(x))
+        return x
+
+    def forward(self,x):
+        '''x = F.relu(self.conv1(x))
+        x = F.relu(self.conv2(x))
+        conv2_size = list(x.size())
+        x, inds = F.max_pool2d(x,(3,3),(1,1),return_indices=True) # kernel size 3 and strides 1
+        x = F.relu(self.conv3(x))
+        x = x.view(-1,self.flat_dim)'''
+        x = self.forward_z(x)
         x = F.relu(self.fc2(x))
         x = x.view(-1,self.filters,self.new_h,self.new_w)
         x = F.relu(self.deconv1(x))

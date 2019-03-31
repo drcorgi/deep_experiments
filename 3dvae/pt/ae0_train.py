@@ -13,15 +13,27 @@ stride = wlen
 seq_len = 128
 valid_ids = 128
 num_classes = 5
-num_epochs = 5
-__train = sys.argv[1]
+num_epochs = 10
+__flag = sys.argv[1]
 
 input_fn = '/home/ronnypetson/Documents/deep_odometry/kitti/dataset_frames/sequences/flows_128x128/flows_128x128_26_30.npy'
+output_fn = '/home/ronnypetson/Documents/deep_odometry/kitti/dataset_frames/sequences/emb0_128x128/emb0_128x128_26_30.npy'
 #input_fn_poses = '/home/ronnypetson/Documents/deep_odometry/kitti/dataset_frames/sequences/flows_128x128/poses_flat_26-30.npy'
 model_fn = '/home/ronnypetson/models/pt/ae0_.pth'
 
 min_loss = 1e15
 epoch = 0
+
+def save_emb(model,data,device):
+    model.eval()
+    embs = []
+    for i in range(0,len(data),batch_size):
+        x = data[i:i+batch_size].to(device)
+        if len(x) > 0:
+            z = model.forward_z(x)
+            embs.append(z.cpu().detach().numpy())
+        print(i,len(data))
+    np.save(output_fn,np.array(embs))
 
 def evaluate(model,data_x,loss_fn,device):
     model.eval()
@@ -62,7 +74,7 @@ if __name__ == '__main__':
     else:
         print('Creating new model')
 
-    if __train != '0': # Train
+    if __flag == '1': # Train
         model.train()
         loss_fn = torch.nn.MSELoss()
         num_iter = len(frames)//batch_size
@@ -85,6 +97,8 @@ if __name__ == '__main__':
                             'optimizer_state': optimizer.state_dict(),
                             'min_loss': min_loss,
                             'epoch': j+1}, model_fn)
-    else: # Evaluate
+    elif __flag == '0': # Evaluate
         loss_fn = torch.nn.MSELoss()
         evaluate(model,frames_valid,loss_fn,device)
+    else:
+        save_emb(model,torch.cat((frames,frames_valid),0),device)
