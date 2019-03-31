@@ -10,7 +10,7 @@ from pt_ae import Conv1dMapper
 batch_size = 128
 wlen = 128
 stride = wlen
-seq_len = 16
+seq_len = 64
 valid_ids = 128
 num_epochs = 50
 __flag = sys.argv[1]
@@ -29,6 +29,8 @@ def evaluate(model,data_x,data_y,loss_fn,device):
         x = data_x[i:i+batch_size].to(device)
         y = data_y[i:i+batch_size].to(device)
         y_ = model(x)
+        #print(y_[0].transpose(0,1)[8])
+        #print(y[0].transpose(0,1)[8])
         loss = loss_fn(y_,y)
         losses.append(loss.item())
     mean_loss = np.mean(losses)

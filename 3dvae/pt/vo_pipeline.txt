@@ -4,4 +4,4 @@ Data to save:
 
 Models to train:
     Level 0 encoder -> Mapper (sequence of lvl0 to sequence of odometry)
-    run ae0_train.py
+    run ae0_train.py, run mapper_train.py

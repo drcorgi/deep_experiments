@@ -92,9 +92,9 @@ class Conv1dMapper(nn.Module):
         self.conv3 = nn.Conv1d(self.filters,self.filters,3,1)
         self.h_shape = ((((((in_shape[1]-2)//1-2)//1)-2)//1)-2)//1
         print(self.h_shape)
-        self.fc1 = nn.Linear(self.h_shape*self.filters,self.in_shape[1]//4)
-        self.fc2 = nn.Linear(self.in_shape[1]//4,self.in_shape[1]//4)
-        self.fc3 = nn.Linear(self.in_shape[1]//4,np.prod(out_shape))
+        self.fc1 = nn.Linear(self.h_shape*self.filters,self.in_shape[1])
+        self.fc2 = nn.Linear(self.in_shape[1],self.in_shape[1])
+        self.fc3 = nn.Linear(self.in_shape[1],np.prod(out_shape))
         #self.dropout1 = nn.Dropout(p=0.1)
         #self.dropout2 = nn.Dropout(p=0.5)
         #self.dropout3 = nn.Dropout(p=0.5)
