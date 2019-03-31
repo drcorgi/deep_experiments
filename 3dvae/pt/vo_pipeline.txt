@@ -1,0 +1,5 @@
+Data to save:
+    KITTI FRAMES -> Optical flux -> Level 0 encodings
+
+Models to train:
+    Level 0 encoder -> Mapper (sequence of lvl0 to sequence of odometry)
