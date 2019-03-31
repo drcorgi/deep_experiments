@@ -39,12 +39,14 @@ if __name__ == '__main__':
     # Load the data
     frames = np.load(input_fn)
     abs_poses = np.load(input_fn_poses)
-    print(frames.shape,abs_poses.shape)
 
     # Group the data
     frames = np.array([frames[i:i+seq_len] for i in range(len(frames)-seq_len+1)])
+    frames = frames.transpose(0,2,1)
     rel_poses = np.array([[abs_poses[i+j]-abs_poses[i] for j in range(seq_len)]\
                            for i in range(len(abs_poses)-seq_len+1)])
+    rel_poses = rel_poses.transpose(0,2,1)
+    print(frames.shape,rel_poses.shape)
 
     device = torch.device('cuda:0')
     print(device)
