@@ -5,7 +5,7 @@ import glob, os
 import pickle
 import torch
 import torch.optim as optim
-from pt_ae import VanillaAutoencoder
+from pt_ae import Conv1dMapper
 
 batch_size = 32
 wlen = 128
@@ -16,25 +16,12 @@ num_classes = 5
 num_epochs = 10
 __flag = sys.argv[1]
 
-input_fn = '/home/ronnypetson/Documents/deep_odometry/kitti/dataset_frames/sequences/flows_128x128/flows_128x128_26_30.npy'
-output_fn = '/home/ronnypetson/Documents/deep_odometry/kitti/dataset_frames/sequences/emb0_128x128/emb0_128x128_26_30.npy'
-#input_fn_poses = '/home/ronnypetson/Documents/deep_odometry/kitti/dataset_frames/sequences/flows_128x128/poses_flat_26-30.npy'
-model_fn = '/home/ronnypetson/models/pt/ae0_.pth'
+input_fn = '/home/ronnypetson/Documents/deep_odometry/kitti/dataset_frames/sequences/emb0_128x128/emb0_128x128_26_30.npy'
+input_fn_poses = '/home/ronnypetson/Documents/deep_odometry/kitti/dataset_frames/sequences/flows_128x128/poses_flat_26-30.npy'
+model_fn = '/home/ronnypetson/models/pt/mapper_.pth'
 
 min_loss = 1e15
 epoch = 0
-
-def save_emb(model,data,device):
-    model.eval()
-    embs = []
-    for i in range(0,len(data),batch_size):
-        x = data[i:i+batch_size].to(device)
-        if len(x) > 0:
-            z = model.forward_z(x)
-            embs += z.cpu().detach().numpy().tolist()
-    embs = np.array(embs)
-    print(embs.shape)
-    np.save(output_fn,embs)
 
 def evaluate(model,data_x,loss_fn,device):
     model.eval()
@@ -50,8 +37,9 @@ def evaluate(model,data_x,loss_fn,device):
 
 if __name__ == '__main__':
     # Load the data
-    frames = np.load(input_fn).transpose(0,3,1,2)
+    frames = np.load(input_fn)
     print(frames.shape)
+    exit()
 
     # Group the data
     # ...
