@@ -5,14 +5,16 @@ import glob, os
 import pickle
 import torch
 import torch.optim as optim
+
 from pt_ae import Conv1dMapper
+from plotter import *
 
 batch_size = 128
 wlen = 128
 stride = wlen
 seq_len = 64
-valid_ids = 128
-num_epochs = 50
+valid_ids = 1024
+num_epochs = 200
 __flag = sys.argv[1]
 
 input_fn = '/home/ronnypetson/Documents/deep_odometry/kitti/dataset_frames/sequences/emb0_128x128/emb0_128x128_26_30.npy'
@@ -22,6 +24,21 @@ model_fn = '/home/ronnypetson/models/pt/mapper_.pth'
 min_loss = 1e15
 epoch = 0
 
+def plot_eval(model,data_x,data_y,device):
+    model.eval()
+    rel_poses = []
+    for i in range(0,len(data_x),batch_size):
+        x = data_x[i:i+batch_size].to(device)
+        y_ = model(x)
+        if len(y_) > 0:
+            rel_poses += y_.cpu().detach().numpy().tolist()
+    rel_poses = np.array(rel_poses)
+    pts = get_3d_points_(rel_poses,wlen=seq_len)
+    gt = data_y.cpu().detach().numpy()
+    gt = get_3d_points_(gt,wlen=seq_len)
+    print(gt.shape,pts.shape)
+    plot_3d_points_(gt,pts)
+
 def evaluate(model,data_x,data_y,loss_fn,device):
     model.eval()
     losses = []
@@ -29,8 +46,6 @@ def evaluate(model,data_x,data_y,loss_fn,device):
         x = data_x[i:i+batch_size].to(device)
         y = data_y[i:i+batch_size].to(device)
         y_ = model(x)
-        #print(y_[0].transpose(0,1)[8])
-        #print(y[0].transpose(0,1)[8])
         loss = loss_fn(y_,y)
         losses.append(loss.item())
     mean_loss = np.mean(losses)
@@ -45,9 +60,10 @@ if __name__ == '__main__':
     # Group the data
     frames = np.array([frames[i:i+seq_len] for i in range(len(frames)-seq_len+1)])
     frames = frames.transpose(0,2,1)
-    rel_poses = np.array([[abs_poses[i+j]-abs_poses[i] for j in range(seq_len)]\
-                           for i in range(len(abs_poses)-seq_len+1)])
-    rel_poses = rel_poses.transpose(0,2,1)
+    #rel_poses = np.array([[abs_poses[i+j]-abs_poses[i] for j in range(seq_len)]\
+    #                       for i in range(len(abs_poses)-seq_len+1)])
+    rel_poses = abs2relative(abs_poses,seq_len,1)
+    #rel_poses = rel_poses.transpose(0,2,1)
     print(frames.shape,rel_poses.shape)
 
     device = torch.device('cuda:0')
@@ -99,3 +115,4 @@ if __name__ == '__main__':
     else: # Evaluate
         loss_fn = torch.nn.MSELoss()
         evaluate(model,frames_valid,rel_poses_valid,loss_fn,device)
+        plot_eval(model,frames_valid,rel_poses_valid,device)

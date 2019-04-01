@@ -13,7 +13,7 @@ stride = wlen
 seq_len = 128
 valid_ids = 128
 num_classes = 5
-num_epochs = 10
+num_epochs = 50
 __flag = sys.argv[1]
 
 input_fn = '/home/ronnypetson/Documents/deep_odometry/kitti/dataset_frames/sequences/flows_128x128/flows_128x128_26_30.npy'
