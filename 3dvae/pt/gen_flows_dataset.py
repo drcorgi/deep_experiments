@@ -3,7 +3,7 @@ import numpy as np
 import os, glob
 import pykitti
 import re
-from utilities import *
+from plotter import *
 
 class OptFlowsSaver:
     def __init__(self,seq_dirs,\
@@ -55,12 +55,12 @@ class OptFlowsSaver:
         np.save(self.flows_dir+'/'+fname,flows)
 
 if __name__=='__main__':
-    '''seq_dirs = glob.glob('/home/ronnypetson/Downloads/*_*_*/*_drive_*_sync/image_00/data/')
+    seq_dirs = glob.glob('/home/ronnypetson/Downloads/*_*_*/*_drive_*_sync/image_00/data/')
+    seq_dirs = sorted(seq_dirs)
     base = [re.findall('.*[0-9]+_[0-9]+_[0-9]+',s)[0][:-21] for s in seq_dirs]
     date = [re.findall('[0-9]+_[0-9]+_[0-9]+',s)[0] for s in seq_dirs]
     drive = [re.findall('drive_[0-9]+_sync',s)[0][6:-5] for s in seq_dirs]
     saver = OptFlowsSaver(seq_dirs)
     saver.save_opt_flows('flows_128x128_26_30.npy')
-    saver.save_seq_poses(base,date,drive,'poses_flat_26-30.npy')'''
+    saver.save_seq_poses(base,date,drive,'poses_flat_26-30.npy')
     pass
-

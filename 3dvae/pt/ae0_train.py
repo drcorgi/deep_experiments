@@ -5,9 +5,11 @@ import glob, os
 import pickle
 import torch
 import torch.optim as optim
-from pt_ae import VanillaAutoencoder
 
-batch_size = 32
+from pt_ae import VanillaAutoencoder
+from plotter import *
+
+batch_size = 64
 wlen = 128
 stride = wlen
 seq_len = 128
@@ -35,6 +37,22 @@ def save_emb(model,data,device):
     embs = np.array(embs)
     print(embs.shape)
     np.save(output_fn,embs)
+
+def plot_eval(model,data_x,n,device):
+    model.eval()
+    recs = []
+    gt = []
+    for i in range(0,n,batch_size):
+        x = data_x[i:i+batch_size].to(device)
+        y_ = model(x).cpu().detach().numpy()
+        for r,g in zip(y_,x):
+            #recs.append(np.mean(r,axis=0))
+            #gt.append(g.cpu().detach().numpy().mean(axis=0))
+            recs.append(r[1])
+            gt.append(g[1].cpu().detach().numpy())
+    for i,r in enumerate(recs):
+        cv2.imwrite('/home/ronnypetson/models/__{}_rec.png'.format(i),r)
+        cv2.imwrite('/home/ronnypetson/models/__{}_gt.png'.format(i),gt[i])
 
 def evaluate(model,data_x,loss_fn,device):
     model.eval()
@@ -100,6 +118,7 @@ if __name__ == '__main__':
                             'epoch': j+1}, model_fn)
     elif __flag == '0': # Evaluate
         loss_fn = torch.nn.MSELoss()
-        evaluate(model,frames_valid,loss_fn,device)
+        #evaluate(model,frames_valid,loss_fn,device)
+        plot_eval(model,frames_valid,10,device)
     else:
         save_emb(model,torch.cat((frames,frames_valid),0),device)
