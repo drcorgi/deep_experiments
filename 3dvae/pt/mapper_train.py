@@ -7,13 +7,14 @@ import torch
 import torch.optim as optim
 
 from pt_ae import Conv1dMapper
+from plotter import __get_3d_points
 from plotter import *
 
 batch_size = 128
 wlen = 128
 stride = wlen
 seq_len = 16
-valid_ids = 1024
+valid_ids = 512
 num_epochs = 200
 __flag = sys.argv[1]
 
@@ -24,7 +25,7 @@ model_fn = '/home/ronnypetson/models/pt/mapper_.pth'
 min_loss = 1e15
 epoch = 0
 
-def plot_eval(model,data_x,data_y,device):
+def plot_eval(model,data_x,data_y,abs_,device):
     model.eval()
     rel_poses = []
     for i in range(0,len(data_x),batch_size):
@@ -33,11 +34,12 @@ def plot_eval(model,data_x,data_y,device):
         if len(y_) > 0:
             rel_poses += y_.cpu().detach().numpy().tolist()
     rel_poses = np.array(rel_poses)
-    pts = get_3d_points_(rel_poses,wlen=seq_len)
+    pts = __get_3d_points(rel_poses,seq_len)
     gt = data_y.cpu().detach().numpy()
-    gt = get_3d_points_(gt,wlen=seq_len)
+    gt = __get_3d_points(gt,seq_len)
     print(gt.shape,pts.shape)
-    plot_3d_points_(gt,pts)
+    plot_3d_points_(gt,gt)
+    plot_abs(abs_,pts)
 
 def evaluate(model,data_x,data_y,loss_fn,device):
     model.eval()
@@ -117,4 +119,5 @@ if __name__ == '__main__':
     else: # Evaluate
         loss_fn = torch.nn.MSELoss()
         evaluate(model,frames_valid,rel_poses_valid,loss_fn,device)
-        plot_eval(model,frames_valid,rel_poses_valid,device)
+        #plot_eval(model,frames,rel_poses,device)
+        plot_eval(model,frames_valid,rel_poses_valid,abs_poses[-valid_ids:],device)
