@@ -11,10 +11,10 @@ from plotter import __get_3d_points
 from plotter import *
 
 batch_size = 128
-wlen = 128
+wlen = 64
 stride = wlen
 seq_len = 16
-valid_ids = 512
+valid_ids = 1024
 num_epochs = 200
 __flag = sys.argv[1]
 
@@ -37,8 +37,8 @@ def plot_eval(model,data_x,data_y,abs_,device):
     pts = __get_3d_points(rel_poses,seq_len)
     gt = data_y.cpu().detach().numpy()
     gt = __get_3d_points(gt,seq_len)
-    print(gt.shape,pts.shape)
-    plot_3d_points_(gt,gt)
+    print(gt.shape,pts.shape,abs_.shape)
+    plot_3d_points_(gt,pts)
     plot_abs(abs_,pts)
 
 def evaluate(model,data_x,data_y,loss_fn,device):
@@ -48,7 +48,6 @@ def evaluate(model,data_x,data_y,loss_fn,device):
         x = data_x[i:i+batch_size].to(device)
         y = data_y[i:i+batch_size].to(device)
         y_ = model(x)
-        #print(y_[:,15].cpu().detach().numpy().std(axis=0))
         loss = loss_fn(y_,y)
         losses.append(loss.item())
     mean_loss = np.mean(losses)
@@ -65,7 +64,7 @@ if __name__ == '__main__':
     frames = frames.transpose(0,2,1)
     #rel_poses = np.array([[abs_poses[i+j]-abs_poses[i] for j in range(seq_len)]\
     #                       for i in range(len(abs_poses)-seq_len+1)])
-    rel_poses = abs2relative(abs_poses,seq_len,1)
+    rel_poses = abs2relative_(abs_poses,seq_len,1)
 
     #rel_poses = rel_poses.transpose(0,2,1)
     print(frames.shape,rel_poses.shape)
@@ -119,5 +118,5 @@ if __name__ == '__main__':
     else: # Evaluate
         loss_fn = torch.nn.MSELoss()
         evaluate(model,frames_valid,rel_poses_valid,loss_fn,device)
-        #plot_eval(model,frames,rel_poses,device)
-        plot_eval(model,frames_valid,rel_poses_valid,abs_poses[-valid_ids:],device)
+        rel_abs = abs2relative_(abs_poses[-(valid_ids+seq_len-1):],valid_ids,1)[0]
+        plot_eval(model,frames_valid,rel_poses_valid,rel_abs,device)

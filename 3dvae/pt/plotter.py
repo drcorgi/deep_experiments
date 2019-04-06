@@ -16,8 +16,9 @@ h, w, _ = img_shape
 
 def plot_abs(gt,rec,ddir='/home/ronnypetson/models'):
     fig = plt.figure()
-    ax = fig.add_subplot(111,projection='3d') # ,projection='3d'
+    ax = fig.add_subplot(111,projection='3d')
     gt = np.array([[p[3],p[7],p[11]] for p in gt])
+    #rec = np.array([[p[3],p[7],p[11]] for p in rec])
     ax.plot(gt[:,0],gt[:,1],gt[:,2],'g')
     ax.plot(rec[:,0],rec[:,1],rec[:,2],'b')
     plt.savefig(ddir+'/3d_abs_plot.png')
@@ -28,6 +29,9 @@ def plot_3d_points_(gt,est,ddir='/home/ronnypetson/models'):
     ax = fig.add_subplot(111,projection='3d')
     ax.plot(gt[:,0],gt[:,1],gt[:,2],'g')
     ax.plot(est[:,0],est[:,1],est[:,2],'b')
+    '''ax = fig.add_subplot(111)
+    ax.plot(gt[:,0],gt[:,1],'g.')
+    ax.plot(est[:,0],est[:,1],'b.')'''
     plt.savefig(ddir+'/3d_path_plot.png')
     plt.close(fig)
 
@@ -47,6 +51,12 @@ def homogen(x):
 def flat_homogen(x):
     assert x.shape == (4,4)
     return np.array(x.reshape(16)[:-4])
+
+def abs2relative_(abs_poses,wsize,stride):
+    rposes = []
+    for i in range(len(abs_poses)-(wsize-1)):
+        rposes.append([-abs_poses[i]+abs_poses[j] for j in range(i,i+wsize,1)])
+    return np.array(rposes)
 
 def abs2relative(abs_poses,wsize,stride):
     poses = [homogen(p) for p in abs_poses]
@@ -89,6 +99,9 @@ def __get_3d_points(rposes,wlen):
     rposes = [[homogen(p) for p in r] for r in rposes]
     aposes = rposes[0]
     for i in range(wlen,len(rposes),wlen):
-        in_p = aposes[-1]
-        aposes += [np.matmul(in_p,rposes[i][j]) for j in range(wlen)]
+        #in_p = aposes[-1]
+        #in_p = np.matmul(aposes[-wlen+1],rposes[i-wlen+1][-1])
+        #aposes += [np.matmul(in_p,rposes[i][j]) for j in range(wlen)]
+        in_p = aposes[-wlen+1]+rposes[i-wlen+1][-1]
+        aposes += [in_p+rposes[i][j] for j in range(wlen)]
     return np.array([[p[0,3],p[1,3],p[2,3]] for p in aposes])
