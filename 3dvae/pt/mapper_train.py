@@ -14,12 +14,14 @@ batch_size = 128
 wlen = 64
 stride = wlen
 seq_len = 32
-valid_ids = 384
+valid_ids = 1024
 num_epochs = 200
 __flag = sys.argv[1]
 
 input_fn = '/home/ronnypetson/Documents/deep_odometry/kitti/dataset_frames/sequences/emb0_128x128/emb0_128x128_26_30.npy'
-input_fn_poses = '/home/ronnypetson/Documents/deep_odometry/kitti/dataset_frames/sequences/flows_128x128/poses_flat_26-30.npy'
+#input_fn_poses = '/home/ronnypetson/Documents/deep_odometry/kitti/dataset_frames/sequences/flows_128x128/poses_flat_26-30.npy'
+#input_fn = '/home/ronnypetson/Documents/deep_odometry/kitti/dataset_frames/sequences/flows_00-10_128x128.npy'
+input_fn_poses = '/home/ronnypetson/Documents/deep_odometry/kitti/dataset_frames/sequences/poses_00-10.npy'
 model_fn = '/home/ronnypetson/models/pt/mapper_.pth'
 
 min_loss = 1e15
@@ -61,19 +63,19 @@ if __name__ == '__main__':
 
     # Group the data
     frames = np.array([frames[i:i+seq_len] for i in range(len(frames)-seq_len+1)])
-    frames = frames.transpose(0,2,1)
-    rel_poses = abs2relative(abs_poses,seq_len,1)
+    frames = frames.transpose(0,2,1)[:valid_ids]
+    rel_poses = abs2relative(abs_poses,seq_len,1)[:valid_ids]
     #rel_poses = rel_poses.transpose(0,2,1)
     print(frames.shape,rel_poses.shape)
 
     device = torch.device('cuda:0')
     print(device)
     frames = torch.tensor(frames).float()
-    frames_valid = frames[-valid_ids:]
-    frames = frames[:-valid_ids]
+    frames_valid = frames #[:valid_ids]
+    frames = frames #[valid_ids:]
     rel_poses = torch.tensor(rel_poses).float()
-    rel_poses_valid = rel_poses[-valid_ids:]
-    rel_poses = rel_poses[:-valid_ids]
+    rel_poses_valid = rel_poses #[:valid_ids]
+    rel_poses = rel_poses #[valid_ids:]
 
     model = Conv1dMapper(frames.size()[1:],rel_poses.size()[1:]).to(device)
     params = model.parameters()
@@ -102,6 +104,7 @@ if __name__ == '__main__':
                             'optimizer_state': optimizer.state_dict(),
                             'min_loss': min_loss,
                             'epoch': j}, model_fn)
+            losses = []
             for i in range(num_iter):
                 optimizer.zero_grad()
                 ids = all_ids[j][i]
@@ -111,9 +114,10 @@ if __name__ == '__main__':
                 loss = loss_fn(y_,y)
                 loss.backward()
                 optimizer.step()
-            print('Epoch {}: {}'.format(j,loss.item()))
+                losses.append(loss.item())
+            print('Epoch {}: {}'.format(j,np.mean(losses)))
     else: # Evaluate
         loss_fn = torch.nn.MSELoss()
         evaluate(model,frames_valid,rel_poses_valid,loss_fn,device)
-        rel_abs = abs2relative(abs_poses[-(valid_ids+seq_len-1):],valid_ids,1)[0]
+        rel_abs = abs2relative(abs_poses[:valid_ids+seq_len-1],valid_ids,1)[0]
         plot_eval(model,frames_valid,rel_poses_valid,rel_abs,device)

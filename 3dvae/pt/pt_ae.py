@@ -99,32 +99,32 @@ class Conv1dMapper(nn.Module):
         self.in_shape = in_shape
         self.out_shape = out_shape
         self.filters = 128
-        self.conv1 = nn.Conv1d(in_shape[0],self.filters,3,1)
+        self.conv1 = nn.Conv1d(in_shape[0],self.filters,3,2)
         self.conv2 = nn.Conv1d(self.filters,self.filters,3,1)
         self.conv3 = nn.Conv1d(self.filters,self.filters,3,1)
-        self.h_shape = ((((in_shape[1]-2)//1-2)//1)-2)//1
+        self.h_shape = ((((in_shape[1]-2)//2-2)//1)-2)//1
         print(self.h_shape)
         self.fc1 = nn.Linear(self.h_shape*self.filters,30*self.in_shape[1])
         self.fc2 = nn.Linear(30*self.in_shape[1],30*self.in_shape[1])
         self.fc3 = nn.Linear(30*self.in_shape[1],np.prod(out_shape))
-        self.dropout1 = nn.Dropout(p=0.1)
-        self.dropout2 = nn.Dropout(p=0.1)
-        self.dropout3 = nn.Dropout(p=0.5)
-        self.dropout4 = nn.Dropout(p=0.5)
+        #self.dropout1 = nn.Dropout(p=0.1)
+        #self.dropout2 = nn.Dropout(p=0.1)
+        #self.dropout3 = nn.Dropout(p=0.5)
+        #self.dropout4 = nn.Dropout(p=0.5)
 
     def forward(self,x):
         x = F.relu(self.conv1(x))
-        x = self.dropout1(x)
+        #x = self.dropout1(x)
         x = F.relu(self.conv2(x))
-        x = self.dropout2(x)
+        #x = self.dropout2(x)
         #conv2_size = list(x.size())
         #x, inds = F.max_pool1d(x,3,1,return_indices=True) # kernel size 3 and strides 1
         x = F.relu(self.conv3(x))
         x = x.view(-1,self.h_shape*self.filters)
         x = F.relu(self.fc1(x))
-        x = self.dropout3(x)
+        #x = self.dropout3(x)
         x = F.relu(self.fc2(x))
-        x = self.dropout4(x)
+        #x = self.dropout4(x)
         #x = F.softmax(self.fc3(x))
         x = self.fc3(x)
         x = x.view((-1,)+tuple(self.out_shape))
