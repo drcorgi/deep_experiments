@@ -9,13 +9,13 @@ import torch.optim as optim
 from pt_ae import VanillaAutoencoder
 from plotter import *
 
-batch_size = 64
+batch_size = 32
 wlen = 128
 stride = wlen
 seq_len = 128
 valid_ids = 128
 num_classes = 5
-num_epochs = 50
+num_epochs = 25
 __flag = sys.argv[1]
 
 input_fn = '/home/ronnypetson/Documents/deep_odometry/kitti/dataset_frames/sequences/flows_128x128/flows_128x128_26_30.npy'
@@ -118,7 +118,7 @@ if __name__ == '__main__':
                             'epoch': j+1}, model_fn)
     elif __flag == '0': # Evaluate
         loss_fn = torch.nn.MSELoss()
-        #evaluate(model,frames_valid,loss_fn,device)
-        plot_eval(model,frames_valid,10,device)
+        evaluate(model,frames_valid,loss_fn,device)
+        #plot_eval(model,frames_valid,10,device)
     else:
-        save_emb(model,torch.cat((frames,frames_valid),0),device)
+        save_emb(model,torch.cat((frames_valid,frames),0),device)

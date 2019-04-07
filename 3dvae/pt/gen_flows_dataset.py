@@ -25,7 +25,7 @@ class OptFlowsSaver:
             frames.append(f)
         return frames
 
-    def load_seq_frames(self):
+    def load_seq_frames_(self):
         seq_limits = []
         print('Loading sequence from '+self.seq_dirs[0])
         frames = self.load_frames(self.seq_dirs[0])
@@ -38,6 +38,13 @@ class OptFlowsSaver:
         np.save(self.flows_dir+'/seq_limits.npy',np.array(seq_limits))
         return frames
 
+    def load_seq_frames(self,base,date,drive):
+        data = [pykitti.raw(b,d,drv) for b,d,drv in zip(base,date,drive)]
+        frames = []
+        for d in data:
+            frames += [cv2.resize(np.array(im),self.frame_shape) for im in d.cam0]
+        return frames
+
     def save_seq_poses(self,base,date,drive,fname):
         data = [pykitti.raw(b,d,drv) for b,d,drv in zip(base,date,drive)]
         poses = []
@@ -45,8 +52,8 @@ class OptFlowsSaver:
             poses += [flat_homogen(d[1]) for d in d_.oxts]
         np.save(self.flows_dir+'/'+fname,np.array(poses[1:]))
 
-    def save_opt_flows(self,fname):
-        frames = self.load_seq_frames()
+    def save_opt_flows(self,base,date,drive,fname):
+        frames = self.load_seq_frames(base,date,drive)
         flows = []
         for i in range(len(frames)-1):
             flow = cv2.calcOpticalFlowFarneback(frames[i],frames[i+1],None,0.5,3,15,3,5,1.2,0)
@@ -61,6 +68,6 @@ if __name__=='__main__':
     date = [re.findall('[0-9]+_[0-9]+_[0-9]+',s)[0] for s in seq_dirs]
     drive = [re.findall('drive_[0-9]+_sync',s)[0][6:-5] for s in seq_dirs]
     saver = OptFlowsSaver(seq_dirs)
-    saver.save_opt_flows('flows_128x128_26_30.npy')
+    saver.save_opt_flows(base,date,drive,'flows_128x128_26_30.npy')
     saver.save_seq_poses(base,date,drive,'poses_flat_26-30.npy')
     pass

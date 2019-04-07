@@ -1,5 +1,5 @@
 Data to save:
-    KITTI FRAMES -> Optical flux -> Level 0 encodings
+    KITTI FRAMES -> Optical flows -> Level 0 encodings
     download, run gen_flows_dataset.py, run ae0_train.py
 
 Models to train:

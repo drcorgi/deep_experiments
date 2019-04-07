@@ -13,8 +13,8 @@ from plotter import *
 batch_size = 128
 wlen = 64
 stride = wlen
-seq_len = 16
-valid_ids = 1024
+seq_len = 32
+valid_ids = 384
 num_epochs = 200
 __flag = sys.argv[1]
 
@@ -62,10 +62,7 @@ if __name__ == '__main__':
     # Group the data
     frames = np.array([frames[i:i+seq_len] for i in range(len(frames)-seq_len+1)])
     frames = frames.transpose(0,2,1)
-    #rel_poses = np.array([[abs_poses[i+j]-abs_poses[i] for j in range(seq_len)]\
-    #                       for i in range(len(abs_poses)-seq_len+1)])
-    rel_poses = abs2relative_(abs_poses,seq_len,1)
-
+    rel_poses = abs2relative(abs_poses,seq_len,1)
     #rel_poses = rel_poses.transpose(0,2,1)
     print(frames.shape,rel_poses.shape)
 
@@ -118,5 +115,5 @@ if __name__ == '__main__':
     else: # Evaluate
         loss_fn = torch.nn.MSELoss()
         evaluate(model,frames_valid,rel_poses_valid,loss_fn,device)
-        rel_abs = abs2relative_(abs_poses[-(valid_ids+seq_len-1):],valid_ids,1)[0]
+        rel_abs = abs2relative(abs_poses[-(valid_ids+seq_len-1):],valid_ids,1)[0]
         plot_eval(model,frames_valid,rel_poses_valid,rel_abs,device)
