@@ -100,6 +100,15 @@ if __name__ == '__main__':
         num_iter = len(frames)//batch_size
         all_ids = np.random.choice(len(frames),[num_epochs,num_iter,batch_size])
         for j in range(epoch,num_epochs):
+            loss = evaluate(model,frames_valid,loss_fn,device)
+            model.train()
+            if loss < min_loss:
+                min_loss = loss
+                torch.save({'model_state': model.state_dict(),
+                            'optimizer_state': optimizer.state_dict(),
+                            'min_loss': min_loss,
+                            'epoch': j}, model_fn)
+            losses = []
             for i in range(num_iter):
                 optimizer.zero_grad()
                 ids = all_ids[j][i]
@@ -108,18 +117,11 @@ if __name__ == '__main__':
                 loss = loss_fn(y_,x)
                 loss.backward()
                 optimizer.step()
-            print('Epoch {}: {}'.format(j,loss.item()))
-            loss = evaluate(model,frames_valid,loss_fn,device)
-            model.train()
-            if loss < min_loss:
-                min_loss = loss
-                torch.save({'model_state': model.state_dict(),
-                            'optimizer_state': optimizer.state_dict(),
-                            'min_loss': min_loss,
-                            'epoch': j+1}, model_fn)
+                losses.append(loss.item())
+            print('Epoch {}: {}'.format(j,np.mean(losses)))
     elif __flag == '0': # Evaluate
         loss_fn = torch.nn.MSELoss()
         evaluate(model,frames_valid,loss_fn,device)
-        #plot_eval(model,frames_valid,10,device)
+        plot_eval(model,frames_valid,10,device)
     else:
         save_emb(model,torch.cat((frames_valid,frames),0),device)

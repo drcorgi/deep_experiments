@@ -15,7 +15,7 @@ wlen = 64
 stride = wlen
 seq_len = 32
 valid_ids = 1024
-num_epochs = 200
+num_epochs = 450
 __flag = sys.argv[1]
 
 input_fn = '/home/ronnypetson/Documents/deep_odometry/kitti/dataset_frames/sequences/emb0_128x128/emb0_128x128_26_30.npy'
@@ -63,19 +63,19 @@ if __name__ == '__main__':
 
     # Group the data
     frames = np.array([frames[i:i+seq_len] for i in range(len(frames)-seq_len+1)])
-    frames = frames.transpose(0,2,1)[:valid_ids]
-    rel_poses = abs2relative(abs_poses,seq_len,1)[:valid_ids]
+    frames = frames.transpose(0,2,1)
+    rel_poses = abs2relative(abs_poses,seq_len,1)
     #rel_poses = rel_poses.transpose(0,2,1)
     print(frames.shape,rel_poses.shape)
 
     device = torch.device('cuda:0')
     print(device)
     frames = torch.tensor(frames).float()
-    frames_valid = frames #[:valid_ids]
-    frames = frames #[valid_ids:]
+    frames_valid = frames[:valid_ids]
+    frames = frames[valid_ids:]
     rel_poses = torch.tensor(rel_poses).float()
-    rel_poses_valid = rel_poses #[:valid_ids]
-    rel_poses = rel_poses #[valid_ids:]
+    rel_poses_valid = rel_poses[:valid_ids]
+    rel_poses = rel_poses[valid_ids:]
 
     model = Conv1dMapper(frames.size()[1:],rel_poses.size()[1:]).to(device)
     params = model.parameters()
