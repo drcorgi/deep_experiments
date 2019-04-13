@@ -11,41 +11,65 @@ class VanillaAutoencoder(nn.Module):
         self.filters = 32
         self.h_dim = 128
         self.conv1 = nn.Conv2d(in_shape[0],self.filters,(5,5),(2,2))
+        self.bn1 = nn.BatchNorm2d(self.filters)
         self.conv2 = nn.Conv2d(self.filters,self.filters,(3,3),(1,1))
+        self.bn2 = nn.BatchNorm2d(self.filters)
         self.conv3 = nn.Conv2d(self.filters,self.filters,(3,3),(1,1))
-        self.new_h = ((((((in_shape[1]-4)//2-2)//1)-2)//1)-2)//1
-        self.new_w = ((((((in_shape[2]-4)//2-2)//1)-2)//1)-2)//1
+        self.bn3 = nn.BatchNorm2d(self.filters)
+        self.new_h = (((((in_shape[1]-4)//2-2)//1)-2)//1)
+        self.new_w = (((((in_shape[2]-4)//2-2)//1)-2)//1)
         self.flat_dim = self.new_h*self.new_w*self.filters
         print(self.new_h,self.new_w)
         self.fc1 = nn.Linear(self.flat_dim,self.h_dim)
         self.fc2 = nn.Linear(self.h_dim,self.flat_dim)
+        self.bn4 = nn.BatchNorm1d(self.flat_dim)
         self.deconv1 = nn.ConvTranspose2d(self.filters,self.filters,(3,3),(1,1),padding=0)
+        self.bn5 = nn.BatchNorm2d(self.filters)
         self.deconv2 = nn.ConvTranspose2d(self.filters,self.filters,(3,3),(1,1),padding=0) # ,output_padding=1
+        self.bn6 = nn.BatchNorm2d(self.filters)
         self.deconv3 = nn.ConvTranspose2d(self.filters,in_shape[0],(5,5),(2,2),padding=0,output_padding=1)
+        #self.conv_drops = [nn.Dropout(0.1) for _ in [0,1]]
+        self.fc_drop = nn.Dropout(0.5)
+        #self.deconv_drops = [nn.Dropout(0.1) for _ in [0]]
 
     def forward_z(self,x):
-        x = F.relu(self.conv1(x))
-        x = F.relu(self.conv2(x))
+        x = self.bn1(self.conv1(x))
+        x = F.relu(x)
+        #x = self.conv_drops[0](x)
+        x = self.bn2(self.conv2(x))
+        x = F.relu(x)
+        #x = self.conv_drops[1](x)
         conv2_size = list(x.size())
-        x, inds = F.max_pool2d(x,(3,3),(1,1),return_indices=True) # kernel size 3 and strides 1
-        x = F.relu(self.conv3(x))
+        #x, inds = F.max_pool2d(x,(3,3),(1,1),return_indices=True) # kernel size 3 and strides 1
+        x = self.bn3(self.conv3(x))
+        x = F.relu(x)
+        #x = self.conv_drops[2](x)
         x = x.view(-1,self.flat_dim)
-        x = F.relu(self.fc1(x))
+        x = self.fc1(x)
         return x
 
     def forward(self,x):
-        x = F.relu(self.conv1(x))
+        '''x = F.relu(self.conv1(x))
+        #x = self.conv_drops[0](x)
         x = F.relu(self.conv2(x))
+        #x = self.conv_drops[1](x)
         conv2_size = list(x.size())
         x, inds = F.max_pool2d(x,(3,3),(1,1),return_indices=True) # kernel size 3 and strides 1
         x = F.relu(self.conv3(x))
+        #x = self.conv_drops[2](x)
         x = x.view(-1,self.flat_dim)
-        x = F.relu(self.fc1(x))
-        x = F.relu(self.fc2(x))
+        x = self.fc1(x)'''
+        x = self.forward_z(x)
+        x = self.bn4(self.fc2(x))
+        x = F.relu(self.fc_drop(x))
         x = x.view(-1,self.filters,self.new_h,self.new_w)
-        x = F.relu(self.deconv1(x))
-        x = F.max_unpool2d(x,inds,(3,3),(1,1),output_size=conv2_size)
-        x = F.relu(self.deconv2(x))
+        x = self.bn5(self.deconv1(x))
+        x = F.relu(x)
+        #x = self.deconv_drops[0](x)
+        #x = F.max_unpool2d(x,inds,(3,3),(1,1),output_size=conv2_size)
+        x = self.bn6(self.deconv2(x))
+        x = F.relu(x)
+        #x = self.deconv_drops[0](x)
         x = self.deconv3(x)
         return x
 
@@ -99,33 +123,44 @@ class Conv1dMapper(nn.Module):
         self.in_shape = in_shape
         self.out_shape = out_shape
         self.filters = 128
-        self.conv1 = nn.Conv1d(in_shape[0],self.filters,3,2)
-        self.conv2 = nn.Conv1d(self.filters,self.filters,3,1)
-        self.conv3 = nn.Conv1d(self.filters,self.filters,3,1)
-        self.h_shape = ((((in_shape[1]-2)//2-2)//1)-2)//1
+        self.conv1 = nn.Conv1d(in_shape[0],self.filters,3,1,groups=in_shape[0])
+        #self.bn1 = nn.BatchNorm1d(self.filters)
+        self.conv2 = nn.Conv1d(self.filters,self.filters,3,1,groups=self.filters)
+        #self.bn2 = nn.BatchNorm1d(self.filters)
+        self.conv3 = nn.Conv1d(self.filters,self.filters,3,1,groups=self.filters)
+        #self.bn3 = nn.BatchNorm1d(self.filters)
+        self.h_shape = ((((in_shape[1]-2)//1-2)//1)-2)//1
         print(self.h_shape)
         self.fc1 = nn.Linear(self.h_shape*self.filters,30*self.in_shape[1])
+        #self.bn4 = nn.BatchNorm1d(30*self.in_shape[1])
         self.fc2 = nn.Linear(30*self.in_shape[1],30*self.in_shape[1])
+        #self.bn5 = nn.BatchNorm1d(30*self.in_shape[1])
         self.fc3 = nn.Linear(30*self.in_shape[1],np.prod(out_shape))
-        #self.dropout1 = nn.Dropout(p=0.1)
-        #self.dropout2 = nn.Dropout(p=0.1)
-        #self.dropout3 = nn.Dropout(p=0.5)
-        #self.dropout4 = nn.Dropout(p=0.5)
+        self.dropout1 = nn.Dropout(p=0.1)
+        self.dropout2 = nn.Dropout(p=0.1)
+        self.dropout3 = nn.Dropout(p=0.1)
+        self.dropout4 = nn.Dropout(p=0.5)
+        self.dropout5 = nn.Dropout(p=0.5)
 
     def forward(self,x):
-        x = F.relu(self.conv1(x))
+        x = self.dropout1(self.conv1(x))
+        x = F.relu(x)
+        #x = F.relu(self.conv1(x))
         #x = self.dropout1(x)
-        x = F.relu(self.conv2(x))
+        x = self.dropout2(self.conv2(x))
+        x = F.relu(x)
+        #x = F.relu(self.conv2(x))
         #x = self.dropout2(x)
         #conv2_size = list(x.size())
         #x, inds = F.max_pool1d(x,3,1,return_indices=True) # kernel size 3 and strides 1
-        x = F.relu(self.conv3(x))
-        x = x.view(-1,self.h_shape*self.filters)
-        x = F.relu(self.fc1(x))
+        x = self.dropout3(self.conv3(x))
+        x = F.relu(x)
         #x = self.dropout3(x)
-        x = F.relu(self.fc2(x))
-        #x = self.dropout4(x)
-        #x = F.softmax(self.fc3(x))
+        x = x.view(-1,self.h_shape*self.filters)
+        x = self.dropout4(self.fc1(x))
+        x = F.relu(x)
+        x = F.relu(self.dropout5(self.fc2(x)))
+        #x = F.relu(x)
         x = self.fc3(x)
         x = x.view((-1,)+tuple(self.out_shape))
         return x

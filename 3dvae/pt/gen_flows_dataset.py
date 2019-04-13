@@ -54,20 +54,24 @@ class OptFlowsSaver:
 
     def save_opt_flows(self,base,date,drive,fname):
         frames = self.load_seq_frames(base,date,drive)
-        flows = []
+        '''flows = []
         for i in range(len(frames)-1):
             flow = cv2.calcOpticalFlowFarneback(frames[i],frames[i+1],None,0.5,3,15,3,5,1.2,0)
             flows.append(flow)
         flows = np.array(flows)
-        np.save(self.flows_dir+'/'+fname,flows)
+        np.save(self.flows_dir+'/'+fname,flows)'''
+        np.save(self.flows_dir+'/'+fname,np.array(frames))
 
 if __name__=='__main__':
     seq_dirs = glob.glob('/home/ronnypetson/Downloads/*_*_*/*_drive_*_sync/image_00/data/')
     seq_dirs = sorted(seq_dirs)
+    #print(seq_dirs)
+    #exit()
     base = [re.findall('.*[0-9]+_[0-9]+_[0-9]+',s)[0][:-21] for s in seq_dirs]
     date = [re.findall('[0-9]+_[0-9]+_[0-9]+',s)[0] for s in seq_dirs]
     drive = [re.findall('drive_[0-9]+_sync',s)[0][6:-5] for s in seq_dirs]
     saver = OptFlowsSaver(seq_dirs)
-    saver.save_opt_flows(base,date,drive,'flows_128x128_26_30.npy')
+    #saver.save_opt_flows(base,date,drive,'flows_128x128_26_30.npy')
+    #saver.save_opt_flows(base,date,drive,'frames_128x128_00-10_.npy')
     saver.save_seq_poses(base,date,drive,'poses_flat_26-30.npy')
     pass

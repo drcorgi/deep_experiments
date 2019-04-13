@@ -15,12 +15,13 @@ stride = wlen
 seq_len = 128
 valid_ids = 128
 num_classes = 5
-num_epochs = 25
+num_epochs = 50
 __flag = sys.argv[1]
 
 #input_fn = '/home/ronnypetson/Documents/deep_odometry/kitti/dataset_frames/sequences/flows_128x128/flows_128x128_26_30.npy'
-input_fn = '/home/ronnypetson/Documents/deep_odometry/kitti/dataset_frames/sequences/flows_00-10_128x128.npy'
-output_fn = '/home/ronnypetson/Documents/deep_odometry/kitti/dataset_frames/sequences/emb0_128x128/emb0_128x128_26_30.npy'
+input_fn = '/home/ronnypetson/Documents/deep_odometry/kitti/dataset_frames/sequences/flows_00-10_128x128.pck'
+#input_fn = '/home/ronnypetson/Documents/deep_odometry/kitti/dataset_frames/sequences/frames_00-10_128x128.npy'
+output_fn = '/home/ronnypetson/Documents/deep_odometry/kitti/dataset_frames/sequences/emb0_128x128/emb0_flows_128x128_00-10.pck'
 #input_fn_poses = '/home/ronnypetson/Documents/deep_odometry/kitti/dataset_frames/sequences/flows_128x128/poses_flat_26-30.npy'
 model_fn = '/home/ronnypetson/models/pt/ae0_.pth'
 
@@ -30,14 +31,16 @@ epoch = 0
 def save_emb(model,data,device):
     model.eval()
     embs = []
-    for i in range(0,len(data),batch_size):
-        x = data[i:i+batch_size].to(device)
-        if len(x) > 0:
-            z = model.forward_z(x)
-            embs += z.cpu().detach().numpy().tolist()
-    embs = np.array(embs)
-    print(embs.shape)
-    np.save(output_fn,embs)
+    for s in data:
+        semb = []
+        for i in range(0,len(s),batch_size):
+            x = s[i:i+batch_size].transpose(1,3).transpose(2,3).to(device)
+            if len(x) > 0:
+                z = model.forward_z(x)
+                semb += z.cpu().detach().numpy().tolist()
+        embs.append(np.array(semb))
+    with open(output_fn,'wb') as f:
+        pickle.dump(embs,f)
 
 def plot_eval(model,data_x,n,device):
     model.eval()
@@ -49,8 +52,9 @@ def plot_eval(model,data_x,n,device):
         for r,g in zip(y_,x):
             #recs.append(np.mean(r,axis=0))
             #gt.append(g.cpu().detach().numpy().mean(axis=0))
-            recs.append(r[1])
-            gt.append(g[1].cpu().detach().numpy())
+            recs.append(r[0])
+            gt.append(g.cpu().detach().numpy()[0])
+    print(recs[0].shape,gt[0].shape)
     for i,r in enumerate(recs):
         cv2.imwrite('/home/ronnypetson/models/__{}_rec.png'.format(i),r)
         cv2.imwrite('/home/ronnypetson/models/__{}_gt.png'.format(i),gt[i])
@@ -69,11 +73,14 @@ def evaluate(model,data_x,loss_fn,device):
 
 if __name__ == '__main__':
     # Load the data
-    frames = np.load(input_fn).transpose(0,3,1,2)
-    print(frames.shape)
+    '''frames = np.load(input_fn).transpose(0,3,1,2)
+    print(frames.shape)'''
+    with open(input_fn,'rb') as f:
+        frames_ = pickle.load(f)
 
     # Group the data
-    # ...
+    frames = np.concatenate(frames_,axis=0).transpose(0,3,2,1)
+    print(frames.shape)
 
     device = torch.device('cuda:0')
     print(device)
@@ -124,4 +131,5 @@ if __name__ == '__main__':
         evaluate(model,frames_valid,loss_fn,device)
         plot_eval(model,frames_valid,10,device)
     else:
-        save_emb(model,torch.cat((frames_valid,frames),0),device)
+        frames_ = [torch.tensor(s) for s in frames_]
+        save_emb(model,frames_,device)
