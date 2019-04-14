@@ -133,19 +133,19 @@ class Conv1dMapper(nn.Module):
         self.in_shape = in_shape
         self.out_shape = out_shape
         self.filters = 128
-        self.conv1 = nn.Conv1d(in_shape[0],self.filters,3,1,groups=in_shape[0])
+        self.conv1 = nn.Conv1d(in_shape[0],self.filters,3,1,groups=1)
         self.bn1 = nn.BatchNorm1d(self.filters)
-        self.conv2 = nn.Conv1d(self.filters,self.filters,3,1,groups=self.filters)
+        self.conv2 = nn.Conv1d(self.filters,self.filters,3,1,groups=1)
         self.bn2 = nn.BatchNorm1d(self.filters)
-        self.conv3 = nn.Conv1d(self.filters,self.filters,3,1,groups=self.filters)
+        self.conv3 = nn.Conv1d(self.filters,self.filters,3,1,groups=1)
         self.bn3 = nn.BatchNorm1d(self.filters)
         self.h_shape = ((((in_shape[1]-2)//1-2)//1)-2)//1
         print(self.h_shape)
-        self.fc1 = nn.Linear(self.h_shape*self.filters,30*self.in_shape[1])
-        self.bn4 = nn.BatchNorm1d(30*self.in_shape[1])
-        self.fc2 = nn.Linear(30*self.in_shape[1],30*self.in_shape[1])
-        self.bn5 = nn.BatchNorm1d(30*self.in_shape[1])
-        self.fc3 = nn.Linear(30*self.in_shape[1],np.prod(out_shape))
+        self.fc1 = nn.Linear(self.h_shape*self.filters,100*self.in_shape[1])
+        self.bn4 = nn.BatchNorm1d(100*self.in_shape[1])
+        self.fc2 = nn.Linear(100*self.in_shape[1],100*self.in_shape[1])
+        self.bn5 = nn.BatchNorm1d(100*self.in_shape[1])
+        self.fc3 = nn.Linear(100*self.in_shape[1],np.prod(out_shape))
         self.dropout1 = nn.Dropout(p=0.1)
         self.dropout2 = nn.Dropout(p=0.1)
         self.dropout3 = nn.Dropout(p=0.1)
@@ -177,7 +177,7 @@ class Conv1dMapper(nn.Module):
         x = x.view((-1,)+tuple(self.out_shape))
         x[:,[1,4,6,7,9],:] = torch.zeros(x.size(0),5,x.size(2)).cuda()
         x[:,5,:] = torch.tensor(1.0).cuda()
-        x[:,[0,2,8,10],:] = x[:,[0,2,8,10],:]/torch.norm(x[:,[0,2,8,10],:],p=2,dim=1).unsqueeze(1)
+        #x[:,[0,2,8,10],:] = x[:,[0,2,8,10],:]/torch.norm(x[:,[0,2,8,10],:],p=2,dim=1).unsqueeze(1)
         return x
 
 if __name__=='__main__':

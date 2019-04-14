@@ -17,7 +17,7 @@ h, w, _ = img_shape
 def _3dto2d(p):
     p[[1,4,6,7,9]] = np.zeros(5,dtype=np.float32)
     p[5] = 1.0
-    p[[0,2,8,10]] = p[[0,2,8,10]]/np.linalg.norm(p[[0,2,8,10]])
+    p[[0,2,8,10]] = p[[0,2,8,10]]/np.linalg.det([p[[0,2]],p[[8,10]]])
     #p[7] = 0.0
     return p
 
