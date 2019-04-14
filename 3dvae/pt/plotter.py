@@ -14,6 +14,13 @@ batch_size = 64
 latent_dim = 128
 h, w, _ = img_shape
 
+def _3dto2d(p):
+    p[[1,4,6,7,9]] = np.zeros(5,dtype=np.float32)
+    p[5] = 1.0
+    p[[0,2,8,10]] = p[[0,2,8,10]]/np.linalg.norm(p[[0,2,8,10]])
+    #p[7] = 0.0
+    return p
+
 def plot_abs(gt,rec,ddir='/home/ronnypetson/models'):
     fig = plt.figure()
     ax = fig.add_subplot(111,projection='3d')

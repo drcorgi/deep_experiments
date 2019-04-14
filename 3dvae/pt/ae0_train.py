@@ -13,9 +13,9 @@ batch_size = 32
 wlen = 128
 stride = wlen
 seq_len = 128
-valid_ids = 128
+valid_ids = 4096
 num_classes = 5
-num_epochs = 50
+num_epochs = 25
 __flag = sys.argv[1]
 
 #input_fn = '/home/ronnypetson/Documents/deep_odometry/kitti/dataset_frames/sequences/flows_128x128/flows_128x128_26_30.npy'
@@ -73,13 +73,12 @@ def evaluate(model,data_x,loss_fn,device):
 
 if __name__ == '__main__':
     # Load the data
-    '''frames = np.load(input_fn).transpose(0,3,1,2)
-    print(frames.shape)'''
     with open(input_fn,'rb') as f:
-        frames_ = pickle.load(f)
+        frames = pickle.load(f)
+    frames_ = frames
 
     # Group the data
-    frames = np.concatenate(frames_,axis=0).transpose(0,3,2,1)
+    frames = np.concatenate(frames,axis=0).transpose(0,3,2,1)
     print(frames.shape)
 
     device = torch.device('cuda:0')

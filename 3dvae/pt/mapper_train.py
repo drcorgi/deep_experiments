@@ -7,7 +7,7 @@ import torch
 import torch.optim as optim
 
 from pt_ae import Conv1dMapper
-from plotter import __get_3d_points
+from plotter import __get_3d_points, _3dto2d
 from plotter import *
 
 batch_size = 128
@@ -36,6 +36,7 @@ def plot_eval(model,data_x,data_y,abs_,device):
         if len(y_) > 0:
             rel_poses += y_.cpu().detach().numpy().tolist()
     rel_poses = np.array(rel_poses).transpose(0,2,1)
+    print(rel_poses[0])
     pts = __get_3d_points(rel_poses,seq_len)
     gt = data_y.cpu().detach().numpy().transpose(0,2,1)
     gt = __get_3d_points(gt,seq_len)
@@ -58,29 +59,22 @@ def evaluate(model,data_x,data_y,loss_fn,device):
 
 if __name__ == '__main__':
     # Load the data
-    #frames = np.load(input_fn) #[:4540+valid_ids]
-    #abs_poses = np.load(input_fn_poses) #[:4540+valid_ids]
     with open(input_fn,'rb') as f:
         frames = pickle.load(f)
     with open(input_fn_poses,'rb') as f:
         abs_poses = pickle.load(f)
+    abs_poses = [[_3dto2d(p) for p in s] for s in abs_poses]
 
     # Group the data
-    '''frames = np.array([frames[i:i+seq_len] for i in range(len(frames)-seq_len+1) if i not in range(4540-seq_len+1,4540)])
-    frames = frames.transpose(0,2,1)
-    rel_poses_t = abs2relative(abs_poses[:4540],seq_len,1)
-    rel_poses_v = abs2relative(abs_poses[4540:4540+valid_ids],seq_len,1)
-    rel_poses = np.concatenate((rel_poses_t,rel_poses_v),axis=0)
-    rel_poses = rel_poses.transpose(0,2,1)
-    print(frames.shape,rel_poses.shape)'''
     frames = [[s[i:i+seq_len] for i in range(len(s)-seq_len+1)] for s in frames]
     frames = [np.array(s) for s in frames]
     frames = np.concatenate(frames,axis=0).transpose(0,2,1)
-    abs_poses = [p[:-1] for p in abs_poses]
+    abs_poses = [s[:-1] for s in abs_poses]
     rel_poses = [abs2relative(s,seq_len,1) for s in abs_poses]
     rel_poses = np.concatenate(rel_poses,axis=0).transpose(0,2,1)
     print(frames.shape,rel_poses.shape)
 
+    # Separate train and validation data
     device = torch.device('cuda:0')
     print(device)
     frames = torch.tensor(frames).float()
@@ -92,7 +86,7 @@ if __name__ == '__main__':
 
     model = Conv1dMapper(frames.size()[1:],rel_poses.size()[1:]).to(device)
     params = model.parameters()
-    optimizer = optim.Adam(params,lr=1e-3) # optim.SGD(params,lr=1e-3,momentum=0.1)
+    optimizer = optim.Adam(params,lr=1e-3,amsgrad=False) # optim.SGD(params,lr=1e-3,momentum=0.1)
 
     if os.path.isfile(model_fn):
         checkpoint = torch.load(model_fn)

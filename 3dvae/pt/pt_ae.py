@@ -117,6 +117,16 @@ class Vanilla1dAutoencoder(nn.Module):
         #self.dropout2 = nn.Dropout(p=0.5)
         self.dropout3 = nn.Dropout(p=0.5)'''
 
+class NormalNoise(nn.Module):
+    def __init__(self,stddev):
+        super().__init__()
+        self.stddev = stddev
+
+    def forward(self,x):
+        if self.training:
+            x = x + torch.randn(x.size()).cuda() * self.stddev
+        return x
+
 class Conv1dMapper(nn.Module):
     def __init__(self,in_shape,out_shape):
         super().__init__()
@@ -124,45 +134,50 @@ class Conv1dMapper(nn.Module):
         self.out_shape = out_shape
         self.filters = 128
         self.conv1 = nn.Conv1d(in_shape[0],self.filters,3,1,groups=in_shape[0])
-        #self.bn1 = nn.BatchNorm1d(self.filters)
+        self.bn1 = nn.BatchNorm1d(self.filters)
         self.conv2 = nn.Conv1d(self.filters,self.filters,3,1,groups=self.filters)
-        #self.bn2 = nn.BatchNorm1d(self.filters)
+        self.bn2 = nn.BatchNorm1d(self.filters)
         self.conv3 = nn.Conv1d(self.filters,self.filters,3,1,groups=self.filters)
-        #self.bn3 = nn.BatchNorm1d(self.filters)
+        self.bn3 = nn.BatchNorm1d(self.filters)
         self.h_shape = ((((in_shape[1]-2)//1-2)//1)-2)//1
         print(self.h_shape)
         self.fc1 = nn.Linear(self.h_shape*self.filters,30*self.in_shape[1])
-        #self.bn4 = nn.BatchNorm1d(30*self.in_shape[1])
+        self.bn4 = nn.BatchNorm1d(30*self.in_shape[1])
         self.fc2 = nn.Linear(30*self.in_shape[1],30*self.in_shape[1])
-        #self.bn5 = nn.BatchNorm1d(30*self.in_shape[1])
+        self.bn5 = nn.BatchNorm1d(30*self.in_shape[1])
         self.fc3 = nn.Linear(30*self.in_shape[1],np.prod(out_shape))
         self.dropout1 = nn.Dropout(p=0.1)
         self.dropout2 = nn.Dropout(p=0.1)
         self.dropout3 = nn.Dropout(p=0.1)
         self.dropout4 = nn.Dropout(p=0.5)
         self.dropout5 = nn.Dropout(p=0.5)
+        #self.noise = NormalNoise(0.01)
 
     def forward(self,x):
-        x = self.dropout1(self.conv1(x))
-        x = F.relu(x)
+        #x = self.noise(x)
+        x = self.dropout1(self.bn1(F.relu(self.conv1(x))))
+        #x = F.relu(x)
         #x = F.relu(self.conv1(x))
         #x = self.dropout1(x)
-        x = self.dropout2(self.conv2(x))
-        x = F.relu(x)
+        x = self.dropout2(self.bn2(F.relu(self.conv2(x))))
+        #x = F.relu(x)
         #x = F.relu(self.conv2(x))
         #x = self.dropout2(x)
         #conv2_size = list(x.size())
         #x, inds = F.max_pool1d(x,3,1,return_indices=True) # kernel size 3 and strides 1
-        x = self.dropout3(self.conv3(x))
-        x = F.relu(x)
+        x = self.dropout3(self.bn3(F.relu(self.conv3(x))))
+        #x = F.relu(x)
         #x = self.dropout3(x)
         x = x.view(-1,self.h_shape*self.filters)
-        x = self.dropout4(self.fc1(x))
-        x = F.relu(x)
-        x = F.relu(self.dropout5(self.fc2(x)))
+        x = self.dropout4(self.bn4(F.relu(self.fc1(x))))
+        #x = F.relu(x)
+        x = self.dropout5(self.bn5(F.relu(self.fc2(x))))
         #x = F.relu(x)
         x = self.fc3(x)
         x = x.view((-1,)+tuple(self.out_shape))
+        x[:,[1,4,6,7,9],:] = torch.zeros(x.size(0),5,x.size(2)).cuda()
+        x[:,5,:] = torch.tensor(1.0).cuda()
+        x[:,[0,2,8,10],:] = x[:,[0,2,8,10],:]/torch.norm(x[:,[0,2,8,10],:],p=2,dim=1).unsqueeze(1)
         return x
 
 if __name__=='__main__':
