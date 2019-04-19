@@ -40,7 +40,7 @@ class VanillaAutoencoder(nn.Module):
         x = F.relu(self.conv2(x))
         #x = self.bn2(x)
         #x = self.conv_drops[1](x)
-        x = F.relu(self.conv3(x)))
+        x = F.relu(self.conv3(x))
         #x = self.bn3(x)
         #x = self.conv_drops[2](x)
         x = x.view(-1,self.flat_dim)
