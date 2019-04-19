@@ -10,17 +10,18 @@ from pt_ae import VanillaAutoencoder
 from plotter import *
 
 class UnTrainer():
-    def __init__(self,frames,output_fn,model_fn,batch_size,valid_ids,test_ids,device):
-        self.frames = torch.tensor(frames).float()
+    def __init__(self,model,output_fn,model_fn,batch_size,valid_ids,device):
+        #self.frames = torch.tensor(frames).float()
         self.output_fn = output_fn
         self.model_fn = model_fn
         self.batch_size = batch_size
         self.valid_ids = valid_ids
-        self.test_ids = test_ids
+        #self.test_ids = test_ids
         self.min_loss = 1e15
         self.epoch = 0
         self.device = device
-        self.model = VanillaAutoencoder(self.frames.size()[1:]).to(device)
+        self.loss_fn = torch.nn.MSELoss()
+        self.model = model
         params = self.model.parameters()
         self.optimizer = optim.Adam(params,lr=3e-4) # optim.SGD(params,lr=1e-3,momentum=0.1)
         if os.path.isfile(model_fn):
@@ -38,8 +39,10 @@ class UnTrainer():
         embs = []
         for s in data:
             semb = []
+            s = torch.tensor(s).float()
             for i in range(0,len(s),self.batch_size):
-                x = s[i:i+self.batch_size].transpose(1,3).transpose(2,3).to(self.device)
+                x = s[i:i+self.batch_size]
+                x = x.transpose(1,3).transpose(2,3).to(self.device)
                 if len(x) > 0:
                     z = self.model.forward_z(x)
                     semb += z.cpu().detach().numpy().tolist()
@@ -64,29 +67,27 @@ class UnTrainer():
             cv2.imwrite('/tmp/{}_rec.png'.format(i),r)
             cv2.imwrite('/tmp/{}_gt.png'.format(i),gt[i])
 
-    def evaluate(self,data_x,loss_fn):
+    def evaluate(self,data_x):
         self.model.eval()
         losses = []
         for i in range(0,len(data_x),self.batch_size):
             x = data_x[i:i+self.batch_size].to(self.device)
             y_ = self.model(x)
-            loss = loss_fn(y_,x)
+            loss = self.loss_fn(y_,x)
             losses.append(loss.item())
         mean_loss = np.mean(losses)
         print('Evaluation: {}'.format(mean_loss))
         return mean_loss
 
-    def train(self,num_epochs):
-        self.frames_valid = self.frames[:self.valid_ids]
-        self.frames_test = self.frames[self.valid_ids:self.valid_ids+self.test_ids]
-        self.frames = self.frames[self.valid_ids+self.test_ids:]
+    def train(self,frames,num_epochs):
+        frames_valid = frames[:self.valid_ids]
+        frames = frames[self.valid_ids:]
 
         self.model.train()
-        loss_fn = torch.nn.MSELoss()
         num_iter = len(frames)//self.batch_size
-        all_ids = np.random.choice(len(self.frames),[num_epochs,num_iter,self.batch_size])
+        all_ids = np.random.choice(len(frames),[num_epochs,num_iter,self.batch_size])
         for j in range(self.epoch,num_epochs):
-            loss = self.evaluate(self.frames_valid,loss_fn)
+            loss = self.evaluate(frames_valid)
             self.model.train()
             if loss < self.min_loss:
                 self.min_loss = loss
@@ -98,9 +99,9 @@ class UnTrainer():
             for i in range(num_iter):
                 self.optimizer.zero_grad()
                 ids = all_ids[j][i]
-                x = self.frames[ids].to(self.device)
+                x = frames[ids].to(self.device)
                 y_ = self.model(x)
-                loss = loss_fn(y_,x)
+                loss = self.loss_fn(y_,x)
                 loss.backward()
                 self.optimizer.step()
                 losses.append(loss.item())
@@ -123,16 +124,22 @@ if __name__ == '__main__':
     # Load the data
     with open(input_fn,'rb') as f:
         frames = pickle.load(f)[:1]
-    # Group the data
-    frames = np.concatenate(frames,axis=0).transpose(0,3,2,1)
-    print(frames.shape)
+    print(frames[0].shape)
 
     device = torch.device(device)
-    t = UnTrainer(frames=frames,output_fn=output_fn,model_fn=model_fn\
-                ,batch_size=batch_size,valid_ids=valid_ids,test_ids=test_ids,device=device)
-    t.train(epochs)
-    loss_fn = torch.nn.MSELoss()
-    t.evaluate(t.frames_valid,loss_fn)
-    t.evaluate(t.frames_test,loss_fn)
-    t.plot_eval(t.frames_valid,10)
-    t.save_emb(torch.cat((t.frames_valid,t.frames_test,t.frames),dim=0))
+    model = VanillaAutoencoder((frames[0].shape[3],frames[0].shape[1],frames[0].shape[2])).to(device)
+    t = UnTrainer(model=model,output_fn=output_fn,model_fn=model_fn,batch_size=batch_size\
+                  ,valid_ids=valid_ids,device=device)
+
+    if epochs == -1: # Save embeddings
+        t.save_emb(frames)
+    else:
+        # Group the data
+        frames = np.concatenate(frames,axis=0).transpose(0,3,1,2)
+        print(frames.shape)
+        frames = torch.tensor(frames).float()
+        frames_test = frames[:test_ids]
+        frames = frames[test_ids:]
+        t.train(frames,epochs)
+        t.evaluate(frames_test)
+        t.plot_eval(frames[:valid_ids],10)
