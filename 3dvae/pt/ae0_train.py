@@ -124,7 +124,7 @@ if __name__ == '__main__':
     # Load the data
     with open(input_fn,'rb') as f:
         frames = pickle.load(f) #[:1]
-    print(frames[0].shape)
+    #print(frames[0].shape)
 
     device = torch.device(device)
     model = VanillaAutoencoder((frames[0].shape[3],frames[0].shape[1],frames[0].shape[2])).to(device)
