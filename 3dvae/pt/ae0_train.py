@@ -135,3 +135,4 @@ if __name__ == '__main__':
     t.evaluate(t.frames_valid,loss_fn)
     t.evaluate(t.frames_test,loss_fn)
     t.plot_eval(t.frames_valid,10)
+    t.save_emb(torch.cat((t.frames_valid,t.frames_test,t.frames),dim=0))
