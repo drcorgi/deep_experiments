@@ -72,7 +72,7 @@ def load_kitti_odom_all(fdir):
     return poses
 
 if __name__ == '__main__':
-    if len(sys.argv) < 8:
+    if len(sys.argv) != 8:
         print('Usage: frames_in frames_out flows_out h w odom_in odom_out')
         exit()
 

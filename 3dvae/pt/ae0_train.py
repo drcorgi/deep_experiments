@@ -107,7 +107,18 @@ class UnTrainer():
             print('Epoch {}: {}'.format(j,np.mean(losses)))
 
 if __name__ == '__main__':
-    input_fn='/home/ronnypetson/Documents/deep_odometry/kitti/dataset_frames/sequences/flows_00-10_128x128.pck'
+    if len(sys.argv) != 8:
+        print('Usage: input_fn output_fn model_fn batch_size valid_ids test_ids device')
+        exit()
+
+    input_fn = sys.argv[1] #'/home/ronnypetson/Documents/deep_odometry/kitti/dataset_frames/sequences/flows_00-10_128x128.pck'
+    output_fn = sys.argv[2] #'/home/ronnypetson/Documents/deep_odometry/kitti/dataset_frames/sequences/emb0_128x128/emb0_flows_128x128_00-10.pck'
+    model_fn = sys.argv[3] #'/home/ronnypetson/models/pt/test_ae0_.pth'
+    batch_size = int(sys.argv[4]) #8
+    valid_ids = int(sys.argv[5]) #256
+    test_ids = int(sys.argv[6]) #256
+    device = sys.argv[7] #'cuda:0'
+
     # Load the data
     with open(input_fn,'rb') as f:
         frames = pickle.load(f)[:1]
@@ -115,12 +126,10 @@ if __name__ == '__main__':
     frames = np.concatenate(frames,axis=0).transpose(0,3,2,1)
     print(frames.shape)
 
-    device = torch.device('cuda:0')
-    t = Trainer(frames=frames\
-                ,output_fn='/home/ronnypetson/Documents/deep_odometry/kitti/dataset_frames/sequences/emb0_128x128/emb0_flows_128x128_00-10.pck'\
-                ,model_fn='/home/ronnypetson/models/pt/test_ae0_.pth'\
-                ,batch_size=8,valid_ids=256,test_ids=256,device=device)
-    t.train(1)
+    device = torch.device(device)
+    t = UnTrainer(frames=frames,output_fn=output_fn,model_fn=model_fn\
+                ,batch_size=batch_size,valid_ids=valid_ids,test_ids=test_ids,device=device)
+    t.train(2)
     loss_fn = torch.nn.MSELoss()
     t.evaluate(t.frames_valid,loss_fn)
     t.evaluate(t.frames_test,loss_fn)
