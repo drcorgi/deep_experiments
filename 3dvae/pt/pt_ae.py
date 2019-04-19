@@ -21,55 +21,40 @@ class VanillaAutoencoder(nn.Module):
         self.flat_dim = self.new_h*self.new_w*self.filters
         print(self.new_h,self.new_w)
         self.fc1 = nn.Linear(self.flat_dim,self.h_dim)
+        self.bn4 = nn.BatchNorm1d(self.h_dim)
         self.fc2 = nn.Linear(self.h_dim,self.flat_dim)
-        self.bn4 = nn.BatchNorm1d(self.flat_dim)
+        self.bn5 = nn.BatchNorm1d(self.flat_dim)
         self.deconv1 = nn.ConvTranspose2d(self.filters,self.filters,(3,3),(1,1),padding=0)
-        self.bn5 = nn.BatchNorm2d(self.filters)
-        self.deconv2 = nn.ConvTranspose2d(self.filters,self.filters,(3,3),(1,1),padding=0) # ,output_padding=1
         self.bn6 = nn.BatchNorm2d(self.filters)
+        self.deconv2 = nn.ConvTranspose2d(self.filters,self.filters,(3,3),(1,1),padding=0) # ,output_padding=1
+        self.bn7 = nn.BatchNorm2d(self.filters)
         self.deconv3 = nn.ConvTranspose2d(self.filters,in_shape[0],(5,5),(2,2),padding=0,output_padding=1)
-        #self.conv_drops = [nn.Dropout(0.1) for _ in [0,1]]
-        self.fc_drop = nn.Dropout(0.5)
-        #self.deconv_drops = [nn.Dropout(0.1) for _ in [0]]
+        self.conv_drops = [nn.Dropout(0.1) for _ in [0,1,2]]
+        self.fc_drop = [nn.Dropout(0.5) for _ in [0,1]]
+        self.deconv_drops = [nn.Dropout(0.1) for _ in [0,1]]
 
     def forward_z(self,x):
-        x = self.bn1(self.conv1(x))
-        x = F.relu(x)
-        #x = self.conv_drops[0](x)
-        x = self.bn2(self.conv2(x))
-        x = F.relu(x)
-        #x = self.conv_drops[1](x)
-        conv2_size = list(x.size())
-        #x, inds = F.max_pool2d(x,(3,3),(1,1),return_indices=True) # kernel size 3 and strides 1
-        x = self.bn3(self.conv3(x))
-        x = F.relu(x)
-        #x = self.conv_drops[2](x)
+        x = self.bn1(F.relu(self.conv1(x)))
+        x = self.conv_drops[0](x)
+        x = self.bn2(F.relu(self.conv2(x)))
+        x = self.conv_drops[1](x)
+        x = self.bn3(F.relu(self.conv3(x)))
+        x = self.conv_drops[2](x)
         x = x.view(-1,self.flat_dim)
         x = self.fc1(x)
         return x
 
     def forward(self,x):
-        '''x = F.relu(self.conv1(x))
-        #x = self.conv_drops[0](x)
-        x = F.relu(self.conv2(x))
-        #x = self.conv_drops[1](x)
-        conv2_size = list(x.size())
-        x, inds = F.max_pool2d(x,(3,3),(1,1),return_indices=True) # kernel size 3 and strides 1
-        x = F.relu(self.conv3(x))
-        #x = self.conv_drops[2](x)
-        x = x.view(-1,self.flat_dim)
-        x = self.fc1(x)'''
         x = self.forward_z(x)
-        x = self.bn4(self.fc2(x))
-        x = F.relu(self.fc_drop(x))
+        x = self.bn4(F.relu(x))
+        x = self.fc_drop[0](x)
+        x = self.bn5(F.relu(self.fc2(x)))
+        x = self.fc_drop[1](x)
         x = x.view(-1,self.filters,self.new_h,self.new_w)
-        x = self.bn5(self.deconv1(x))
-        x = F.relu(x)
-        #x = self.deconv_drops[0](x)
-        #x = F.max_unpool2d(x,inds,(3,3),(1,1),output_size=conv2_size)
-        x = self.bn6(self.deconv2(x))
-        x = F.relu(x)
-        #x = self.deconv_drops[0](x)
+        x = self.bn6(F.relu(self.deconv1(x)))
+        x = self.deconv_drops[0](x)
+        x = self.bn7(F.relu(self.deconv2(x)))
+        x = self.deconv_drops[1](x)
         x = self.deconv3(x)
         return x
 
@@ -132,7 +117,7 @@ class Conv1dMapper(nn.Module):
         super().__init__()
         self.in_shape = in_shape
         self.out_shape = out_shape
-        self.filters = 128
+        self.filters = 64
         self.conv1 = nn.Conv1d(in_shape[0],self.filters,3,1,groups=1)
         self.bn1 = nn.BatchNorm1d(self.filters)
         self.conv2 = nn.Conv1d(self.filters,self.filters,3,1,groups=1)

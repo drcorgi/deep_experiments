@@ -13,7 +13,7 @@ from plotter import *
 batch_size = 128
 wlen = 64
 stride = wlen
-seq_len = 8
+seq_len = 16
 valid_ids = 1024
 num_epochs = 900
 __flag = sys.argv[1]
