@@ -117,7 +117,8 @@ if __name__ == '__main__':
     batch_size = int(sys.argv[4]) #8
     valid_ids = int(sys.argv[5]) #256
     test_ids = int(sys.argv[6]) #256
-    device = sys.argv[7] #'cuda:0'
+    epochs = int(sys.argv[7])
+    device = sys.argv[8] #'cuda:0'
 
     # Load the data
     with open(input_fn,'rb') as f:
@@ -129,7 +130,7 @@ if __name__ == '__main__':
     device = torch.device(device)
     t = UnTrainer(frames=frames,output_fn=output_fn,model_fn=model_fn\
                 ,batch_size=batch_size,valid_ids=valid_ids,test_ids=test_ids,device=device)
-    t.train(2)
+    t.train(epochs)
     loss_fn = torch.nn.MSELoss()
     t.evaluate(t.frames_valid,loss_fn)
     t.evaluate(t.frames_test,loss_fn)
