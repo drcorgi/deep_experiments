@@ -123,7 +123,7 @@ if __name__ == '__main__':
 
     # Load the data
     with open(input_fn,'rb') as f:
-        frames = pickle.load(f)[:1]
+        frames = pickle.load(f) #[:1]
     print(frames[0].shape)
 
     device = torch.device(device)
