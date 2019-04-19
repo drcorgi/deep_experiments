@@ -89,7 +89,7 @@ if __name__ == '__main__':
     print('Saving numpy binary version of frames')
     np.save(frames_out,frames)
     odoms = load_kitti_odom_all(odom_dir)
-    print('Frames {} odoms {}'.format(frames.shape,len(odoms)))
+    print('Frames {} odoms {}'.format(len(frames),len(odoms)))
     print('Saving pickled versions of flows and odoms')
     save_opt_flows(frames,flows_out)
     with open(odom_out,'wb') as f:
