@@ -43,9 +43,8 @@ def log_run_kitti(fdir,fshape):
     return np.array(frames)
 
 def log_run_kitti_all(re_dir,fshape):
-    '''seqs = ['00','01','02','03','04','05','06','07','08','09','10'] #,'11',\
-             #'12','13','14','15','16','17','18','19','20','21']'''
-    seqs = [p for p in glob(re_dir) if os.path.isdir(p)]
+    ignore = ['11,''12','13','14','15','16','17','18','19','20','21']
+    seqs = [p for p in glob(re_dir) if os.path.isdir(p) and p not in ignore]
     seqs = sorted(seqs)
     print(seqs)
     frames = []
