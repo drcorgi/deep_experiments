@@ -107,7 +107,7 @@ class UnTrainer():
             print('Epoch {}: {}'.format(j,np.mean(losses)))
 
 if __name__ == '__main__':
-    if len(sys.argv) != 8:
+    if len(sys.argv) != 9:
         print('Usage: input_fn output_fn model_fn batch_size valid_ids test_ids device')
         exit()
 
