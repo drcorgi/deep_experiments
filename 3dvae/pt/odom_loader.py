@@ -51,7 +51,7 @@ def log_run_kitti_all(re_dir,fshape):
     frames = []
     for s in seqs:
         print('Loading sequence from '+s)
-        f = log_run_kitti(re_dir.format(s),fshape)
+        f = log_run_kitti(s,fshape)
         frames.append(f)
     return frames
 
@@ -78,7 +78,7 @@ if __name__ == '__main__':
         print('Usage: frames_in frames_out flows_out h w odom_in odom_out')
         exit()
 
-    frames_dir = sys.argv[1] #'/home/ronnypetson/Documents/deep_odometry/kitti/dataset_frames/sequences/*/image_0/128x128'
+    frames_dir = sys.argv[1] #'/home/ronnypetson/Documents/deep_odometry/kitti/dataset_frames/sequences/*/image_0/'
     frames_out = sys.argv[2] #'/home/ronnypetson/Documents/deep_odometry/kitti/dataset_frames/sequences/frames_00-10_128x128.npy'
     flows_out = sys.argv[3] #'/home/ronnypetson/Documents/deep_odometry/kitti/dataset_frames/sequences/flows_00-10_128x128.pck'
     frame_shape = (int(sys.argv[4]),int(sys.argv[5])) # 128 128
