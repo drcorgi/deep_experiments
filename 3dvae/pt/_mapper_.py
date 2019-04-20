@@ -78,6 +78,7 @@ class MapTrainer():
             print('Epoch {}: {}'.format(j,np.mean(losses)))
 
 if __name__ == '__main__':
+    print(len(sys.argv))
     if len(sys.argv) != 10:
         print('Usage: input_fn input_fn_poses model_fn batch_size valid_ids test_ids epochs seq_len device')
         exit()
