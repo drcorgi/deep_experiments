@@ -115,9 +115,9 @@ if __name__ == '__main__':
 
     # Load the data
     with open(input_fn,'rb') as f:
-        frames = pickle.load(f) [:1]
+        frames = pickle.load(f)
     with open(input_fn_poses,'rb') as f:
-        abs_poses = pickle.load(f)[:1]
+        abs_poses = pickle.load(f)
     abs_poses = [[c3dto2d(p) for p in s] for s in abs_poses]
 
     # Group the data
