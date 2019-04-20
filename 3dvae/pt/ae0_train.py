@@ -11,19 +11,17 @@ from plotter import *
 
 class UnTrainer():
     def __init__(self,model,output_fn,model_fn,batch_size,valid_ids,device):
-        #self.frames = torch.tensor(frames).float()
         self.output_fn = output_fn
         self.model_fn = model_fn
         self.batch_size = batch_size
         self.valid_ids = valid_ids
-        #self.test_ids = test_ids
         self.min_loss = 1e15
         self.epoch = 0
         self.device = device
         self.loss_fn = torch.nn.MSELoss()
         self.model = model
         params = self.model.parameters()
-        self.optimizer = optim.Adam(params,lr=3e-4) # optim.SGD(params,lr=1e-3,momentum=0.1)
+        self.optimizer = optim.Adam(params,lr=3e-4)
         if os.path.isfile(model_fn):
             print('Loading existing model')
             checkpoint = torch.load(model_fn)
@@ -109,7 +107,7 @@ class UnTrainer():
 
 if __name__ == '__main__':
     if len(sys.argv) != 9:
-        print('Usage: input_fn output_fn model_fn batch_size valid_ids test_ids device')
+        print('Usage: input_fn output_fn model_fn batch_size valid_ids test_ids epochs device')
         exit()
 
     input_fn = sys.argv[1] #'/home/ronnypetson/Documents/deep_odometry/kitti/dataset_frames/sequences/flows_00-10_128x128.pck'
@@ -124,7 +122,6 @@ if __name__ == '__main__':
     # Load the data
     with open(input_fn,'rb') as f:
         frames = pickle.load(f) #[:1]
-    #print(frames[0].shape)
 
     device = torch.device(device)
     model = VanillaAutoencoder((frames[0].shape[3],frames[0].shape[1],frames[0].shape[2])).to(device)
