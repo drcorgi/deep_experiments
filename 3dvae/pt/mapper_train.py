@@ -7,8 +7,7 @@ import torch
 import torch.optim as optim
 
 from pt_ae import Conv1dMapper
-from plotter import __get_3d_points, _3dto2d
-from plotter import *
+from plotter import get_3d_points__, 3dto2d, abs2relative
 
 batch_size = 128
 wlen = 64
@@ -37,9 +36,9 @@ def plot_eval(model,data_x,data_y,abs_,device):
             rel_poses += y_.cpu().detach().numpy().tolist()
     rel_poses = np.array(rel_poses).transpose(0,2,1)
     print(rel_poses[0])
-    pts = __get_3d_points(rel_poses,seq_len)
+    pts = get_3d_points__(rel_poses,seq_len)
     gt = data_y.cpu().detach().numpy().transpose(0,2,1)
-    gt = __get_3d_points(gt,seq_len)
+    gt = get_3d_points__(gt,seq_len)
     print(gt.shape,pts.shape,abs_.shape)
     plot_3d_points_(gt,pts)
     plot_abs(abs_,pts)
@@ -63,7 +62,7 @@ if __name__ == '__main__':
         frames = pickle.load(f)
     with open(input_fn_poses,'rb') as f:
         abs_poses = pickle.load(f)
-    abs_poses = [[_3dto2d(p) for p in s] for s in abs_poses]
+    abs_poses = [[3dto2d(p) for p in s] for s in abs_poses]
 
     # Group the data
     frames = [[s[i:i+seq_len] for i in range(len(s)-seq_len+1)] for s in frames]

@@ -1,5 +1,6 @@
 import sys
 import signal
+import time
 import numpy as np
 import glob, os
 import pickle
@@ -7,8 +8,7 @@ import torch
 import torch.optim as optim
 
 from pt_ae import Conv1dMapper
-from plotter import __get_3d_points, _3dto2d
-from plotter import *
+from plotter import get_3d_points__, c3dto2d, abs2relative, plot_3d_points_, plot_abs
 
 class MapTrainer():
     def __init__(self,model,model_fn,batch_size,valid_ids,device):
@@ -32,6 +32,26 @@ class MapTrainer():
         else:
             print('Creating new model')
 
+    def plot_eval(self,data_x,data_y,abs_,seq_len):
+        assert len(data_x) == len(data_y)
+        self.model.eval()
+        rel_poses = []
+        for i in range(0,len(data_x),self.batch_size):
+            x = data_x[i:i+self.batch_size].to(device)
+            if len(x) > 0:
+                y_ = self.model(x)
+                rel_poses += y_.cpu().detach().numpy().tolist()
+        rel_poses = np.array(rel_poses).transpose(0,2,1)
+        pts = get_3d_points__(rel_poses,seq_len)
+        gt = data_y.cpu().detach().numpy().transpose(0,2,1)
+        gt = get_3d_points__(gt,seq_len)
+        print(gt.shape,pts.shape,abs_.shape)
+        if not os.path.isdir('tmp'):
+            os.mkdir('tmp')
+        t = time.time()
+        plot_3d_points_(gt,pts,'tmp/{}_projections_xyz.png'.format(t))
+        plot_abs(abs_,pts,'tmp/{}_absolute_gt_3d.png'.format(t))
+
     def evaluate(self,data_x,data_y):
         assert len(data_x) == len(data_y)
         self.model.eval()
@@ -47,6 +67,7 @@ class MapTrainer():
         return mean_loss
 
     def train(self,frames,poses,num_epochs):
+        assert len(frames) == len(poses)
         frames_valid = frames[:self.valid_ids]
         frames = frames[self.valid_ids:]
         poses_valid = poses[:self.valid_ids]
@@ -78,7 +99,6 @@ class MapTrainer():
             print('Epoch {}: {}'.format(j,np.mean(losses)))
 
 if __name__ == '__main__':
-    print(len(sys.argv))
     if len(sys.argv) != 10:
         print('Usage: input_fn input_fn_poses model_fn batch_size valid_ids test_ids epochs seq_len device')
         exit()
@@ -98,7 +118,7 @@ if __name__ == '__main__':
         frames = pickle.load(f) [:1]
     with open(input_fn_poses,'rb') as f:
         abs_poses = pickle.load(f)[:1]
-    abs_poses = [[_3dto2d(p) for p in s] for s in abs_poses]
+    abs_poses = [[c3dto2d(p) for p in s] for s in abs_poses]
 
     # Group the data
     frames = [[s[i:i+seq_len] for i in range(len(s)-seq_len+1)] for s in frames]
@@ -125,3 +145,6 @@ if __name__ == '__main__':
     # Train and test
     t.train(frames,rel_poses,epochs)
     t.evaluate(frames_test,rel_poses_test)
+    abs_poses = abs_poses[0][:test_ids]
+    abs_poses = abs2relative(abs_poses,len(abs_poses),1)[0]
+    t.plot_eval(frames_test,rel_poses_test,abs_poses,seq_len)

@@ -9,29 +9,23 @@ from matplotlib import pyplot as plt
 from mpl_toolkits.mplot3d import Axes3D
 from multiprocessing import Pool
 
-img_shape = (128,128,1)
-batch_size = 64
-latent_dim = 128
-h, w, _ = img_shape
-
-def _3dto2d(p):
+def c3dto2d(p):
     p[[1,4,6,7,9]] = np.zeros(5,dtype=np.float32)
     p[5] = 1.0
     p[[0,2,8,10]] = p[[0,2,8,10]]/np.linalg.det([p[[0,2]],p[[8,10]]])
-    #p[7] = 0.0
     return p
 
-def plot_abs(gt,rec,ddir='/home/ronnypetson/models'):
+def plot_abs(gt,rec,out_fn):
     fig = plt.figure()
     ax = fig.add_subplot(111,projection='3d')
     gt = np.array([[p[3],p[7],p[11]] for p in gt])
     #rec = np.array([[p[3],p[7],p[11]] for p in rec])
     ax.plot(gt[:,0],gt[:,1],gt[:,2],'g.')
     ax.plot(rec[:,0],rec[:,1],rec[:,2],'b.')
-    plt.savefig(ddir+'/3d_abs_plot.png')
+    plt.savefig(out_fn)
     plt.close(fig)
 
-def plot_3d_points_(gt,est,ddir='/home/ronnypetson/models'):
+def plot_3d_points_(gt,est,out_fn):
     fig = plt.figure()
     ax = fig.add_subplot(131)
     ax.plot(gt[:,0],gt[:,1],'g')
@@ -45,7 +39,7 @@ def plot_3d_points_(gt,est,ddir='/home/ronnypetson/models'):
     '''ax = fig.add_subplot(111)
     ax.plot(gt[:,0],gt[:,1],'g.')
     ax.plot(est[:,0],est[:,1],'b.')'''
-    plt.savefig(ddir+'/3d_projections.png')
+    plt.savefig(out_fn)
     plt.close(fig)
 
 def plot_2d_points_(gt,est,ign=1,ddir='/home/ronnypetson/models'):
@@ -108,7 +102,7 @@ def get_3d_points_(rposes,wlen=32):
         poses_.append(np.mean(p,axis=0))
     return np.array([[p[0,3],p[1,3],p[2,3]] for p in poses_])
 
-def __get_3d_points(rposes,wlen):
+def get_3d_points__(rposes,wlen):
     rposes = [[homogen(p) for p in r] for r in rposes]
     aposes = rposes[0]
     for i in range(wlen,len(rposes),wlen):
