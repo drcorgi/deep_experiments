@@ -100,6 +100,7 @@ class MapTrainer():
 
 if __name__ == '__main__':
     if len(sys.argv) != 10:
+        print('Input:',sys.argv)
         print('Usage: input_fn input_fn_poses model_fn batch_size valid_ids test_ids epochs seq_len device')
         exit()
 

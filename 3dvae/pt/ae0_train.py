@@ -107,6 +107,7 @@ class UnTrainer():
 
 if __name__ == '__main__':
     if len(sys.argv) != 9:
+        print('Input:',sys.argv)
         print('Usage: input_fn output_fn model_fn batch_size valid_ids test_ids epochs device')
         exit()
 
