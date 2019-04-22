@@ -10,8 +10,7 @@ from pt_ae import VanillaAutoencoder
 from plotter import *
 
 class UnTrainer():
-    def __init__(self,model,output_fn,model_fn,batch_size,valid_ids,device):
-        self.output_fn = output_fn
+    def __init__(self,model,model_fn,batch_size,valid_ids,device):
         self.model_fn = model_fn
         self.batch_size = batch_size
         self.valid_ids = valid_ids
@@ -32,10 +31,11 @@ class UnTrainer():
         else:
             print('Creating new model')
 
-    def save_emb(self,data):
+    def save_emb(self,data,output_fn):
         self.model.eval()
-        embs = []
-        for s in data:
+        out_fns = sorted(glob.glob(output_fn))
+        #embs = []
+        for s,fn in zip(data,out_fns):
             semb = []
             s = torch.tensor(s).float()
             for i in range(0,len(s),self.batch_size):
@@ -44,9 +44,10 @@ class UnTrainer():
                 if len(x) > 0:
                     z = self.model.forward_z(x)
                     semb += z.cpu().detach().numpy().tolist()
-            embs.append(np.array(semb))
-        with open(self.output_fn,'wb') as f:
-            pickle.dump(embs,f)
+            np.save(fn,np.array(semb))
+            #embs.append(np.array(semb))
+        '''with open(self.output_fn,'wb') as f:
+            pickle.dump(embs,f)'''
 
     def plot_eval(self,data_x,n):
         self.model.eval()
@@ -111,8 +112,8 @@ if __name__ == '__main__':
         print('Usage: input_fn output_fn model_fn batch_size valid_ids test_ids epochs device')
         exit()
 
-    input_fn = sys.argv[1] #'/home/ronnypetson/Documents/deep_odometry/kitti/dataset_frames/sequences/flows_00-10_128x128.pck'
-    output_fn = sys.argv[2] #'/home/ronnypetson/Documents/deep_odometry/kitti/dataset_frames/sequences/emb0_128x128/emb0_flows_128x128_00-10.pck'
+    input_fn = sys.argv[1] #'/home/ronnypetson/Documents/deep_odometry/kitti/dataset_frames/sequences/*/flows_128_512.npy'
+    output_fn = sys.argv[2] #'/home/ronnypetson/Documents/deep_odometry/kitti/dataset_frames/sequences/*/emb0_128_512.npy'
     model_fn = sys.argv[3] #'/home/ronnypetson/models/pt/test_ae0_.pth'
     batch_size = int(sys.argv[4]) #8
     valid_ids = int(sys.argv[5]) #256
@@ -121,16 +122,17 @@ if __name__ == '__main__':
     device = sys.argv[8] #'cuda:0'
 
     # Load the data
-    with open(input_fn,'rb') as f:
-        frames = pickle.load(f) #[:1]
+    #with open(input_fn,'rb') as f:
+    #    frames = pickle.load(f) #[:1]
+    frames = [np.load(f) for f in sorted(glob.glob(input_fn)[:1])]
 
     device = torch.device(device)
     model = VanillaAutoencoder((frames[0].shape[3],frames[0].shape[1],frames[0].shape[2])).to(device)
-    t = UnTrainer(model=model,output_fn=output_fn,model_fn=model_fn,batch_size=batch_size\
+    t = UnTrainer(model=model,model_fn=model_fn,batch_size=batch_size\
                   ,valid_ids=valid_ids,device=device)
 
     if epochs == -1: # Save embeddings
-        t.save_emb(frames)
+        t.save_emb(frames,output_fn)
     else:
         # Group the data
         frames = np.concatenate(frames,axis=0).transpose(0,3,1,2)
