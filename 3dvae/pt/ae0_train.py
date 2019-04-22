@@ -33,7 +33,7 @@ class UnTrainer():
 
     def save_emb(self,data,output_fn):
         self.model.eval()
-        out_fns = sorted(glob.glob(output_fn)[1:])
+        out_fns = sorted(glob.glob(output_fn))
         #embs = []
         for s,fn in zip(data,out_fns):
             semb = []
@@ -124,10 +124,10 @@ if __name__ == '__main__':
     # Load the data
     #with open(input_fn,'rb') as f:
     #    frames = pickle.load(f) #[:1]
-    frames = [np.load(f) for f in sorted(glob.glob(input_fn))[1:]]
+    frames = [np.load(f) for f in sorted(glob.glob(input_fn))]
 
     device = torch.device(device)
-    model = VanillaAutoencoder((frames[0].shape[3],frames[0].shape[1],frames[0].shape[2])).to(device)
+    model = VanillaAutoencoder((1,frames[0].shape[1],frames[0].shape[2])).to(device)
     t = UnTrainer(model=model,model_fn=model_fn,batch_size=batch_size\
                   ,valid_ids=valid_ids,device=device)
 
