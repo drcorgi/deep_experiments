@@ -127,7 +127,7 @@ if __name__ == '__main__':
     frames = [np.load(f) for f in sorted(glob.glob(input_fn))]
 
     device = torch.device(device)
-    model = VanillaAutoencoder((1,frames[0].shape[1],frames[0].shape[2])).to(device)
+    model = VanillaAutoencoder((1,frames.shape[1],frames.shape[2])).to(device)
     t = UnTrainer(model=model,model_fn=model_fn,batch_size=batch_size\
                   ,valid_ids=valid_ids,device=device)
 
