@@ -125,9 +125,11 @@ if __name__ == '__main__':
     #with open(input_fn,'rb') as f:
     #    frames = pickle.load(f) #[:1]
     frames = [np.load(f) for f in sorted(glob.glob(input_fn))]
+    frames = [f.reshape(-1,1,f.shape[1],f.shape[2]) for f in frames]
+    print(frames[0].shape)
 
     device = torch.device(device)
-    model = VanillaAutoencoder((1,frames.shape[1],frames.shape[2])).to(device)
+    model = VanillaAutoencoder(frames[0].shape[1:]).to(device)
     t = UnTrainer(model=model,model_fn=model_fn,batch_size=batch_size\
                   ,valid_ids=valid_ids,device=device)
 
@@ -135,7 +137,7 @@ if __name__ == '__main__':
         t.save_emb(frames,output_fn)
     else:
         # Group the data
-        frames = np.concatenate(frames,axis=0).transpose(0,3,1,2)
+        frames = np.concatenate(frames,axis=0) #.transpose(0,3,1,2)
         print(frames.shape)
         frames = torch.tensor(frames).float()
         frames_test = frames[:test_ids]
