@@ -124,6 +124,7 @@ if __name__ == '__main__':
     # Load the data
     #with open(input_fn,'rb') as f:
     #    frames = pickle.load(f) #[:1]
+    print(glob.glob(input_fn))
     frames = [np.load(f) for f in sorted(glob.glob(input_fn))]
     frames = [f.reshape(-1,1,f.shape[1],f.shape[2]) for f in frames]
     print(len(frames))
