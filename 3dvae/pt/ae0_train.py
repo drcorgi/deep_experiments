@@ -33,7 +33,7 @@ class UnTrainer():
 
     def save_emb(self,data,output_fn):
         self.model.eval()
-        out_fns = sorted(glob.glob(output_fn))[1:]
+        out_fns = sorted(glob.glob(output_fn))
         #embs = []
         for s,fn in zip(data,out_fns):
             semb = []
@@ -125,7 +125,7 @@ if __name__ == '__main__':
     #with open(input_fn,'rb') as f:
     #    frames = pickle.load(f) #[:1]
     print(input_fn)
-    frames = [np.load(f) for f in sorted(glob.glob(input_fn))[1:]]
+    frames = [np.load(f) for f in sorted(glob.glob(input_fn))]
     frames = [f.reshape(-1,1,f.shape[1],f.shape[2]) for f in frames]
     print(len(frames))
     print(frames[0].shape)
