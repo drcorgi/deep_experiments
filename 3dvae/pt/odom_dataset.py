@@ -4,10 +4,12 @@ import re
 import cv2
 import numpy as np
 import torch
+import torch.optim as optim
 
 from glob import glob
 from torch.utils.data import Dataset, DataLoader
 from torchvision import transforms, utils
+from pt_ae import VanillaAutoencoder
 
 class Rescale(object):
     def __init__(self, output_size):
@@ -29,7 +31,7 @@ class Rescale(object):
 
 class ToTensor(object):
     def __call__(self,image):
-        return torch.from_numpy(image).unsqueeze(0)
+        return torch.from_numpy(image).unsqueeze(0).float()
 
 class FramesDataset(Dataset):
     def __init__(self, re_dir, transform=None):
@@ -47,11 +49,38 @@ class FramesDataset(Dataset):
         return frame
 
 if __name__=='__main__':
-    re_dir = '/home/ronnypetson/Documents/deep_odometry/kitti/dataset_frames/sequences/*/image_0/*'
+    train_dir = '/home/ronnypetson/Documents/deep_odometry/kitti/dataset_frames/sequences/*/image_0/*'
+    valid_dir = '/home/ronnypetson/Documents/deep_odometry/kitti/dataset_frames/00/image_0/*'
+    test_dir = '/home/ronnypetson/Documents/deep_odometry/kitti/dataset_frames/01/image_0/*'
+
     new_dim = (int(sys.argv[1]),int(sys.argv[2]))
     transf = transforms.Compose([Rescale(new_dim),ToTensor()])
-    fdataset = FramesDataset(re_dir,transf)
-    data_loader = DataLoader(fdataset,batch_size=64,shuffle=True,num_workers=4)
-    '''for i, batch in enumerate(data_loader):
-        print(i,batch.size())
-        pass'''
+
+    train_dataset = FramesDataset(train_dir,transf)
+    valid_dataset = FramesDataset(valid_dir,transf)
+    test_dataset = FramesDataset(test_dir,transf)
+
+    train_loader = DataLoader(train_dataset,batch_size=384,shuffle=True,num_workers=1)
+    valid_loader = DataLoader(valid_dataset,batch_size=64,shuffle=True,num_workers=4)
+    test_loader = DataLoader(test_dataset,batch_size=64,shuffle=True,num_workers=4)
+
+    # CUDA for PyTorch
+    use_cuda = torch.cuda.is_available()
+    device = torch.device("cuda:0" if use_cuda else "cpu")
+    model = VanillaAutoencoder((1,)+new_dim).to(device)
+    params = model.parameters()
+    optimizer = optim.Adam(params,lr=3e-4)
+    loss_fn = torch.nn.MSELoss()
+    for i in range(2):
+        model.train()
+        losses = []
+        for j,x in enumerate(train_loader):
+            optimizer.zero_grad()
+            x = x.to(device)
+            y_ = model(x)
+            loss = loss_fn(y_,x)
+            loss.backward()
+            optimizer.step()
+            losses.append(loss.item())
+            print('Batch {} loss {}'.format(j,loss.item()))
+        print('Epoch {}: {}'.format(i,np.mean(losses)))

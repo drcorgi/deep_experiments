@@ -120,25 +120,25 @@ if __name__ == '__main__':
     device = sys.argv[8] #'cuda:0'
 
     # Load the data
-    re_train = '/home/ronnypetson/Documents/deep_odometry/kitti/dataset_frames/sequences/*/image_0/*'
+    '''re_train = '/home/ronnypetson/Documents/deep_odometry/kitti/dataset_frames/sequences/*/image_0/*'
     re_valid = '/home/ronnypetson/Documents/deep_odometry/kitti/dataset_frames/00/image_0/*'
     new_dim = (128,128)
     transf = transforms.Compose([Rescale(new_dim),ToTensor()])
     train_dataset = FramesDataset(re_train,transf)
     valid_dataset = FramesDataset(re_valid,transf)
     train_loader = DataLoader(train_dataset,batch_size=64,shuffle=True,num_workers=4)
-    valid_loader = DataLoader(valid_dataset,batch_size=64,shuffle=False,num_workers=4)
+    valid_loader = DataLoader(valid_dataset,batch_size=64,shuffle=False,num_workers=4)'''
 
-    '''print(input_fn)
+    print(input_fn)
     frames = [np.load(f) for f in sorted(glob.glob(input_fn))]
     frames = [f.reshape(-1,1,f.shape[1],f.shape[2]) for f in frames]
     print(len(frames))
-    print(frames[0].shape)'''
+    print(frames[0].shape)
 
     device = torch.device(device)
     model = VanillaAutoencoder((128,128)).to(device)
 
-    '''t = UnTrainer(model=model,data_loader=train_loader,\
+    t = UnTrainer(model=model,data_loader=train_loader,\
                   ,model_fn=model_fn,batch_size=batch_size\
                   ,valid_ids=valid_ids,device=device)
     if epochs == -1: # Save embeddings
@@ -152,4 +152,4 @@ if __name__ == '__main__':
         frames = frames[test_ids:]
         t.train(frames,epochs)
         t.evaluate(frames_test)
-        t.plot_eval(frames[:valid_ids],10)'''
+        t.plot_eval(frames[:valid_ids],10)
