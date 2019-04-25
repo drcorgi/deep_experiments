@@ -49,11 +49,11 @@ class FramesDataset(Dataset):
         return frame
 
 if __name__=='__main__':
-    train_dir = '/home/ronnypetson/Documents/deep_odometry/kitti/dataset_frames/sequences/*/image_0/*'
-    valid_dir = '/home/ronnypetson/Documents/deep_odometry/kitti/dataset_frames/00/image_0/*'
-    test_dir = '/home/ronnypetson/Documents/deep_odometry/kitti/dataset_frames/01/image_0/*'
+    train_dir = sys.argv[1] #'/home/ronnypetson/Documents/deep_odometry/kitti/dataset_frames/sequences/*/image_0/*'
+    valid_dir = sys.argv[2] #'/home/ronnypetson/Documents/deep_odometry/kitti/dataset_frames/00/image_0/*'
+    test_dir = sys.argv[3] #'/home/ronnypetson/Documents/deep_odometry/kitti/dataset_frames/01/image_0/*'
 
-    new_dim = (int(sys.argv[1]),int(sys.argv[2]))
+    new_dim = (int(sys.argv[4]),int(sys.argv[5]))
     transf = transforms.Compose([Rescale(new_dim),ToTensor()])
 
     train_dataset = FramesDataset(train_dir,transf)
