@@ -8,10 +8,12 @@ import torch.optim as optim
 
 from pt_ae import VanillaAutoencoder
 from plotter import *
+from odom_dataset import *
 
 class UnTrainer():
-    def __init__(self,model,model_fn,batch_size,valid_ids,device):
+    def __init__(self,model,data_loader,model_fn,batch_size,valid_ids,device):
         self.model_fn = model_fn
+        self.data_loader = data_loader
         self.batch_size = batch_size
         self.valid_ids = valid_ids
         self.min_loss = 1e15
@@ -34,7 +36,6 @@ class UnTrainer():
     def save_emb(self,data,output_fn):
         self.model.eval()
         out_fns = sorted(glob.glob(output_fn))
-        #embs = []
         for s,fn in zip(data,out_fns):
             semb = []
             s = torch.tensor(s).float()
@@ -45,9 +46,6 @@ class UnTrainer():
                     z = self.model.forward_z(x)
                     semb += z.cpu().detach().numpy().tolist()
             np.save(fn,np.array(semb))
-            #embs.append(np.array(semb))
-        '''with open(self.output_fn,'wb') as f:
-            pickle.dump(embs,f)'''
 
     def plot_eval(self,data_x,n):
         self.model.eval()
@@ -122,19 +120,27 @@ if __name__ == '__main__':
     device = sys.argv[8] #'cuda:0'
 
     # Load the data
-    #with open(input_fn,'rb') as f:
-    #    frames = pickle.load(f) #[:1]
-    print(input_fn)
+    re_train = '/home/ronnypetson/Documents/deep_odometry/kitti/dataset_frames/sequences/*/image_0/*'
+    re_valid = '/home/ronnypetson/Documents/deep_odometry/kitti/dataset_frames/00/image_0/*'
+    new_dim = (128,128)
+    transf = transforms.Compose([Rescale(new_dim),ToTensor()])
+    train_dataset = FramesDataset(re_train,transf)
+    valid_dataset = FramesDataset(re_valid,transf)
+    train_loader = DataLoader(train_dataset,batch_size=64,shuffle=True,num_workers=4)
+    valid_loader = DataLoader(valid_dataset,batch_size=64,shuffle=False,num_workers=4)
+
+    '''print(input_fn)
     frames = [np.load(f) for f in sorted(glob.glob(input_fn))]
     frames = [f.reshape(-1,1,f.shape[1],f.shape[2]) for f in frames]
     print(len(frames))
-    print(frames[0].shape)
+    print(frames[0].shape)'''
 
     device = torch.device(device)
-    model = VanillaAutoencoder(frames[0].shape[1:]).to(device)
-    t = UnTrainer(model=model,model_fn=model_fn,batch_size=batch_size\
-                  ,valid_ids=valid_ids,device=device)
+    model = VanillaAutoencoder((128,128)).to(device)
 
+    '''t = UnTrainer(model=model,data_loader=train_loader,\
+                  ,model_fn=model_fn,batch_size=batch_size\
+                  ,valid_ids=valid_ids,device=device)
     if epochs == -1: # Save embeddings
         t.save_emb(frames,output_fn)
     else:
@@ -146,4 +152,4 @@ if __name__ == '__main__':
         frames = frames[test_ids:]
         t.train(frames,epochs)
         t.evaluate(frames_test)
-        t.plot_eval(frames[:valid_ids],10)
+        t.plot_eval(frames[:valid_ids],10)'''
