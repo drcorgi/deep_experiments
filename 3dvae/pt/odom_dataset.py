@@ -98,8 +98,8 @@ if __name__=='__main__':
     test_dataset = FramesDataset(test_dir,transf)
 
     train_loader = DataLoader(train_dataset,batch_size=batch_size,shuffle=True,num_workers=2,collate_fn=my_collate)
-    valid_loader = DataLoader(valid_dataset,batch_size=batch_size//2,shuffle=True,num_workers=2,collate_fn=my_collate)
-    test_loader = DataLoader(test_dataset,batch_size=batch_size//2,shuffle=True,num_workers=2,collate_fn=my_collate)
+    valid_loader = DataLoader(valid_dataset,batch_size=batch_size//2,shuffle=False,num_workers=2,collate_fn=my_collate)
+    test_loader = DataLoader(test_dataset,batch_size=batch_size//2,shuffle=False,num_workers=2,collate_fn=my_collate)
 
     # CUDA for PyTorch
     use_cuda = torch.cuda.is_available()
