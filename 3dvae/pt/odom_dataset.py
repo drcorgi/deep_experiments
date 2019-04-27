@@ -2,6 +2,7 @@ import os
 import sys
 import re
 import cv2
+import h5py
 import numpy as np
 import torch
 import torch.optim as optim
@@ -33,9 +34,26 @@ class ToTensor(object):
     def __call__(self,image):
         return torch.from_numpy(image).unsqueeze(0).float()
 
+class H5Dataset(Dataset):
+    ''' Assumes the images are of shape (C,H,W)
+    '''
+    def __init__(self, file_path, transform=None):
+        super(H5Dataset, self).__init__()
+        h5_file = h5py.File(file_path)
+        self.data = h5_file.get('data')
+
+    def __getitem__(self, index):
+        x = torch.from_numpy(self.data[index,:,:,:]).float()
+        if self.transform:
+            x = self.transform(x)
+        return x
+
+    def __len__(self):
+        return self.data.shape[0]
+
 class FramesDataset(Dataset):
-    def __init__(self, re_dir, transform=None):
-        self.fnames = sorted([fn for fn in glob(re_dir) if os.path.isfile(fn)])
+    def __init__(self, fnames, transform=None):
+        self.fnames = fnames #sorted([fn for fn in glob(re_dir) if os.path.isfile(fn)])
         self.len = len(self.fnames)
         self.transform = transform
 
@@ -52,6 +70,12 @@ if __name__=='__main__':
     train_dir = sys.argv[1] #'/home/ronnypetson/Documents/deep_odometry/kitti/dataset_frames/sequences/*/image_0/*'
     valid_dir = sys.argv[2] #'/home/ronnypetson/Documents/deep_odometry/kitti/dataset_frames/00/image_0/*'
     test_dir = sys.argv[3] #'/home/ronnypetson/Documents/deep_odometry/kitti/dataset_frames/01/image_0/*'
+
+    print(train_dir,valid_dir,test_dir)
+
+    train_dir = sorted([fn for fn in glob(train_dir) if os.path.isfile(fn)])
+    valid_dir = sorted([fn for fn in glob(valid_dir) if os.path.isfile(fn)])
+    test_dir = sorted([fn for fn in glob(test_dir) if os.path.isfile(fn)])
 
     new_dim = (int(sys.argv[4]),int(sys.argv[5]))
     transf = transforms.Compose([Rescale(new_dim),ToTensor()])
