@@ -90,6 +90,7 @@ if __name__=='__main__':
 
     new_dim = (int(sys.argv[4]),int(sys.argv[5]))
     batch_size = int(sys.argv[6])
+    num_epochs = int(sys.argv[7])
     transf = transforms.Compose([Rescale(new_dim),ToTensor()])
 
     train_dataset = FramesDataset(train_dir,transf)
@@ -108,7 +109,7 @@ if __name__=='__main__':
     params = model.parameters()
     optimizer = optim.Adam(params,lr=3e-4)
     loss_fn = torch.nn.MSELoss()
-    for i in range(2):
+    for i in range(num_epochs):
         model.train()
         losses = []
         for j,x in enumerate(train_loader):
@@ -120,4 +121,11 @@ if __name__=='__main__':
             optimizer.step()
             losses.append(loss.item())
             print('Batch {} loss {}'.format(j,loss.item()))
-        print('Epoch {}: {}'.format(i,np.mean(losses)))
+        model.eval()
+        v_losses = []
+        for j,x in enumerate(valid_loader):
+            x = x.to(device)
+            y_ = model(x)
+            loss = loss_fn(y_,x)
+            v_losses.append(loss.item())
+        print('{} {}'.format(np.mean(losses),np.mean(v_losses))) # Mean train loss, mean validation loss
