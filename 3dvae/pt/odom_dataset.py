@@ -12,6 +12,13 @@ from torch.utils.data import Dataset, DataLoader
 from torchvision import transforms, utils
 from pt_ae import VanillaAutoencoder
 
+def my_collate(batch):
+    batch_ = []
+    for b in batch:
+        if b is not None:
+            batch_.append(b)
+    return torch.stack(batch_)
+
 class Rescale(object):
     def __init__(self, output_size):
         assert isinstance(output_size, (int, tuple))
@@ -62,19 +69,22 @@ class FramesDataset(Dataset):
 
     def __getitem__(self, idx):
         print(self.fnames[idx])
-        frame = cv2.imread(self.fnames[idx],0)
-        if self.transform:
-            frame = self.transform(frame)
-        return frame
+        try:
+            frame = cv2.imread(self.fnames[idx],0)
+            if frame is not None and self.transform:
+                frame = self.transform(frame)
+            return frame
+        except Exception as e:
+            print(e)
 
 if __name__=='__main__':
     train_dir = sys.argv[1] #'/home/ronnypetson/Documents/deep_odometry/kitti/dataset_frames/sequences/*/image_0/*'
     valid_dir = sys.argv[2] #'/home/ronnypetson/Documents/deep_odometry/kitti/dataset_frames/00/image_0/*'
     test_dir = sys.argv[3] #'/home/ronnypetson/Documents/deep_odometry/kitti/dataset_frames/01/image_0/*'
 
-    train_dir = sorted([fn for fn in glob(train_dir) if os.path.isfile(fn) and fn[-3:] == 'png'])
-    valid_dir = sorted([fn for fn in glob(valid_dir) if os.path.isfile(fn) and fn[-3:] == 'png'])
-    test_dir = sorted([fn for fn in glob(test_dir) if os.path.isfile(fn) and fn[-3:] == 'png'])
+    train_dir = sorted([fn for fn in glob(train_dir) if os.path.isfile(fn)])
+    valid_dir = sorted([fn for fn in glob(valid_dir) if os.path.isfile(fn)])
+    test_dir = sorted([fn for fn in glob(test_dir) if os.path.isfile(fn)])
 
     #print(train_dir,valid_dir,test_dir)
 
@@ -86,7 +96,7 @@ if __name__=='__main__':
     valid_dataset = FramesDataset(valid_dir,transf)
     test_dataset = FramesDataset(test_dir,transf)
 
-    train_loader = DataLoader(train_dataset,batch_size=batch_size,shuffle=True,num_workers=0)
+    train_loader = DataLoader(train_dataset,batch_size=batch_size,shuffle=True,num_workers=0,collate_fn=my_collate)
     valid_loader = DataLoader(valid_dataset,batch_size=batch_size,shuffle=True,num_workers=4)
     test_loader = DataLoader(test_dataset,batch_size=batch_size,shuffle=True,num_workers=4)
 
