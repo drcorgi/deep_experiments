@@ -86,7 +86,7 @@ if __name__=='__main__':
     valid_dataset = FramesDataset(valid_dir,transf)
     test_dataset = FramesDataset(test_dir,transf)
 
-    train_loader = DataLoader(train_dataset,batch_size=batch_size,shuffle=True,num_workers=1)
+    train_loader = DataLoader(train_dataset,batch_size=batch_size,shuffle=True,num_workers=0)
     valid_loader = DataLoader(valid_dataset,batch_size=batch_size,shuffle=True,num_workers=4)
     test_loader = DataLoader(test_dataset,batch_size=batch_size,shuffle=True,num_workers=4)
 
