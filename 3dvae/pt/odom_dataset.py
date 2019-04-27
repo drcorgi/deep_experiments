@@ -68,7 +68,7 @@ class FramesDataset(Dataset):
         return self.len
 
     def __getitem__(self, idx):
-        print(self.fnames[idx])
+        #print(self.fnames[idx])
         try:
             frame = cv2.imread(self.fnames[idx],0)
             if frame is not None and self.transform:
