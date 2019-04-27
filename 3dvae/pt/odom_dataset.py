@@ -96,13 +96,14 @@ if __name__=='__main__':
     valid_dataset = FramesDataset(valid_dir,transf)
     test_dataset = FramesDataset(test_dir,transf)
 
-    train_loader = DataLoader(train_dataset,batch_size=batch_size,shuffle=True,num_workers=4,collate_fn=my_collate)
-    valid_loader = DataLoader(valid_dataset,batch_size=batch_size,shuffle=True,num_workers=4)
-    test_loader = DataLoader(test_dataset,batch_size=batch_size,shuffle=True,num_workers=4)
+    train_loader = DataLoader(train_dataset,batch_size=batch_size,shuffle=True,num_workers=2,collate_fn=my_collate)
+    valid_loader = DataLoader(valid_dataset,batch_size=batch_size,shuffle=True,num_workers=2,collate_fn=my_collate)
+    test_loader = DataLoader(test_dataset,batch_size=batch_size,shuffle=True,num_workers=2,collate_fn=my_collate)
 
     # CUDA for PyTorch
     use_cuda = torch.cuda.is_available()
     device = torch.device("cuda:0" if use_cuda else "cpu")
+    print(device)
     model = VanillaAutoencoder((1,)+new_dim).to(device)
     params = model.parameters()
     optimizer = optim.Adam(params,lr=3e-4)
