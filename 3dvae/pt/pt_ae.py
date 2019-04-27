@@ -11,23 +11,23 @@ class VanillaAutoencoder(nn.Module):
         self.filters = 64
         self.h_dim = 128
         self.conv1 = nn.Conv2d(in_shape[0],self.filters,(5,5),(2,2))
-        self.bn1 = nn.BatchNorm2d(self.filters)
+        #self.bn1 = nn.BatchNorm2d(self.filters)
         self.conv2 = nn.Conv2d(self.filters,self.filters,(3,3),(1,1))
-        self.bn2 = nn.BatchNorm2d(self.filters)
+        #self.bn2 = nn.BatchNorm2d(self.filters)
         self.conv3 = nn.Conv2d(self.filters,self.filters,(3,3),(1,1))
-        self.bn3 = nn.BatchNorm2d(self.filters)
+        #self.bn3 = nn.BatchNorm2d(self.filters)
         self.new_h = (((((in_shape[1]-4)//2-2)//1)-2)//1)
         self.new_w = (((((in_shape[2]-4)//2-2)//1)-2)//1)
         self.flat_dim = self.new_h*self.new_w*self.filters
         print(self.new_h,self.new_w)
         self.fc1 = nn.Linear(self.flat_dim,self.h_dim)
-        self.bn4 = nn.BatchNorm1d(self.h_dim)
+        #self.bn4 = nn.BatchNorm1d(self.h_dim)
         self.fc2 = nn.Linear(self.h_dim,self.flat_dim)
-        self.bn5 = nn.BatchNorm1d(self.flat_dim)
+        #self.bn5 = nn.BatchNorm1d(self.flat_dim)
         self.deconv1 = nn.ConvTranspose2d(self.filters,self.filters,(3,3),(1,1),padding=0)
-        self.bn6 = nn.BatchNorm2d(self.filters)
+        #self.bn6 = nn.BatchNorm2d(self.filters)
         self.deconv2 = nn.ConvTranspose2d(self.filters,self.filters,(3,3),(1,1),padding=0) # ,output_padding=1
-        self.bn7 = nn.BatchNorm2d(self.filters)
+        #self.bn7 = nn.BatchNorm2d(self.filters)
         self.deconv3 = nn.ConvTranspose2d(self.filters,in_shape[0],(5,5),(2,2),padding=0,output_padding=1)
         #self.conv_drops = [nn.Dropout(0.1) for _ in [0,1,2]]
         self.fc_drop = [nn.Dropout(0.5) for _ in [0,1]]
