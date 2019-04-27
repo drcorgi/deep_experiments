@@ -109,7 +109,9 @@ if __name__=='__main__':
     params = model.parameters()
     optimizer = optim.Adam(params,lr=3e-4)
     loss_fn = torch.nn.MSELoss()
+    epoch_losses = []
     for i in range(num_epochs):
+        print('Start of epoch',i)
         model.train()
         losses = []
         for j,x in enumerate(train_loader):
@@ -120,7 +122,7 @@ if __name__=='__main__':
             loss.backward()
             optimizer.step()
             losses.append(loss.item())
-            print('Batch {} loss {}'.format(j,loss.item()))
+            print('Batch {} loss {:.3f}'.format(j,loss.item()))
         model.eval()
         v_losses = []
         for j,x in enumerate(valid_loader):
@@ -128,4 +130,14 @@ if __name__=='__main__':
             y_ = model(x)
             loss = loss_fn(y_,x)
             v_losses.append(loss.item())
-        print('{} {}'.format(np.mean(losses),np.mean(v_losses))) # Mean train loss, mean validation loss
+        mean_train, mean_valid = np.mean(losses),np.mean(v_losses)
+        epoch_losses.append((mean_train,mean_valid))
+        print('Epoch {} loss {:.3f} Valid loss {:.3f}'.format(i,mean_train,mean_valid)) # Mean train loss, mean validation loss
+    model.eval()
+    t_losses = []
+    for j,x in enumerate(test_loader):
+        x = x.to(device)
+        y_ = model(x)
+        loss = loss_fn(y_,x)
+        t_losses.append(loss.item())
+    print('Test loss:',np.mean(t_losses))
