@@ -75,18 +75,19 @@ if __name__=='__main__':
     valid_dir = sorted([fn for fn in glob(valid_dir) if os.path.isfile(fn)])
     test_dir = sorted([fn for fn in glob(test_dir) if os.path.isfile(fn)])
 
-    print(train_dir,valid_dir,test_dir)
+    #print(train_dir,valid_dir,test_dir)
 
     new_dim = (int(sys.argv[4]),int(sys.argv[5]))
+    batch_size = int(sys.argv[6])
     transf = transforms.Compose([Rescale(new_dim),ToTensor()])
 
     train_dataset = FramesDataset(train_dir,transf)
     valid_dataset = FramesDataset(valid_dir,transf)
     test_dataset = FramesDataset(test_dir,transf)
 
-    train_loader = DataLoader(train_dataset,batch_size=384,shuffle=True,num_workers=1)
-    valid_loader = DataLoader(valid_dataset,batch_size=64,shuffle=True,num_workers=4)
-    test_loader = DataLoader(test_dataset,batch_size=64,shuffle=True,num_workers=4)
+    train_loader = DataLoader(train_dataset,batch_size=batch_size,shuffle=True,num_workers=1)
+    valid_loader = DataLoader(valid_dataset,batch_size=batch_size,shuffle=True,num_workers=4)
+    test_loader = DataLoader(test_dataset,batch_size=batch_size,shuffle=True,num_workers=4)
 
     # CUDA for PyTorch
     use_cuda = torch.cuda.is_available()
