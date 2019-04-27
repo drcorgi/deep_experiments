@@ -48,7 +48,7 @@ class VanillaAutoencoder(nn.Module):
         return x
 
     def forward(self,x):
-        print(x.size())
+        #print(x.size())
         x = self.forward_z(x)
         x = F.relu(x)
         #x = self.bn4(x)
@@ -64,7 +64,7 @@ class VanillaAutoencoder(nn.Module):
         #x = self.bn7(x)
         #x = self.deconv_drops[1](x)
         x = self.deconv3(x)
-        print(x.size())
+        #print(x.size())
         return x
 
 class Vanilla1dAutoencoder(nn.Module):
