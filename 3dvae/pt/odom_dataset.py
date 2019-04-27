@@ -71,11 +71,11 @@ if __name__=='__main__':
     valid_dir = sys.argv[2] #'/home/ronnypetson/Documents/deep_odometry/kitti/dataset_frames/00/image_0/*'
     test_dir = sys.argv[3] #'/home/ronnypetson/Documents/deep_odometry/kitti/dataset_frames/01/image_0/*'
 
-    print(train_dir,valid_dir,test_dir)
-
     train_dir = sorted([fn for fn in glob(train_dir) if os.path.isfile(fn)])
     valid_dir = sorted([fn for fn in glob(valid_dir) if os.path.isfile(fn)])
     test_dir = sorted([fn for fn in glob(test_dir) if os.path.isfile(fn)])
+
+    print(train_dir,valid_dir,test_dir)
 
     new_dim = (int(sys.argv[4]),int(sys.argv[5]))
     transf = transforms.Compose([Rescale(new_dim),ToTensor()])
