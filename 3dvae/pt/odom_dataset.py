@@ -11,6 +11,7 @@ from glob import glob
 from torch.utils.data import Dataset, DataLoader
 from torchvision import transforms, utils
 from pt_ae import VanillaAutoencoder
+from datetime import datetime
 
 def my_collate(batch):
     batch_ = []
@@ -140,4 +141,10 @@ if __name__=='__main__':
         y_ = model(x)
         loss = loss_fn(y_,x)
         t_losses.append(loss.item())
-    print('Test loss:',np.mean(t_losses))
+    mean_test = np.mean(t_losses)
+    epoch_losses.append(('test',mean_test))
+    print('Test loss:',np.mean(mean_test))
+    # Save training log
+    if not os.path.isdir('log'):
+        os.mkdir('log')
+    np.save('log/{}_log.npy'.format(datetime.now()),epoch_losses)
