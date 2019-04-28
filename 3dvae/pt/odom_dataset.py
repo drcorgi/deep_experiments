@@ -161,7 +161,7 @@ if __name__=='__main__':
         loss = loss_fn(y_,x)
         t_losses.append(loss.item())
     mean_test = np.mean(t_losses)
-    epoch_losses.append([i,0.0,mean_test])
+    epoch_losses.append([-1,0.0,mean_test])
     print('Test loss:',np.mean(mean_test))
     # Save training log
     np.save('{}/{}_log.npy'.format(log_folder,datetime.now()),epoch_losses)
