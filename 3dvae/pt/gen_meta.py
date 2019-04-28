@@ -1,5 +1,5 @@
 ''' Metadados da base de Odometria visual
-    Tipo: lista de dicionários (id_sub_base id_sequencia id_frame arquivo_frame arquivo_odometria linha_odometria)
+    Tipo: lista de dicionários ('sub_base' 'sequence' 'sid_frame' 'frame_fn' 'odom_fn')
 '''
 
 import os

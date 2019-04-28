@@ -1,5 +1,4 @@
 import numpy as np
-import gym
 import cv2
 import os, sys
 import re
@@ -90,12 +89,34 @@ def load_kitti_odom_all(fdir):
     return poses
 
 if __name__ == '__main__':
-    ''' Metadados da base
-        Tipo: lista de dicionários (id_sub_base id_sequencia id_frame arquivo_frame arquivo_odometria linha_odometria)
+    ''' Metadados da base de Odometria visual
+        Tipo: lista de dicionários ('sub_base' 'sequence' 'sid_frame' 'frame_fn' 'odom_fn')
     '''
-    meta_fn = sys.argv[1]
+    meta_fn = sys.argv[1] # 'visual_odometry_database.meta'
+    h5_fn = sys.argv[2] # '/home/ronnypetson/Documents/deep_odometry/kitti/frames_odom.h5'
 
-    kitti_save_all(frames_dir,frame_shape)
-    odoms = load_kitti_odom_all(odom_dir)
-    print('Odom',len(odoms))
-    np.save(odom_dir+'/abs_poses_{}_{}'.format(frame_shape[0],frame_shape[1]),odoms)
+    with open(meta_fn,'rb') as f:
+        meta = pickle.load(f)
+
+    chunk_size = 100
+    n_segments = len(meta)//chunk_size
+    included = chunk_size*n_segments
+    height,width = 376,1241
+
+    h5_file = h5py.File(h5_fn,'w')
+    frames = h5_file.create_dataset('frames',shape=(n_segments,chunk_size,height,width),dtype=np.uint8)
+    # odometry can be loaded all at once; no need for hdf5
+    frame_chunk = []
+    for i in range(100*102,included):
+        img = cv2.imread(meta[i]['frame_fn'],0)
+        img = cv2.resize(img,(width,height))
+        if img is not None:
+            frame_chunk.append(img)
+        else:
+            print('None frame')
+        if (i+1)%chunk_size == 0:
+            frame_chunk = np.array(frame_chunk,dtype=np.uint8)
+            print('Writing chunk {} of shape {}'.format(i//chunk_size,frame_chunk.shape))
+            frames[i//chunk_size] = frame_chunk
+            frame_chunk = []
+    h5_file.close()
