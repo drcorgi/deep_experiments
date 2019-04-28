@@ -87,11 +87,10 @@ if __name__=='__main__':
     valid_dir = sorted([fn for fn in glob(valid_dir) if os.path.isfile(fn)])
     test_dir = sorted([fn for fn in glob(test_dir) if os.path.isfile(fn)])
 
-    #print(train_dir,valid_dir,test_dir)
-
-    new_dim = (int(sys.argv[4]),int(sys.argv[5]))
-    batch_size = int(sys.argv[6])
-    num_epochs = int(sys.argv[7])
+    model_fn = sys.argv[4]
+    new_dim = (int(sys.argv[5]),int(sys.argv[6]))
+    batch_size = int(sys.argv[7])
+    num_epochs = int(sys.argv[8])
     transf = transforms.Compose([Rescale(new_dim),ToTensor()])
 
     train_dataset = FramesDataset(train_dir,transf)
@@ -109,6 +108,19 @@ if __name__=='__main__':
     model = VanillaAutoencoder((1,)+new_dim).to(device)
     params = model.parameters()
     optimizer = optim.Adam(params,lr=3e-4)
+    min_loss = 1e15
+    epoch = 0
+
+    if os.path.isfile(model_fn):
+        print('Loading existing model')
+        checkpoint = torch.load(model_fn)
+        model.load_state_dict(checkpoint['model_state'])
+        optimizer.load_state_dict(checkpoint['optimizer_state'])
+        min_loss = checkpoint['min_loss']
+        epoch = checkpoint['epoch']
+    else:
+        print('Creating new model')
+
     loss_fn = torch.nn.MSELoss()
     epoch_losses = []
     for i in range(num_epochs):
@@ -132,8 +144,14 @@ if __name__=='__main__':
             loss = loss_fn(y_,x)
             v_losses.append(loss.item())
         mean_train, mean_valid = np.mean(losses),np.mean(v_losses)
-        epoch_losses.append((mean_train,mean_valid))
+        epoch_losses.append([i,mean_train,mean_valid])
         print('Epoch {} loss {:.3f} Valid loss {:.3f}'.format(i,mean_train,mean_valid)) # Mean train loss, mean validation loss
+        if mean_valid < min_loss:
+            min_loss = mean_valid
+            torch.save({'model_state': model.state_dict(),
+                        'optimizer_state': optimizer.state_dict(),
+                        'min_loss': min_loss,
+                        'epoch': i}, model_fn)
     model.eval()
     t_losses = []
     for j,x in enumerate(test_loader):
@@ -142,7 +160,7 @@ if __name__=='__main__':
         loss = loss_fn(y_,x)
         t_losses.append(loss.item())
     mean_test = np.mean(t_losses)
-    epoch_losses.append(('test',mean_test))
+    epoch_losses.append([i,0.0,mean_test])
     print('Test loss:',np.mean(mean_test))
     # Save training log
     if not os.path.isdir('log'):
