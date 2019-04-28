@@ -123,7 +123,7 @@ if __name__=='__main__':
 
     loss_fn = torch.nn.MSELoss()
     epoch_losses = []
-    for i in range(num_epochs):
+    for i in range(epoch,num_epochs):
         print('Start of epoch',i)
         model.train()
         losses = []
@@ -151,7 +151,7 @@ if __name__=='__main__':
             torch.save({'model_state': model.state_dict(),
                         'optimizer_state': optimizer.state_dict(),
                         'min_loss': min_loss,
-                        'epoch': i}, model_fn)
+                        'epoch': i+1}, model_fn)
     model.eval()
     t_losses = []
     for j,x in enumerate(test_loader):
