@@ -88,9 +88,10 @@ if __name__=='__main__':
     test_dir = sorted([fn for fn in glob(test_dir) if os.path.isfile(fn)])
 
     model_fn = sys.argv[4]
-    new_dim = (int(sys.argv[5]),int(sys.argv[6]))
-    batch_size = int(sys.argv[7])
-    num_epochs = int(sys.argv[8])
+    log_folder = sys.argv[5]
+    new_dim = (int(sys.argv[6]),int(sys.argv[7]))
+    batch_size = int(sys.argv[8])
+    num_epochs = int(sys.argv[9])
     transf = transforms.Compose([Rescale(new_dim),ToTensor()])
 
     train_dataset = FramesDataset(train_dir,transf)
@@ -163,6 +164,4 @@ if __name__=='__main__':
     epoch_losses.append([i,0.0,mean_test])
     print('Test loss:',np.mean(mean_test))
     # Save training log
-    if not os.path.isdir('log'):
-        os.mkdir('log')
-    np.save('log/{}_log.npy'.format(datetime.now()),epoch_losses)
+    np.save('{}/{}_log.npy'.format(log_folder,datetime.now()),epoch_losses)
