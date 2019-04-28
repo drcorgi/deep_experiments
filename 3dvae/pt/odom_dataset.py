@@ -43,21 +43,26 @@ class ToTensor(object):
         return torch.from_numpy(image).unsqueeze(0).float()
 
 class H5Dataset(Dataset):
-    ''' Assumes the images are of shape (C,H,W)
-    '''
-    def __init__(self, file_path, transform=None):
+    def __init__(self, file_path, chunk_size, transform=None):
         super(H5Dataset, self).__init__()
         h5_file = h5py.File(file_path)
-        self.data = h5_file.get('data')
+        self.data = h5_file.get('frames')
+        self.transform = transform
+        self.chunk_size = chunk_size
 
     def __getitem__(self, index):
-        x = torch.from_numpy(self.data[index,:,:,:]).float()
-        if self.transform:
-            x = self.transform(x)
-        return x
+        try:
+            #x = torch.from_numpy(self.data[index,:,:]).float()
+            x = self.data[index//self.chunk_size][index%self.chunk_size]
+            #print(x.shape)
+            if self.transform:
+                x = self.transform(x)
+            return x
+        except Exception as e:
+            print(e)
 
     def __len__(self):
-        return self.data.shape[0]
+        return self.chunk_size*self.data.shape[0]
 
 class FramesDataset(Dataset):
     def __init__(self, fnames, transform=None):
@@ -69,7 +74,6 @@ class FramesDataset(Dataset):
         return self.len
 
     def __getitem__(self, idx):
-        #print(self.fnames[idx])
         try:
             frame = cv2.imread(self.fnames[idx],0)
             if frame is not None and self.transform:
@@ -79,13 +83,13 @@ class FramesDataset(Dataset):
             print(e)
 
 if __name__=='__main__':
-    train_dir = sys.argv[1] #'/home/ronnypetson/Documents/deep_odometry/kitti/dataset_frames/sequences/*/image_0/*'
-    valid_dir = sys.argv[2] #'/home/ronnypetson/Documents/deep_odometry/kitti/dataset_frames/00/image_0/*'
-    test_dir = sys.argv[3] #'/home/ronnypetson/Documents/deep_odometry/kitti/dataset_frames/01/image_0/*'
+    train_dir = sys.argv[1] #'/home/ronnypetson/Documents/deep_odometry/kitti/frames_odom_train.h5'
+    valid_dir = sys.argv[2] #'/home/ronnypetson/Documents/deep_odometry/kitti/frames_odom_valid.h5'
+    test_dir = sys.argv[3] #'/home/ronnypetson/Documents/deep_odometry/kitti/frames_odom_test.h5'
 
-    train_dir = sorted([fn for fn in glob(train_dir) if os.path.isfile(fn)])
+    '''train_dir = sorted([fn for fn in glob(train_dir) if os.path.isfile(fn)])
     valid_dir = sorted([fn for fn in glob(valid_dir) if os.path.isfile(fn)])
-    test_dir = sorted([fn for fn in glob(test_dir) if os.path.isfile(fn)])
+    test_dir = sorted([fn for fn in glob(test_dir) if os.path.isfile(fn)])'''
 
     model_fn = sys.argv[4]
     log_folder = sys.argv[5]
@@ -94,13 +98,13 @@ if __name__=='__main__':
     num_epochs = int(sys.argv[9])
     transf = transforms.Compose([Rescale(new_dim),ToTensor()])
 
-    train_dataset = FramesDataset(train_dir,transf)
-    valid_dataset = FramesDataset(valid_dir,transf)
-    test_dataset = FramesDataset(test_dir,transf)
+    train_dataset = H5Dataset(train_dir,10,transf)
+    valid_dataset = H5Dataset(valid_dir,10,transf)
+    test_dataset = H5Dataset(test_dir,10,transf)
 
-    train_loader = DataLoader(train_dataset,batch_size=batch_size,shuffle=True,num_workers=2,collate_fn=my_collate)
-    valid_loader = DataLoader(valid_dataset,batch_size=batch_size//2,shuffle=False,num_workers=2,collate_fn=my_collate)
-    test_loader = DataLoader(test_dataset,batch_size=batch_size//2,shuffle=False,num_workers=2,collate_fn=my_collate)
+    train_loader = DataLoader(train_dataset,batch_size=batch_size,shuffle=True,num_workers=0,collate_fn=my_collate)
+    valid_loader = DataLoader(valid_dataset,batch_size=batch_size//2,shuffle=False,num_workers=0,collate_fn=my_collate)
+    test_loader = DataLoader(test_dataset,batch_size=batch_size//2,shuffle=False,num_workers=0,collate_fn=my_collate)
 
     # CUDA for PyTorch
     use_cuda = torch.cuda.is_available()
