@@ -129,7 +129,7 @@ if __name__=='__main__':
     loss_fn = torch.nn.MSELoss()
     epoch_losses = []
     for i in range(epoch,num_epochs):
-        print('Start of epoch',i)
+        #print('Start of epoch',i)
         model.train()
         losses = []
         for j,x in enumerate(train_loader):
