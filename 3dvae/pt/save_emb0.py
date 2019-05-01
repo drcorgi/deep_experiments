@@ -63,7 +63,7 @@ if __name__=='__main__':
     for loader in [valid_loader,test_loader,train_loader]:
         for x in loader:
             x = x.to(device)
-            z = model.forward_z(x).detach().numpy()
+            z = model.forward_z(x).detach().cpu().numpy()
             all_enc.append(z)
     all_enc = np.concatenate(all_enc,axis=0)
 
