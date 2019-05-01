@@ -140,7 +140,7 @@ if __name__=='__main__':
             loss.backward()
             optimizer.step()
             losses.append(loss.item())
-            print('Batch {} loss {:.3f}'.format(j,loss.item()))
+            #print('Batch {} loss {:.3f}'.format(j,loss.item()))
         model.eval()
         v_losses = []
         for j,x in enumerate(valid_loader):
@@ -150,7 +150,7 @@ if __name__=='__main__':
             v_losses.append(loss.item())
         mean_train, mean_valid = np.mean(losses),np.mean(v_losses)
         epoch_losses.append([i,mean_train,mean_valid])
-        print('Epoch {} loss {:.3f} Valid loss {:.3f}'.format(i,mean_train,mean_valid)) # Mean train loss, mean validation loss
+        print('Epoch {}\tloss\t{:.3f}\tValid loss\t{:.3f}'.format(i,mean_train,mean_valid)) # Mean train loss, mean validation loss
         if mean_valid < min_loss:
             min_loss = mean_valid
             torch.save({'model_state': model.state_dict(),
