@@ -3,6 +3,7 @@ import sys
 import re
 import cv2
 import h5py
+import pickle
 import numpy as np
 import torch
 import torch.optim as optim
