@@ -52,9 +52,8 @@ class H5Dataset(Dataset):
 
     def __getitem__(self, index):
         try:
-            #x = torch.from_numpy(self.data[index,:,:]).float()
+            print(index,index//self.chunk_size,index%self.chunk_size)
             x = self.data[index//self.chunk_size][index%self.chunk_size]
-            #print(x.shape)
             if self.transform:
                 x = self.transform(x)
             return x
