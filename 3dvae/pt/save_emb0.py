@@ -13,17 +13,27 @@ from torchvision import transforms, utils
 from pt_ae import VanillaAutoencoder
 from datetime import datetime
 from odom_dataset import my_collate, Rescale, ToTensor, H5Dataset, FramesDataset
+from odom_loader import load_kitti_odom
 
 if __name__=='__main__':
     train_dir = sys.argv[1] #'/home/ronnypetson/Documents/deep_odometry/kitti/frames_odom_train.h5'
     valid_dir = sys.argv[2] #'/home/ronnypetson/Documents/deep_odometry/kitti/frames_odom_valid.h5'
     test_dir = sys.argv[3] #'/home/ronnypetson/Documents/deep_odometry/kitti/frames_odom_test.h5'
 
-    emb_dir = sys.argv[4] #'/home/ronnypetson/Documents/deep_odometry/kitti/frames_emb0.pck'
-    model_fn = sys.argv[5]
-    new_dim = (int(sys.argv[6]),int(sys.argv[7]))
-    batch_size = int(sys.argv[8])
+    emb_fn = sys.argv[4] #'/home/ronnypetson/Documents/deep_odometry/kitti/frames_emb0.pck'
+    odom_fn = sys.argv[5] #'/home/ronnypetson/Documents/deep_odometry/kitti/abs_poses.pck'
+
+    meta_fn = sys.argv[6] #'visual_odometry_database.meta'
+    model_fn = sys.argv[7] #'/home/ronnypetson/models/pt/model.pth'
+    new_dim = (int(sys.argv[8]),int(sys.argv[9]))
+    batch_size = int(sys.argv[10])
     transf = transforms.Compose([Rescale(new_dim),ToTensor()])
+
+    ''' Metadados da base de Odometria visual
+        Tipo: lista de dicionários ('sub_base' 'sequence' 'sid_frame' 'frame_fn' 'odom_fn')
+    '''
+    with open(meta_fn,'rb') as f:
+        meta = pickle.load(f)
 
     valid_dataset = H5Dataset(valid_dir,10,transf)
     test_dataset = H5Dataset(test_dir,10,transf)
@@ -38,18 +48,11 @@ if __name__=='__main__':
     device = torch.device("cuda:0" if use_cuda else "cpu")
     print(device)
     model = VanillaAutoencoder((1,)+new_dim).to(device)
-    params = model.parameters()
-    optimizer = optim.Adam(params,lr=3e-4)
-    min_loss = 1e15
-    epoch = 0
 
     if os.path.isfile(model_fn):
         print('Loading existing model')
         checkpoint = torch.load(model_fn)
         model.load_state_dict(checkpoint['model_state'])
-        optimizer.load_state_dict(checkpoint['optimizer_state'])
-        min_loss = checkpoint['min_loss']
-        epoch = checkpoint['epoch']
     else:
         print('Model not found')
         exit()
@@ -62,3 +65,19 @@ if __name__=='__main__':
             z = model.forward_z(x).detach().numpy()
             all_enc.append(z)
     all_enc = np.concatenate(all_enc,axis=0)
+
+    # Works for KITTI
+    all_seq = [[],[],[],[],[],[],[],[],[],[],[]]
+    all_odom = [[],[],[],[],[],[],[],[],[],[],[]]
+    for i in range(len(all_enc)):
+        s = int(meta[i]['sequence'])
+        all_seq[s].append(all_enc[i])
+        sid = meta[i]['sid_frame']
+        odom = load_kitti_odom(meta[i]['odom_fn'])[sid]
+        all_odom[s].append(odom)
+
+    with open(emb_fn,'wb') as f:
+        pickle.dump(all_seq,f)
+
+    with open(odom_fn,'wb') as f:
+        pickle.dump(all_odom,f)
