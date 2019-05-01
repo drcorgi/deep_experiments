@@ -22,12 +22,12 @@ if __name__=='__main__':
     test_dir = sys.argv[3] #'/home/ronnypetson/Documents/deep_odometry/kitti/frames_odom_test.h5'
 
     emb_fn = sys.argv[4] #'/home/ronnypetson/Documents/deep_odometry/kitti/frames_emb0.pck'
-    odom_fn = sys.argv[5] #'/home/ronnypetson/Documents/deep_odometry/kitti/abs_poses.pck'
+    #odom_fn = sys.argv[5] #'/home/ronnypetson/Documents/deep_odometry/kitti/abs_poses.pck'
 
-    meta_fn = sys.argv[6] #'visual_odometry_database.meta'
-    model_fn = sys.argv[7] #'/home/ronnypetson/models/pt/model.pth'
-    new_dim = (int(sys.argv[8]),int(sys.argv[9]))
-    batch_size = int(sys.argv[10])
+    meta_fn = sys.argv[5] #'visual_odometry_database.meta'
+    model_fn = sys.argv[6] #'/home/ronnypetson/models/pt/model.pth'
+    new_dim = (int(sys.argv[7]),int(sys.argv[8]))
+    batch_size = int(sys.argv[9])
     transf = transforms.Compose([Rescale(new_dim),ToTensor()])
 
     ''' Metadados da base de Odometria visual
