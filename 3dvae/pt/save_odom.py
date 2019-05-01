@@ -21,7 +21,6 @@ if __name__=='__main__':
     all_odom = [[],[],[],[],[],[],[],[],[],[],[]]
     for i in range(len(meta)):
         s = int(meta[i]['sequence'])
-        print(s)
         sid = meta[i]['sid_frame']
         if s != prev_s:
             odoms = load_kitti_odom(meta[i]['odom_fn'])

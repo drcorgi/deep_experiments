@@ -125,7 +125,7 @@ if __name__ == '__main__':
     frames = [[s[i:i+seq_len] for i in range(len(s)-seq_len+1)] for s in frames]
     frames = [np.array(s) for s in frames]
     frames = np.concatenate(frames,axis=0).transpose(0,2,1)
-    abs_poses = [s for s in abs_poses] #[s[:-1] for s in abs_poses]
+    #abs_poses = [s for s in abs_poses] #[s[:-1] for s in abs_poses]
     rel_poses = [abs2relative(s,seq_len,1) for s in abs_poses]
     rel_poses = np.concatenate(rel_poses,axis=0)[1:].transpose(0,2,1)
     print(frames.shape,rel_poses.shape)
