@@ -69,16 +69,16 @@ if __name__=='__main__':
 
     # Works for KITTI
     all_seq = [[],[],[],[],[],[],[],[],[],[],[]]
-    all_odom = [[],[],[],[],[],[],[],[],[],[],[]]
+    #all_odom = [[],[],[],[],[],[],[],[],[],[],[]]
     for i in range(len(all_enc)):
         s = int(meta[i]['sequence'])
         all_seq[s].append(all_enc[i])
-        sid = meta[i]['sid_frame']
-        odom = load_kitti_odom(meta[i]['odom_fn'])[sid]
-        all_odom[s].append(odom)
+        #sid = meta[i]['sid_frame']
+        #odom = load_kitti_odom(meta[i]['odom_fn'])[sid]
+        #all_odom[s].append(odom)
 
     with open(emb_fn,'wb') as f:
         pickle.dump(all_seq,f)
 
-    with open(odom_fn,'wb') as f:
-        pickle.dump(all_odom,f)
+    #with open(odom_fn,'wb') as f:
+    #    pickle.dump(all_odom,f)
