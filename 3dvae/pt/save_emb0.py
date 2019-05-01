@@ -69,6 +69,7 @@ if __name__=='__main__':
     all_seq = [[],[],[],[],[],[],[],[],[],[],[]]
     for i in range(len(all_enc)):
         s = int(meta[i]['sequence'])
+        print(s)
         all_seq[s].append(all_enc[i])
 
     with open(emb_fn,'wb') as f:
