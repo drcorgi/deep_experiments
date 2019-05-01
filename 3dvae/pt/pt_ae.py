@@ -29,20 +29,20 @@ class VanillaAutoencoder(nn.Module):
         self.deconv2 = nn.ConvTranspose2d(self.filters,self.filters,(3,3),(1,1),padding=0) # ,output_padding=1
         #self.bn7 = nn.BatchNorm2d(self.filters)
         self.deconv3 = nn.ConvTranspose2d(self.filters,in_shape[0],(5,5),(2,2),padding=0,output_padding=1)
-        self.conv_drops = [nn.Dropout(0.1) for _ in [0,1,2]]
+        #self.conv_drops = [nn.Dropout(0.1) for _ in [0,1,2]]
         self.fc_drop = [nn.Dropout(0.5) for _ in [0,1]]
-        self.deconv_drops = [nn.Dropout(0.1) for _ in [0,1]]
+        #self.deconv_drops = [nn.Dropout(0.1) for _ in [0,1]]
 
     def forward_z(self,x):
         x = F.relu(self.conv1(x))
         #x = self.bn1(x)
-        x = self.conv_drops[0](x)
+        #x = self.conv_drops[0](x)
         x = F.relu(self.conv2(x))
         #x = self.bn2(x)
-        x = self.conv_drops[1](x)
+        #x = self.conv_drops[1](x)
         x = F.relu(self.conv3(x))
         #x = self.bn3(x)
-        x = self.conv_drops[2](x)
+        #x = self.conv_drops[2](x)
         x = x.view(-1,self.flat_dim)
         x = self.fc1(x)
         return x
@@ -59,10 +59,10 @@ class VanillaAutoencoder(nn.Module):
         x = x.view(-1,self.filters,self.new_w,self.new_h)
         x = F.relu(self.deconv1(x))
         #x = self.bn6(x)
-        x = self.deconv_drops[0](x)
+        #x = self.deconv_drops[0](x)
         x = F.relu(self.deconv2(x))
         #x = self.bn7(x)
-        x = self.deconv_drops[1](x)
+        #x = self.deconv_drops[1](x)
         x = self.deconv3(x)
         #print(x.size())
         return x
