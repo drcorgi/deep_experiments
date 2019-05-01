@@ -60,7 +60,7 @@ if __name__=='__main__':
 
     model.eval()
     all_enc = []
-    for loader in [eval_loader,test_loader,train_loader]:
+    for loader in [valid_loader,test_loader,train_loader]:
         for x in loader:
             x = x.to(device)
             z = model.forward_z(x).detach().numpy()
