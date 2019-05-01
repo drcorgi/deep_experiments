@@ -49,8 +49,8 @@ class MapTrainer():
         if not os.path.isdir('tmp'):
             os.mkdir('tmp')
         t = time.time()
-        plot_3d_points_(gt,pts,'/tmp/{}_projections_xyz.png'.format(t))
-        plot_abs(abs_,pts,'/tmp/{}_absolute_gt_3d.png'.format(t))
+        plot_3d_points_(gt,pts,'tmp/{}_projections_xyz.png'.format(t))
+        plot_abs(abs_,pts,'tmp/{}_absolute_gt_3d.png'.format(t))
 
     def evaluate(self,data_x,data_y):
         assert len(data_x) == len(data_y)
@@ -63,7 +63,7 @@ class MapTrainer():
             loss = self.loss_fn(y_,y)
             losses.append(loss.item())
         mean_loss = np.mean(losses)
-        print('Evaluation: {}'.format(mean_loss))
+        print('Evaluation:\t{}\t'.format(mean_loss),end='')
         return mean_loss
 
     def train(self,frames,poses,num_epochs):
@@ -96,7 +96,7 @@ class MapTrainer():
                 loss.backward()
                 self.optimizer.step()
                 losses.append(loss.item())
-            print('Epoch {}: {}'.format(j,np.mean(losses)))
+            print('Epoch {}:\t{}'.format(j,np.mean(losses)))
 
 if __name__ == '__main__':
     if len(sys.argv) != 10:
