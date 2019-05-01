@@ -17,12 +17,17 @@ if __name__=='__main__':
         meta = pickle.load(f)
 
     # Works for KITTI
+    prev_s = -1
     all_odom = [[],[],[],[],[],[],[],[],[],[],[]]
     for i in range(len(meta)):
         s = int(meta[i]['sequence'])
+        print(s)
         sid = meta[i]['sid_frame']
-        odom = load_kitti_odom(meta[i]['odom_fn'])[sid]
+        if s != prev_s:
+            odoms = load_kitti_odom(meta[i]['odom_fn'])
+        odom = odoms[sid]
         all_odom[s].append(odom)
+        prev_s = s
 
     with open(odom_fn,'wb') as f:
         pickle.dump(all_odom,f)
