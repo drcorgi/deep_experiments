@@ -22,8 +22,6 @@ if __name__=='__main__':
     test_dir = sys.argv[3] #'/home/ronnypetson/Documents/deep_odometry/kitti/frames_odom_test.h5'
 
     emb_fn = sys.argv[4] #'/home/ronnypetson/Documents/deep_odometry/kitti/frames_emb0.pck'
-    #odom_fn = sys.argv[5] #'/home/ronnypetson/Documents/deep_odometry/kitti/abs_poses.pck'
-
     meta_fn = sys.argv[5] #'visual_odometry_database.meta'
     model_fn = sys.argv[6] #'/home/ronnypetson/models/pt/model.pth'
     new_dim = (int(sys.argv[7]),int(sys.argv[8]))
@@ -69,16 +67,9 @@ if __name__=='__main__':
 
     # Works for KITTI
     all_seq = [[],[],[],[],[],[],[],[],[],[],[]]
-    #all_odom = [[],[],[],[],[],[],[],[],[],[],[]]
     for i in range(len(all_enc)):
         s = int(meta[i]['sequence'])
         all_seq[s].append(all_enc[i])
-        #sid = meta[i]['sid_frame']
-        #odom = load_kitti_odom(meta[i]['odom_fn'])[sid]
-        #all_odom[s].append(odom)
 
     with open(emb_fn,'wb') as f:
         pickle.dump(all_seq,f)
-
-    #with open(odom_fn,'wb') as f:
-    #    pickle.dump(all_odom,f)
