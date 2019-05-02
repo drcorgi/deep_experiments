@@ -95,7 +95,6 @@ class FluxH5Dataset(Dataset):
 
     def __getitem__(self, index):
         try:
-            print(x)
             x = self.data[index//self.chunk_size][index%self.chunk_size]
             x_ = self.data[(index+1)//self.chunk_size][(index+1)%self.chunk_size]
             x = cv2.calcOpticalFlowFarneback(x,x_,None,0.5,3,15,3,5,1.2,0)
