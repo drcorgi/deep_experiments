@@ -100,6 +100,7 @@ class FluxH5Dataset(Dataset):
             x = cv2.calcOpticalFlowFarneback(x,x_,None,0.5,3,15,3,5,1.2,0)
             if self.transform:
                 x = self.transform(x)
+            print(x)
             return x
         except Exception as e:
             print(e)
