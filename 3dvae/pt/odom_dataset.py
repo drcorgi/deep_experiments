@@ -87,7 +87,7 @@ class H5Dataset(Dataset):
 
 class FluxH5Dataset(Dataset):
     def __init__(self, file_path, chunk_size, transform=None):
-        super(H5Dataset, self).__init__()
+        super(FluxH5Dataset, self).__init__()
         h5_file = h5py.File(file_path)
         self.data = h5_file.get('frames')
         self.transform = transform
