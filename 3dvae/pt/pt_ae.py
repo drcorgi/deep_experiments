@@ -35,36 +35,22 @@ class VanillaAutoencoder(nn.Module):
 
     def forward_z(self,x):
         x = F.relu(self.conv1(x))
-        #x = self.bn1(x)
-        #x = self.conv_drops[0](x)
         x = F.relu(self.conv2(x))
-        #x = self.bn2(x)
-        #x = self.conv_drops[1](x)
         x = F.relu(self.conv3(x))
-        #x = self.bn3(x)
-        #x = self.conv_drops[2](x)
         x = x.view(-1,self.flat_dim)
         x = self.fc1(x)
         return x
 
     def forward(self,x):
-        #print(x.size())
         x = self.forward_z(x)
         x = F.relu(x)
-        #x = self.bn4(x)
         x = self.fc_drop[0](x)
         x = F.relu(self.fc2(x))
-        #x = self.bn5(x)
         x = self.fc_drop[1](x)
         x = x.view(-1,self.filters,self.new_w,self.new_h)
         x = F.relu(self.deconv1(x))
-        #x = self.bn6(x)
-        #x = self.deconv_drops[0](x)
         x = F.relu(self.deconv2(x))
-        #x = self.bn7(x)
-        #x = self.deconv_drops[1](x)
         x = self.deconv3(x)
-        #print(x.size())
         return x
 
 class Vanilla1dAutoencoder(nn.Module):
@@ -148,30 +134,16 @@ class Conv1dMapper(nn.Module):
         #self.noise = NormalNoise(0.01)
 
     def forward(self,x):
-        #x = self.noise(x)
         x = self.dropout1(self.bn1(F.relu(self.conv1(x))))
-        #x = F.relu(x)
-        #x = F.relu(self.conv1(x))
-        #x = self.dropout1(x)
         x = self.dropout2(self.bn2(F.relu(self.conv2(x))))
-        #x = F.relu(x)
-        #x = F.relu(self.conv2(x))
-        #x = self.dropout2(x)
-        #conv2_size = list(x.size())
-        #x, inds = F.max_pool1d(x,3,1,return_indices=True) # kernel size 3 and strides 1
         x = self.dropout3(self.bn3(F.relu(self.conv3(x))))
-        #x = F.relu(x)
-        #x = self.dropout3(x)
         x = x.view(-1,self.h_shape*self.filters)
         x = self.dropout4(self.bn4(F.relu(self.fc1(x))))
-        #x = F.relu(x)
         x = self.dropout5(self.bn5(F.relu(self.fc2(x))))
-        #x = F.relu(x)
         x = self.fc3(x)
         x = x.view((-1,)+tuple(self.out_shape))
         x[:,[1,4,6,7,9],:] = torch.zeros(x.size(0),5,x.size(2)).cuda()
         x[:,5,:] = torch.tensor(1.0).cuda()
-        #x[:,[0,2,8,10],:] = x[:,[0,2,8,10],:]/torch.norm(x[:,[0,2,8,10],:],p=2,dim=1).unsqueeze(1)
         return x
 
 if __name__=='__main__':

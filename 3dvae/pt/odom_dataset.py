@@ -38,9 +38,32 @@ class Rescale(object):
         image = cv2.resize(image,(new_h,new_w))
         return image
 
+class FluxRescale(object):
+    def __init__(self, output_size):
+        assert isinstance(output_size, (int, tuple))
+        self.output_size = output_size
+
+    def __call__(self, image):
+        h, w = image.shape[:2]
+        if isinstance(self.output_size, int):
+            if h > w:
+                new_h, new_w = self.output_size*h/w, self.output_size
+            else:
+                new_h, new_w = self.output_size, self.output_size*w/h
+        else:
+            new_h, new_w = self.output_size
+        new_h, new_w = int(new_h),int(new_w)
+        image[:,:,0] = cv2.resize(image[:,:,0],(new_h,new_w))
+        image[:,:,1] = cv2.resize(image[:,:,1],(new_h,new_w))
+        return image
+
 class ToTensor(object):
     def __call__(self,image):
         return torch.from_numpy(image).unsqueeze(0).float()
+
+class FluxToTensor(object):
+    def __call__(self,flux):
+        return torch.from_numpy(flux).float()
 
 class H5Dataset(Dataset):
     def __init__(self, file_path, chunk_size, transform=None):
@@ -52,8 +75,29 @@ class H5Dataset(Dataset):
 
     def __getitem__(self, index):
         try:
-            #print(index,index//self.chunk_size,index%self.chunk_size)
             x = self.data[index//self.chunk_size][index%self.chunk_size]
+            if self.transform:
+                x = self.transform(x)
+            return x
+        except Exception as e:
+            print(e)
+
+    def __len__(self):
+        return self.chunk_size*self.data.shape[0]
+
+class FluxH5Dataset(Dataset):
+    def __init__(self, file_path, chunk_size, transform=None):
+        super(H5Dataset, self).__init__()
+        h5_file = h5py.File(file_path)
+        self.data = h5_file.get('frames')
+        self.transform = transform
+        self.chunk_size = chunk_size
+
+    def __getitem__(self, index):
+        try:
+            x = self.data[index//self.chunk_size][index%self.chunk_size]
+            x_ = self.data[(index+1)//self.chunk_size][(index+1)%self.chunk_size]
+            x = cv2.calcOpticalFlowFarneback(x,x_,None,0.5,3,15,3,5,1.2,0)
             if self.transform:
                 x = self.transform(x)
             return x
@@ -95,11 +139,15 @@ if __name__=='__main__':
     new_dim = (int(sys.argv[6]),int(sys.argv[7]))
     batch_size = int(sys.argv[8])
     num_epochs = int(sys.argv[9])
-    transf = transforms.Compose([Rescale(new_dim),ToTensor()])
+    ##transf = transforms.Compose([Rescale(new_dim),ToTensor()])
+    transf = transforms.Compose([FluxRescale(new_dim),FluxToTensor()])
 
-    train_dataset = H5Dataset(train_dir,10,transf)
-    valid_dataset = H5Dataset(valid_dir,10,transf)
-    test_dataset = H5Dataset(test_dir,10,transf)
+    ##train_dataset = H5Dataset(train_dir,10,transf)
+    ##valid_dataset = H5Dataset(valid_dir,10,transf)
+    ##test_dataset = H5Dataset(test_dir,10,transf)
+    train_dataset = FluxH5Dataset(train_dir,10,transf)
+    valid_dataset = FluxH5Dataset(valid_dir,10,transf)
+    test_dataset = FluxH5Dataset(test_dir,10,transf)
 
     train_loader = DataLoader(train_dataset,batch_size=batch_size,shuffle=True,num_workers=0,collate_fn=my_collate)
     valid_loader = DataLoader(valid_dataset,batch_size=batch_size//2,shuffle=False,num_workers=0,collate_fn=my_collate)
@@ -128,7 +176,6 @@ if __name__=='__main__':
     loss_fn = torch.nn.MSELoss()
     epoch_losses = []
     for i in range(epoch,num_epochs):
-        #print('Start of epoch',i)
         model.train()
         losses = []
         for j,x in enumerate(train_loader):
@@ -139,7 +186,6 @@ if __name__=='__main__':
             loss.backward()
             optimizer.step()
             losses.append(loss.item())
-            #print('Batch {} loss {:.3f}'.format(j,loss.item()))
         model.eval()
         v_losses = []
         for j,x in enumerate(valid_loader):
