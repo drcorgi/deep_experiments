@@ -101,7 +101,7 @@ class FluxH5Dataset(Dataset):
             print(x.shape)
             if self.transform:
                 x = self.transform(x)
-            print(x.shape)
+            print('aa',x.shape)
             return x
         except Exception as e:
             print(e)
