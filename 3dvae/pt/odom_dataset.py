@@ -55,8 +55,7 @@ class FluxRescale(object):
         new_h, new_w = int(new_h),int(new_w)
         image0 = cv2.resize(image[:,:,0],(new_h,new_w))
         image1 = cv2.resize(image[:,:,1],(new_h,new_w))
-        image = np.concatenate([image0,image1],axis=-1)
-        print('aa',image.shape)
+        image = np.stack([image0,image1],axis=2)
         return image
 
 class ToTensor(object):
@@ -65,7 +64,7 @@ class ToTensor(object):
 
 class FluxToTensor(object):
     def __call__(self,flux):
-        return torch.from_numpy(flux).float()
+        return torch.from_numpy(flux).transpose(0,2).transpose(1,2).float()
 
 class H5Dataset(Dataset):
     def __init__(self, file_path, chunk_size, transform=None):
@@ -105,7 +104,8 @@ class FluxH5Dataset(Dataset):
                 x = self.transform(x)
             return x
         except Exception as e:
-            print(e)
+            #print(e)
+            pass
 
     def __len__(self):
         return self.chunk_size*self.data.shape[0]
@@ -160,7 +160,8 @@ if __name__=='__main__':
     use_cuda = torch.cuda.is_available()
     device = torch.device("cuda:0" if use_cuda else "cpu")
     print(device)
-    model = VanillaAutoencoder((1,)+new_dim).to(device)
+    ##model = VanillaAutoencoder((1,)+new_dim).to(device)
+    model = VanillaAutoencoder((2,)+new_dim).to(device)
     params = model.parameters()
     optimizer = optim.Adam(params,lr=3e-4)
     min_loss = 1e15
