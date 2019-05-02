@@ -53,8 +53,10 @@ class FluxRescale(object):
         else:
             new_h, new_w = self.output_size
         new_h, new_w = int(new_h),int(new_w)
-        image[:,:,0] = cv2.resize(image[:,:,0],(new_h,new_w))
-        image[:,:,1] = cv2.resize(image[:,:,1],(new_h,new_w))
+        image0 = cv2.resize(image[:,:,0],(new_h,new_w))
+        image1 = cv2.resize(image[:,:,1],(new_h,new_w))
+        image = np.concatenate([image0,image1],axis=2)
+        print('aa',image.shape)
         return image
 
 class ToTensor(object):
@@ -98,10 +100,9 @@ class FluxH5Dataset(Dataset):
             x = self.data[index//self.chunk_size][index%self.chunk_size]
             x_ = self.data[(index+1)//self.chunk_size][(index+1)%self.chunk_size]
             x = cv2.calcOpticalFlowFarneback(x,x_,None,0.5,3,15,3,5,1.2,0)
-            print(x.shape)
+            #print(x.shape)
             if self.transform:
                 x = self.transform(x)
-            print('aa',x.shape)
             return x
         except Exception as e:
             print(e)
