@@ -98,10 +98,14 @@ class FluxH5Dataset(Dataset):
         try:
             x = self.data[index//self.chunk_size][index%self.chunk_size]
             x_ = self.data[(index+1)//self.chunk_size][(index+1)%self.chunk_size]
-            if self.transform:
-                x = self.transform(x)
-                x_ = self.transform(x_)
+            if self.transform[0]:
+                x = self.transform[0](x)
+                x_ = self.transform[0](x_)
             x = cv2.calcOpticalFlowFarneback(x,x_,None,0.5,3,15,3,5,1.2,0)
+            #print(x.shape)
+            if self.transform[1]:
+                x = self.transform[1](x)
+            #print(x.shape)
             return x
         except Exception as e:
             #print(e)
@@ -143,7 +147,7 @@ if __name__=='__main__':
     batch_size = int(sys.argv[8])
     num_epochs = int(sys.argv[9])
     ##transf = transforms.Compose([Rescale(new_dim),ToTensor()])
-    transf = transforms.Compose([FluxRescale(new_dim),FluxToTensor()])
+    transf = [Rescale(new_dim),FluxToTensor()]
 
     ##train_dataset = H5Dataset(train_dir,10,transf)
     ##valid_dataset = H5Dataset(valid_dir,10,transf)
