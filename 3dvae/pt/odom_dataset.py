@@ -55,7 +55,7 @@ class FluxRescale(object):
         new_h, new_w = int(new_h),int(new_w)
         image0 = cv2.resize(image[:,:,0],(new_h,new_w))
         image1 = cv2.resize(image[:,:,1],(new_h,new_w))
-        image = np.concatenate([image0,image1],axis=2)
+        image = np.concatenate([image0,image1],axis=-1)
         print('aa',image.shape)
         return image
 
