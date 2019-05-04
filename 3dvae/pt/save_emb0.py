@@ -13,7 +13,7 @@ from torch.utils.data import Dataset, DataLoader
 from torchvision import transforms, utils
 from pt_ae import VanillaAutoencoder
 from datetime import datetime
-from odom_dataset import my_collate, Rescale, ToTensor, H5Dataset, FramesDataset, FluxToTensor
+from odom_dataset import my_collate, Rescale, ToTensor, H5Dataset, FramesDataset, FluxToTensor, FluxH5Dataset
 from odom_loader import load_kitti_odom
 
 if __name__=='__main__':
