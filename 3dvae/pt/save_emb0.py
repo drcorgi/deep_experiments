@@ -26,7 +26,8 @@ if __name__=='__main__':
     model_fn = sys.argv[6] #'/home/ronnypetson/models/pt/model.pth'
     new_dim = (int(sys.argv[7]),int(sys.argv[8]))
     batch_size = int(sys.argv[9])
-    transf = transforms.Compose([Rescale(new_dim),ToTensor()])
+    ##transf = transforms.Compose([Rescale(new_dim),ToTensor()])
+    transf = [Rescale(new_dim),FluxToTensor()]
 
     ''' Metadados da base de Odometria visual
         Tipo: lista de dicionários ('sub_base' 'sequence' 'sid_frame' 'frame_fn' 'odom_fn')
@@ -34,9 +35,12 @@ if __name__=='__main__':
     with open(meta_fn,'rb') as f:
         meta = pickle.load(f)
 
-    valid_dataset = H5Dataset(valid_dir,10,transf)
-    test_dataset = H5Dataset(test_dir,10,transf)
-    train_dataset = H5Dataset(train_dir,10,transf)
+    ##train_dataset = H5Dataset(train_dir,10,transf)
+    ##valid_dataset = H5Dataset(valid_dir,10,transf)
+    ##test_dataset = H5Dataset(test_dir,10,transf)
+    valid_dataset = FluxH5Dataset(valid_dir,10,transf)
+    test_dataset = FluxH5Dataset(test_dir,10,transf)
+    train_dataset = FluxH5Dataset(train_dir,10,transf)
 
     valid_loader = DataLoader(valid_dataset,batch_size=batch_size,shuffle=False,num_workers=0,collate_fn=my_collate)
     test_loader = DataLoader(test_dataset,batch_size=batch_size,shuffle=False,num_workers=0,collate_fn=my_collate)
@@ -46,7 +50,8 @@ if __name__=='__main__':
     use_cuda = torch.cuda.is_available()
     device = torch.device("cuda:0" if use_cuda else "cpu")
     print(device)
-    model = VanillaAutoencoder((1,)+new_dim).to(device)
+    ##model = VanillaAutoencoder((1,)+new_dim).to(device)
+    model = VanillaAutoencoder((2,)+new_dim).to(device)
 
     if os.path.isfile(model_fn):
         print('Loading existing model')
