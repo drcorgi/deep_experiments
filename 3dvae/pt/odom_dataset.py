@@ -108,8 +108,8 @@ class FluxH5Dataset(Dataset):
             #print(x.shape)
             return x
         except Exception as e:
-            #print(e)
-            pass
+            print(e)
+            #pass
 
     def __len__(self):
         return self.chunk_size*self.data.shape[0]
@@ -194,6 +194,7 @@ if __name__=='__main__':
             loss.backward()
             optimizer.step()
             losses.append(loss.item())
+            #print('Batch {} loss: {}'.format(j,loss.item()))
         model.eval()
         v_losses = []
         for j,x in enumerate(valid_loader):
