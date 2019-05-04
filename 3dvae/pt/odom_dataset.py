@@ -194,7 +194,7 @@ if __name__=='__main__':
             loss.backward()
             optimizer.step()
             losses.append(loss.item())
-            #print('Batch {} loss: {}'.format(j,loss.item()))
+            print('Batch {}\tloss: {}'.format(j,loss.item()))
         model.eval()
         v_losses = []
         for j,x in enumerate(valid_loader):
