@@ -25,7 +25,8 @@ if __name__=='__main__':
     meta_fn = sys.argv[5] #'visual_odometry_database.meta'
     model_fn = sys.argv[6] #'/home/ronnypetson/models/pt/model.pth'
     new_dim = (int(sys.argv[7]),int(sys.argv[8]))
-    batch_size = int(sys.argv[9])
+    h_dim = int(sys.argv[9])
+    batch_size = int(sys.argv[10])
     ##transf = transforms.Compose([Rescale(new_dim),ToTensor()])
     transf = [Rescale(new_dim),FluxToTensor()]
 
@@ -51,7 +52,7 @@ if __name__=='__main__':
     device = torch.device("cuda:0" if use_cuda else "cpu")
     print(device)
     ##model = VanillaAutoencoder((1,)+new_dim).to(device)
-    model = VanillaAutoencoder((2,)+new_dim).to(device)
+    model = VanillaAutoencoder((2,)+new_dim,h_dim).to(device)
 
     if os.path.isfile(model_fn):
         print('Loading existing model')

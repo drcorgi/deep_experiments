@@ -146,10 +146,11 @@ if __name__=='__main__':
     test_dir = sorted([fn for fn in glob(test_dir) if os.path.isfile(fn)])'''
 
     model_fn = sys.argv[4]
-    log_folder = sys.argv[5]
-    new_dim = (int(sys.argv[6]),int(sys.argv[7]))
-    batch_size = int(sys.argv[8])
-    num_epochs = int(sys.argv[9])
+    h_dim = int(sys.argv[5])
+    log_folder = sys.argv[6]
+    new_dim = (int(sys.argv[7]),int(sys.argv[8]))
+    batch_size = int(sys.argv[9])
+    num_epochs = int(sys.argv[10])
     ##transf = transforms.Compose([Rescale(new_dim),ToTensor()])
     transf = [Rescale(new_dim),FluxToTensor()]
 
@@ -169,7 +170,7 @@ if __name__=='__main__':
     device = torch.device("cuda:0" if use_cuda else "cpu")
     print(device)
     ##model = VanillaAutoencoder((1,)+new_dim).to(device)
-    model = VanillaAutoencoder((2,)+new_dim).to(device)
+    model = VanillaAutoencoder((2,)+new_dim,h_dim).to(device)
     params = model.parameters()
     optimizer = optim.Adam(params,lr=3e-4)
     min_loss = 1e15
