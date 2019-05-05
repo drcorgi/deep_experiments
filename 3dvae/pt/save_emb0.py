@@ -69,10 +69,11 @@ if __name__=='__main__':
             z = model.forward_z(x).detach().cpu().numpy()
             all_enc.append(z)
     all_enc = np.concatenate(all_enc,axis=0)
+    print(len(all_enc))
 
     # Works for KITTI
     all_seq = [[],[],[],[],[],[],[],[],[],[],[]]
-    for i in range(len(all_enc)):
+    for i in range(len(meta)):
         s = int(meta[i]['sequence'])
         all_seq[s].append(all_enc[i])
 

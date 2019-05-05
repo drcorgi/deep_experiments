@@ -18,18 +18,18 @@ if __name__ == '__main__':
     with open(meta_fn,'rb') as f:
         meta = pickle.load(f)
 
-    valid_count = 5600
+    valid_count = 5640
     test_count = 1100
 
     chunk_size = 10
-    n_segments = len(meta)//chunk_size
+    n_segments = len(meta)//chunk_size if len(meta)%chunk_size == 0 else len(meta)//chunk_size + 1
     valid_segments = valid_count//chunk_size
     test_segments = test_count//chunk_size
     train_segments = n_segments - valid_segments - test_segments
-    included = chunk_size*n_segments
+    included = len(meta) #chunk_size*n_segments
     height,width = 376,1241
 
-    h5_valid = h5py.File(h5_fn+'_valid.h5','w') # First 5600 frames
+    h5_valid = h5py.File(h5_fn+'_valid.h5','w') # First 5640 frames
     h5_test = h5py.File(h5_fn+'_test.h5','w') # Next 1100 frames
     h5_train = h5py.File(h5_fn+'_train.h5','w') # Remaining frames
 

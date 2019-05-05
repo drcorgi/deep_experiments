@@ -97,7 +97,11 @@ class FluxH5Dataset(Dataset):
     def __getitem__(self, index):
         try:
             x = self.data[index//self.chunk_size][index%self.chunk_size]
-            x_ = self.data[(index+1)//self.chunk_size][(index+1)%self.chunk_size]
+            if index+1 >= self.__len__():
+                next = index
+            else:
+                next = index+1
+            x_ = self.data[next//self.chunk_size][next%self.chunk_size]
             if self.transform[0]:
                 x = self.transform[0](x)
                 x_ = self.transform[0](x_)
