@@ -9,7 +9,7 @@ class VanillaAutoencoder(nn.Module):
         super().__init__()
         self.in_shape = in_shape # C,H,W
         self.filters = 32
-        self.h_dim = 128
+        self.h_dim = 256
         self.conv1 = nn.Conv2d(in_shape[0],self.filters,(5,5),(2,2))
         #self.bn1 = nn.BatchNorm2d(self.filters)
         self.conv2 = nn.Conv2d(self.filters,self.filters,(3,3),(1,1))
