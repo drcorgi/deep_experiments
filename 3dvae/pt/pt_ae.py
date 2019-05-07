@@ -112,12 +112,12 @@ class Conv1dMapper(nn.Module):
         super().__init__()
         self.in_shape = in_shape
         self.out_shape = out_shape
-        self.filters = 64
-        self.conv1 = nn.Conv1d(in_shape[0],self.filters,3,1,groups=64)
+        self.filters = 128
+        self.conv1 = nn.Conv1d(in_shape[0],self.filters,3,1,groups=1)
         self.bn1 = nn.BatchNorm1d(self.filters)
-        self.conv2 = nn.Conv1d(self.filters,self.filters,3,1,groups=64)
+        self.conv2 = nn.Conv1d(self.filters,self.filters,3,1,groups=1)
         self.bn2 = nn.BatchNorm1d(self.filters)
-        self.conv3 = nn.Conv1d(self.filters,self.filters,3,1,groups=64)
+        self.conv3 = nn.Conv1d(self.filters,self.filters,3,1,groups=1)
         self.bn3 = nn.BatchNorm1d(self.filters)
         self.h_shape = ((((in_shape[1]-2)//1-2)//1)-2)//1
         print(self.h_shape)
@@ -126,20 +126,20 @@ class Conv1dMapper(nn.Module):
         self.fc2 = nn.Linear(100*self.in_shape[1],100*self.in_shape[1])
         self.bn5 = nn.BatchNorm1d(100*self.in_shape[1])
         self.fc3 = nn.Linear(100*self.in_shape[1],np.prod(out_shape))
-        #self.dropout1 = nn.Dropout(p=0.1)
-        #self.dropout2 = nn.Dropout(p=0.1)
-        #self.dropout3 = nn.Dropout(p=0.1)
+        self.dropout1 = nn.Dropout(p=0.1)
+        self.dropout2 = nn.Dropout(p=0.1)
+        self.dropout3 = nn.Dropout(p=0.1)
         self.dropout4 = nn.Dropout(p=0.5)
         self.dropout5 = nn.Dropout(p=0.5)
         #self.noise = NormalNoise(0.01)
 
     def forward(self,x):
         x = self.bn1(F.relu(self.conv1(x)))
-        #x = self.dropout1(x)
+        x = self.dropout1(x)
         x = self.bn2(F.relu(self.conv2(x)))
-        #x = self.dropout2(x)
+        x = self.dropout2(x)
         x = self.bn3(F.relu(self.conv3(x)))
-        #x = self.dropout3(x)
+        x = self.dropout3(x)
         x = x.view(-1,self.h_shape*self.filters)
         x = self.dropout4(self.bn4(F.relu(self.fc1(x))))
         x = self.dropout5(self.bn5(F.relu(self.fc2(x))))
