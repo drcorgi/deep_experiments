@@ -113,11 +113,11 @@ class Conv1dMapper(nn.Module):
         self.in_shape = in_shape
         self.out_shape = out_shape
         self.filters = 64
-        self.conv1 = nn.Conv1d(in_shape[0],self.filters,3,1,groups=in_shape[0])
+        self.conv1 = nn.Conv1d(in_shape[0],self.filters,3,1,groups=64)
         self.bn1 = nn.BatchNorm1d(self.filters)
-        self.conv2 = nn.Conv1d(self.filters,self.filters,3,1,groups=in_shape[0])
+        self.conv2 = nn.Conv1d(self.filters,self.filters,3,1,groups=64)
         self.bn2 = nn.BatchNorm1d(self.filters)
-        self.conv3 = nn.Conv1d(self.filters,self.filters,3,1,groups=in_shape[0])
+        self.conv3 = nn.Conv1d(self.filters,self.filters,3,1,groups=64)
         self.bn3 = nn.BatchNorm1d(self.filters)
         self.h_shape = ((((in_shape[1]-2)//1-2)//1)-2)//1
         print(self.h_shape)
