@@ -8,7 +8,7 @@ class VanillaAutoencoder(nn.Module):
     def __init__(self,in_shape,h_dim):
         super().__init__()
         self.in_shape = in_shape # C,H,W
-        self.filters = 32
+        self.filters = 64
         self.h_dim = h_dim #256
         self.conv1 = nn.Conv2d(in_shape[0],self.filters,(5,5),(2,2))
         #self.bn1 = nn.BatchNorm2d(self.filters)
@@ -112,7 +112,7 @@ class Conv1dMapper(nn.Module):
         super().__init__()
         self.in_shape = in_shape
         self.out_shape = out_shape
-        self.filters = 32
+        self.filters = 64
         self.conv1 = nn.Conv1d(in_shape[0],self.filters,3,1,groups=1)
         self.bn1 = nn.BatchNorm1d(self.filters)
         self.conv2 = nn.Conv1d(self.filters,self.filters,3,1,groups=1)
