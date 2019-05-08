@@ -8,7 +8,7 @@ class VanillaAutoencoder(nn.Module):
     def __init__(self,in_shape,h_dim):
         super().__init__()
         self.in_shape = in_shape # C,H,W
-        self.filters = 64
+        self.filters = 32
         self.h_dim = h_dim #256
         self.conv1 = nn.Conv2d(in_shape[0],self.filters,(5,5),(2,2))
         #self.bn1 = nn.BatchNorm2d(self.filters)
