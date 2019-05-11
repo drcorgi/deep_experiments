@@ -44,12 +44,13 @@ class MapTrainer():
         rel_poses = np.array(rel_poses).transpose(0,2,1)
         gt = data_y.cpu().detach().numpy().transpose(0,2,1)
         pts = get_3d_points_t(rel_poses,seq_len,abs_)
+        pts_ = get_3d_points__(rel_poses,seq_len)
         gt = get_3d_points__(gt,seq_len)
         print(gt.shape,pts.shape,abs_.shape)
         if not os.path.isdir('tmp'):
             os.mkdir('tmp')
         t = time.time()
-        plot_3d_points_(gt,pts,'tmp/{}_projections_xyz.png'.format(t),wlen=seq_len)
+        plot_3d_points_(pts_,pts,'tmp/{}_projections_xyz.png'.format(t),wlen=seq_len) #gt
         plot_abs(abs_,pts,'tmp/{}_absolute_gt_3d.png'.format(t))
 
     def evaluate(self,data_x,data_y):
