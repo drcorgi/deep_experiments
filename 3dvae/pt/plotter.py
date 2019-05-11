@@ -25,7 +25,7 @@ def plot_abs(gt,rec,out_fn):
     plt.savefig(out_fn)
     plt.close(fig)
 
-def plot_3d_points_(gt,est,out_fn,wlen=16):
+def plot_3d_points_(gt,est,out_fn,wlen):
     fig = plt.figure()
     ax = fig.add_subplot(131)
     ax.plot(gt[:,0],gt[:,1],'g')
@@ -118,13 +118,14 @@ def get_3d_points__(rposes,wlen):
         #aposes += [in_p+rposes[i][j] for j in range(wlen)]
     return np.array([[p[0,3],p[1,3],p[2,3]] for p in aposes])
 
-def get_3d_points_t(rposes,wlen):
+def get_3d_points_t(rposes,wlen,gt_poses):
     rposes = [[homogen(p) for p in r] for r in rposes]
     aposes = rposes[0]
     for i in range(wlen,len(rposes),wlen):
         #in_p = aposes[-1]
         #in_p = np.matmul(aposes[-wlen+1],rposes[i-wlen+1][-1])
-        in_p = np.matmul(aposes[-1],rposes[i-1][1])
+        #in_p = np.matmul(aposes[-1],rposes[i-1][1])
+        in_p = homogen(gt_poses[i])
         aposes += [np.matmul(in_p,rposes[i][j]) for j in range(wlen)]
         #in_p = aposes[-wlen+1]+rposes[i-wlen+1][-1]
         #aposes += [in_p+rposes[i][j] for j in range(wlen)]

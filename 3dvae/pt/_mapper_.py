@@ -8,7 +8,7 @@ import torch
 import torch.optim as optim
 
 from pt_ae import Conv1dMapper, MLPMapper
-from plotter import get_3d_points__, c3dto2d, abs2relative, plot_3d_points_, plot_abs
+from plotter import get_3d_points__, get_3d_points_t, c3dto2d, abs2relative, plot_3d_points_, plot_abs
 
 class MapTrainer():
     def __init__(self,model,model_fn,batch_size,valid_ids,device):
@@ -42,8 +42,8 @@ class MapTrainer():
                 y_ = self.model(x)
                 rel_poses += y_.cpu().detach().numpy().tolist()
         rel_poses = np.array(rel_poses).transpose(0,2,1)
-        pts = get_3d_points__(rel_poses,seq_len)
         gt = data_y.cpu().detach().numpy().transpose(0,2,1)
+        pts = get_3d_points_t(rel_poses,seq_len,abs_)
         gt = get_3d_points__(gt,seq_len)
         print(gt.shape,pts.shape,abs_.shape)
         if not os.path.isdir('tmp'):
