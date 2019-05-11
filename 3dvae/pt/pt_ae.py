@@ -9,8 +9,8 @@ class DepthWiseConv2d(nn.Module):
         super().__init__()
         self.depthwise = nn.Conv2d(in_filters,in_filters,\
                                    kernel_size=kernel_size,stride=stride,\
-                                   padding=padding,groups=in_filters)
-        self.pointwise = nn.Conv2d(in_filters,out_filters,kernel_size=1)
+                                   padding=padding,groups=in_filters).cuda()
+        self.pointwise = nn.Conv2d(in_filters,out_filters,kernel_size=1).cuda()
 
     def forward(self,x):
         x = self.depthwise(x)
@@ -23,8 +23,8 @@ class DepthWiseConvTranspose2d(nn.Module):
         self.depthwise = nn.ConvTranspose2d(in_filters,in_filters,\
                                    kernel_size=kernel_size,stride=stride,\
                                    padding=padding,output_padding=output_padding,\
-                                   groups=in_filters)
-        self.pointwise = nn.ConvTranspose2d(in_filters,out_filters,kernel_size=1)
+                                   groups=in_filters).cuda()
+        self.pointwise = nn.ConvTranspose2d(in_filters,out_filters,kernel_size=1).cuda()
 
     def forward(self,x):
         x = self.depthwise(x)
