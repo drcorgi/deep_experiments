@@ -4,17 +4,47 @@ import torch.nn.functional as F
 import torch.optim as optim
 import numpy as np
 
+class DepthWiseConv2d(nn.Module):
+    def __init__(self,in_filters,out_filters,kernel_size,stride,padding):
+        super().__init__()
+        self.depthwise = nn.Conv2d(in_filters,in_filters,\
+                                   kernel_size=kernel_size,stride=stride,\
+                                   padding=padding,groups=in_filters)
+        self.pointwise = nn.Conv2d(in_filters,out_filters,kernel_size=1)
+
+    def forward(self,x):
+        x = self.depthwise(x)
+        x = self.pointwise(x)
+        return x
+
+class DepthWiseConvTranspose2d(nn.Module):
+    def __init__(self,in_filters,out_filters,kernel_size,stride,padding,output_padding):
+        super().__init__()
+        self.depthwise = nn.ConvTranspose2d(in_filters,in_filters,\
+                                   kernel_size=kernel_size,stride=stride,\
+                                   padding=padding,output_padding=output_padding,\
+                                   groups=in_filters)
+        self.pointwise = nn.ConvTranspose2d(in_filters,out_filters,kernel_size=1)
+
+    def forward(self,x):
+        x = self.depthwise(x)
+        x = self.pointwise(x)
+        return x
+
 class VanillaAutoencoder(nn.Module):
     def __init__(self,in_shape,h_dim):
         super().__init__()
         self.in_shape = in_shape # C,H,W
         self.filters = 32
         self.h_dim = h_dim #256
-        self.conv1 = nn.Conv2d(in_shape[0],self.filters,(5,5),(2,2))
+        #self.conv1 = nn.Conv2d(in_shape[0],self.filters,(5,5),(2,2))
+        self.conv1 = DepthWiseConv2d(in_shape[0],self.filters,(5,5),(2,2),padding=0)
         #self.bn1 = nn.BatchNorm2d(self.filters)
-        self.conv2 = nn.Conv2d(self.filters,self.filters,(3,3),(1,1))
+        #self.conv2 = nn.Conv2d(self.filters,self.filters,(3,3),(1,1))
+        self.conv2 = DepthWiseConv2d(self.filters,self.filters,(3,3),(1,1),padding=0)
         #self.bn2 = nn.BatchNorm2d(self.filters)
-        self.conv3 = nn.Conv2d(self.filters,self.filters,(3,3),(1,1))
+        #self.conv3 = nn.Conv2d(self.filters,self.filters,(3,3),(1,1))
+        self.conv3 = DepthWiseConv2d(self.filters,self.filters,(3,3),(1,1),padding=0)
         #self.bn3 = nn.BatchNorm2d(self.filters)
         self.new_h = (((((in_shape[1]-4)//2-2)//1)-2)//1)
         self.new_w = (((((in_shape[2]-4)//2-2)//1)-2)//1)
@@ -24,19 +54,27 @@ class VanillaAutoencoder(nn.Module):
         #self.bn4 = nn.BatchNorm1d(self.h_dim)
         self.fc2 = nn.Linear(self.h_dim,self.flat_dim)
         #self.bn5 = nn.BatchNorm1d(self.flat_dim)
-        self.deconv1 = nn.ConvTranspose2d(self.filters,self.filters,(3,3),(1,1),padding=0)
+        #self.deconv1 = nn.ConvTranspose2d(self.filters,self.filters,(3,3),(1,1),padding=0)
+        self.deconv1 = DepthWiseConvTranspose2d(self.filters,self.filters,(3,3),(1,1),padding=0,output_padding=0)
         #self.bn6 = nn.BatchNorm2d(self.filters)
-        self.deconv2 = nn.ConvTranspose2d(self.filters,self.filters,(3,3),(1,1),padding=0) # ,output_padding=1
+        #self.deconv2 = nn.ConvTranspose2d(self.filters,self.filters,(3,3),(1,1),padding=0) # ,output_padding=1
+        self.deconv2 = DepthWiseConvTranspose2d(self.filters,self.filters,(3,3),(1,1),padding=0,output_padding=0)
         #self.bn7 = nn.BatchNorm2d(self.filters)
-        self.deconv3 = nn.ConvTranspose2d(self.filters,in_shape[0],(5,5),(2,2),padding=0,output_padding=1)
+        #self.deconv3 = nn.ConvTranspose2d(self.filters,in_shape[0],(5,5),(2,2),padding=0,output_padding=1)
+        self.deconv3 = DepthWiseConvTranspose2d(self.filters,in_shape[0],(5,5),(2,2),padding=0,output_padding=1)
         #self.conv_drops = [nn.Dropout(0.1) for _ in [0,1,2]]
         self.fc_drop = [nn.Dropout(0.5) for _ in [0,1]]
         #self.deconv_drops = [nn.Dropout(0.1) for _ in [0,1]]
 
     def forward_z(self,x):
+        #print(x.size())
         x = F.relu(self.conv1(x))
+        #print(x.size())
         x = F.relu(self.conv2(x))
+        #print(x.size())
         x = F.relu(self.conv3(x))
+        #print(x.size())
+        #print()
         x = x.view(-1,self.flat_dim)
         x = self.fc1(x)
         return x
