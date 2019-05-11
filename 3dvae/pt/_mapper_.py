@@ -56,14 +56,26 @@ class MapTrainer():
         assert len(data_x) == len(data_y)
         self.model.eval()
         losses = []
+
+        rlosses = []
+        tlosses = []
+        rids = [0,1,2,4,5,6,8,9,10]
+        tids = [3,7,11]
+
         for i in range(0,len(data_x),self.batch_size):
             x = data_x[i:i+self.batch_size].to(self.device)
             y = data_y[i:i+self.batch_size].to(self.device)
             y_ = self.model(x)
             loss = self.loss_fn(y_,y)
             losses.append(loss.item())
+
+            rlosses.append(self.loss_fn(y_[rids],y[rids]).item())
+            tlosses.append(self.loss_fn(y_[tids],y[tids]).item())
+
         mean_loss = np.mean(losses)
-        print('Evaluation:\t{}\t'.format(mean_loss),end='')
+        mean_rloss = np.mean(rlosses)
+        mean_tloss = np.mean(tlosses)
+        print('Eval: {:.3f}\tR {:.3f}\tT {:.3f}\t'.format(mean_loss,mean_rloss,mean_tloss),end='\t')
         return mean_loss
 
     def train(self,frames,poses,num_epochs):
@@ -86,6 +98,12 @@ class MapTrainer():
                             'min_loss': self.min_loss,
                             'epoch': j}, self.model_fn)
             losses = []
+
+            rlosses = []
+            tlosses = []
+            rids = [0,1,2,4,5,6,8,9,10]
+            tids = [3,7,11]
+
             for i in range(num_iter):
                 self.optimizer.zero_grad()
                 ids = all_ids[j][i]
@@ -96,7 +114,11 @@ class MapTrainer():
                 loss.backward()
                 self.optimizer.step()
                 losses.append(loss.item())
-            print('Epoch {}:\t{}'.format(j,np.mean(losses)))
+
+                rlosses.append(self.loss_fn(y_[rids],y[rids]).item())
+                tlosses.append(self.loss_fn(y_[tids],y[tids]).item())
+
+            print('Epoch {}: {:.3f}\tR {:.3f}\tT {:.3f}'.format(j,np.mean(losses),np.mean(rlosses),np.mean(tlosses)))
 
 if __name__ == '__main__':
     if len(sys.argv) != 10:
