@@ -25,7 +25,7 @@ def plot_abs(gt,rec,out_fn):
     plt.savefig(out_fn)
     plt.close(fig)
 
-def plot_3d_points_(gt,est,out_fn):
+def plot_3d_points_(gt,est,out_fn,wlen=16):
     fig = plt.figure()
     ax = fig.add_subplot(131)
     ax.plot(gt[:,0],gt[:,1],'g')
@@ -33,6 +33,9 @@ def plot_3d_points_(gt,est,out_fn):
     ax = fig.add_subplot(132)
     ax.plot(gt[:,0],gt[:,2],'g')
     ax.plot(est[:,0],est[:,2],'b')
+
+    ax.plot(est[::wlen,0],est[::wlen,2],'r.')
+
     ax = fig.add_subplot(133)
     ax.plot(gt[:,1],gt[:,2],'g')
     ax.plot(est[:,1],est[:,2],'b')
@@ -103,6 +106,19 @@ def get_3d_points_(rposes,wlen=32):
     return np.array([[p[0,3],p[1,3],p[2,3]] for p in poses_])
 
 def get_3d_points__(rposes,wlen):
+    rposes = [[homogen(p) for p in r] for r in rposes]
+    aposes = rposes[0]
+    for i in range(wlen,len(rposes),wlen):
+        #in_p = aposes[-1]
+        #in_p = np.matmul(aposes[-wlen+1],rposes[i-wlen+1][-1])
+        #in_p = np.matmul(aposes[-wlen//2],rposes[i-wlen//2][wlen//2])
+        in_p = np.matmul(aposes[-1],rposes[i-1][1])
+        aposes += [np.matmul(in_p,rposes[i][j]) for j in range(wlen)]
+        #in_p = aposes[-wlen+1]+rposes[i-wlen+1][-1]
+        #aposes += [in_p+rposes[i][j] for j in range(wlen)]
+    return np.array([[p[0,3],p[1,3],p[2,3]] for p in aposes])
+
+def get_3d_points_t(rposes,wlen):
     rposes = [[homogen(p) for p in r] for r in rposes]
     aposes = rposes[0]
     for i in range(wlen,len(rposes),wlen):

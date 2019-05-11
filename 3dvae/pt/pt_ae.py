@@ -76,13 +76,14 @@ class VanillaAutoencoder(nn.Module):
         #print(x.size())
         #print()
         x = x.view(-1,self.flat_dim)
-        x = self.fc1(x)
+        x = F.relu(self.fc1(x))
+        x = self.fc_drop[0](x)
         return x
 
     def forward(self,x):
         x = self.forward_z(x)
-        x = F.relu(x)
-        x = self.fc_drop[0](x)
+        #x = F.relu(x)
+        #x = self.fc_drop[0](x)
         x = F.relu(self.fc2(x))
         x = self.fc_drop[1](x)
         x = x.view(-1,self.filters,self.new_h,self.new_w)
@@ -150,6 +151,26 @@ class Vanilla1dAutoencoder(nn.Module):
         x = F.max_unpool1d(x,inds,3,1,output_size=conv2_size)
         x = F.relu(self.deconv2(x))
         x = self.deconv3(x)
+        return x
+
+class MLPMapper(nn.Module):
+    def __init__(self,in_shape,out_shape):
+        super().__init__()
+        self.out_shape = out_shape
+        self.in_flat = np.prod(in_shape)
+        out_flat = np.prod(out_shape)
+        self.fc1 = nn.Linear(self.in_flat,2*self.in_flat)
+        self.fc2 = nn.Linear(2*self.in_flat,2*self.in_flat)
+        self.fc3 = nn.Linear(2*self.in_flat,out_flat)
+
+    def forward(self,x):
+        x = x.view(-1,self.in_flat)
+        x = F.relu(self.fc1(x))
+        x = F.relu(self.fc2(x))
+        x = F.relu(self.fc3(x))
+        x = x.view((-1,)+self.out_shape)
+        x[:,[1,4,6,7,9],:] = torch.zeros(x.size(0),5,x.size(2)).cuda()
+        x[:,5,:] = torch.tensor(1.0).cuda()
         return x
 
 class Conv1dMapper(nn.Module):

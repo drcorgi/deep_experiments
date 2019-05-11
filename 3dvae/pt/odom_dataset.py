@@ -170,8 +170,8 @@ if __name__=='__main__':
     device = torch.device("cuda:0" if use_cuda else "cpu")
     print(device)
     ##model = VanillaAutoencoder((1,)+new_dim).to(device)
-    #model = VanillaAutoencoder((2,)+new_dim,h_dim).to(device)
-    model = MLPAutoencoder((2,)+new_dim,h_dim).to(device)
+    model = VanillaAutoencoder((2,)+new_dim,h_dim).to(device)
+    #model = MLPAutoencoder((2,)+new_dim,h_dim).to(device)
     params = model.parameters()
     optimizer = optim.Adam(params,lr=3e-4)
     min_loss = 1e15

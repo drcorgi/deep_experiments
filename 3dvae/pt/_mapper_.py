@@ -7,7 +7,7 @@ import pickle
 import torch
 import torch.optim as optim
 
-from pt_ae import Conv1dMapper
+from pt_ae import Conv1dMapper, MLPMapper
 from plotter import get_3d_points__, c3dto2d, abs2relative, plot_3d_points_, plot_abs
 
 class MapTrainer():
@@ -132,6 +132,7 @@ if __name__ == '__main__':
 
     device = torch.device(device)
     model = Conv1dMapper(frames.shape[1:],rel_poses.shape[1:]).to(device) #.half()
+    #model = MLPMapper(frames.shape[1:],rel_poses.shape[1:]).to(device)
     t = MapTrainer(model=model,model_fn=model_fn,batch_size=batch_size\
                    ,valid_ids=valid_ids,device=device)
 
