@@ -49,7 +49,7 @@ class MapTrainer():
         if not os.path.isdir('tmp'):
             os.mkdir('tmp')
         t = time.time()
-        plot_3d_points_(gt,pts,'tmp/{}_projections_xyz.png'.format(t))
+        plot_3d_points_(gt,pts,'tmp/{}_projections_xyz.png'.format(t),wlen=seq_len)
         plot_abs(abs_,pts,'tmp/{}_absolute_gt_3d.png'.format(t))
 
     def evaluate(self,data_x,data_y):
