@@ -37,14 +37,14 @@ class VanillaAutoencoder(nn.Module):
         self.in_shape = in_shape # C,H,W
         self.filters = 32
         self.h_dim = h_dim #256
-        #self.conv1 = nn.Conv2d(in_shape[0],self.filters,(5,5),(2,2))
-        self.conv1 = DepthWiseConv2d(in_shape[0],self.filters,(5,5),(2,2),padding=0)
+        self.conv1 = nn.Conv2d(in_shape[0],self.filters,(5,5),(2,2))
+        #self.conv1 = DepthWiseConv2d(in_shape[0],self.filters,(5,5),(2,2),padding=0)
         #self.bn1 = nn.BatchNorm2d(self.filters)
-        #self.conv2 = nn.Conv2d(self.filters,self.filters,(3,3),(1,1))
-        self.conv2 = DepthWiseConv2d(self.filters,self.filters,(3,3),(1,1),padding=0)
+        self.conv2 = nn.Conv2d(self.filters,self.filters,(3,3),(1,1))
+        #self.conv2 = DepthWiseConv2d(self.filters,self.filters,(3,3),(1,1),padding=0)
         #self.bn2 = nn.BatchNorm2d(self.filters)
-        #self.conv3 = nn.Conv2d(self.filters,self.filters,(3,3),(1,1))
-        self.conv3 = DepthWiseConv2d(self.filters,self.filters,(3,3),(1,1),padding=0)
+        self.conv3 = nn.Conv2d(self.filters,self.filters,(3,3),(1,1))
+        #self.conv3 = DepthWiseConv2d(self.filters,self.filters,(3,3),(1,1),padding=0)
         #self.bn3 = nn.BatchNorm2d(self.filters)
         self.new_h = (((((in_shape[1]-4)//2-2)//1)-2)//1)
         self.new_w = (((((in_shape[2]-4)//2-2)//1)-2)//1)
@@ -54,14 +54,14 @@ class VanillaAutoencoder(nn.Module):
         #self.bn4 = nn.BatchNorm1d(self.h_dim)
         self.fc2 = nn.Linear(self.h_dim,self.flat_dim)
         #self.bn5 = nn.BatchNorm1d(self.flat_dim)
-        #self.deconv1 = nn.ConvTranspose2d(self.filters,self.filters,(3,3),(1,1),padding=0)
-        self.deconv1 = DepthWiseConvTranspose2d(self.filters,self.filters,(3,3),(1,1),padding=0,output_padding=0)
+        self.deconv1 = nn.ConvTranspose2d(self.filters,self.filters,(3,3),(1,1),padding=0)
+        #self.deconv1 = DepthWiseConvTranspose2d(self.filters,self.filters,(3,3),(1,1),padding=0,output_padding=0)
         #self.bn6 = nn.BatchNorm2d(self.filters)
-        #self.deconv2 = nn.ConvTranspose2d(self.filters,self.filters,(3,3),(1,1),padding=0) # ,output_padding=1
-        self.deconv2 = DepthWiseConvTranspose2d(self.filters,self.filters,(3,3),(1,1),padding=0,output_padding=0)
+        self.deconv2 = nn.ConvTranspose2d(self.filters,self.filters,(3,3),(1,1),padding=0) # ,output_padding=1
+        #self.deconv2 = DepthWiseConvTranspose2d(self.filters,self.filters,(3,3),(1,1),padding=0,output_padding=0)
         #self.bn7 = nn.BatchNorm2d(self.filters)
-        #self.deconv3 = nn.ConvTranspose2d(self.filters,in_shape[0],(5,5),(2,2),padding=0,output_padding=1)
-        self.deconv3 = DepthWiseConvTranspose2d(self.filters,in_shape[0],(5,5),(2,2),padding=0,output_padding=1)
+        self.deconv3 = nn.ConvTranspose2d(self.filters,in_shape[0],(5,5),(2,2),padding=0,output_padding=1)
+        #self.deconv3 = DepthWiseConvTranspose2d(self.filters,in_shape[0],(5,5),(2,2),padding=0,output_padding=1)
         #self.conv_drops = [nn.Dropout(0.1) for _ in [0,1,2]]
         self.fc_drop = [nn.Dropout(0.5) for _ in [0,1]]
         #self.deconv_drops = [nn.Dropout(0.1) for _ in [0,1]]
@@ -85,10 +85,39 @@ class VanillaAutoencoder(nn.Module):
         x = self.fc_drop[0](x)
         x = F.relu(self.fc2(x))
         x = self.fc_drop[1](x)
-        x = x.view(-1,self.filters,self.new_w,self.new_h)
+        x = x.view(-1,self.filters,self.new_h,self.new_w)
         x = F.relu(self.deconv1(x))
         x = F.relu(self.deconv2(x))
         x = self.deconv3(x)
+        return x
+
+class MLPAutoencoder(nn.Module):
+    def __init__(self,in_shape,h_dim):
+        super().__init__()
+        self.in_shape = in_shape
+        flat_shape = np.prod(in_shape)
+        self.fc1 = nn.Linear(flat_shape,2*flat_shape)
+        #self.fc2 = nn.Linear(2*flat_shape,2*flat_shape)
+        self.fc3 = nn.Linear(2*flat_shape,h_dim)
+        self.fc4 = nn.Linear(h_dim,2*flat_shape)
+        #self.fc5 = nn.Linear(2*flat_shape,2*flat_shape)
+        self.fc6 = nn.Linear(2*flat_shape,flat_shape)
+
+    def forward_z(self,x):
+        #print(x.size())
+        x = x.view((-1,np.prod(self.in_shape)))
+        #print(x.size())
+        x = F.relu(self.fc1(x))
+        #x = F.relu(self.fc2(x))
+        x = F.relu(self.fc3(x))
+        return x
+
+    def forward(self,x):
+        x = self.forward_z(x)
+        x = F.relu(self.fc4(x))
+        #x = F.relu(self.fc5(x))
+        x = self.fc6(x)
+        x = x.view((-1,)+self.in_shape)
         return x
 
 class Vanilla1dAutoencoder(nn.Module):
@@ -121,28 +150,6 @@ class Vanilla1dAutoencoder(nn.Module):
         x = F.max_unpool1d(x,inds,3,1,output_size=conv2_size)
         x = F.relu(self.deconv2(x))
         x = self.deconv3(x)
-        return x
-
-'''class MLP_Mapper(nn.Module):
-    def __init__(self,in_shape,out_shape):
-        super().__init__()
-        self.in_shape = in_shape
-        self.out_shape = out_shape
-        self.fc1 = nn.Linear(self.h_shape,self.in_shape[1])
-        self.fc2 = nn.Linear(self.in_shape[1],self.in_shape[1])
-        self.fc3 = nn.Linear(self.in_shape[1],np.prod(out_shape))
-        #self.dropout1 = nn.Dropout(p=0.1)
-        #self.dropout2 = nn.Dropout(p=0.5)
-        self.dropout3 = nn.Dropout(p=0.5)'''
-
-class NormalNoise(nn.Module):
-    def __init__(self,stddev):
-        super().__init__()
-        self.stddev = stddev
-
-    def forward(self,x):
-        if self.training:
-            x = x + torch.randn(x.size()).cuda() * self.stddev
         return x
 
 class Conv1dMapper(nn.Module):

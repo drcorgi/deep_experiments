@@ -131,15 +131,15 @@ if __name__ == '__main__':
     print(frames.shape,rel_poses.shape)
 
     device = torch.device(device)
-    model = Conv1dMapper(frames.shape[1:],rel_poses.shape[1:]).to(device).half()
+    model = Conv1dMapper(frames.shape[1:],rel_poses.shape[1:]).to(device) #.half()
     t = MapTrainer(model=model,model_fn=model_fn,batch_size=batch_size\
                    ,valid_ids=valid_ids,device=device)
 
     # Split data into test/train
-    frames = torch.tensor(frames).float().half()
+    frames = torch.tensor(frames).float() #.half()
     frames_test = frames[:test_ids]
     frames = frames[test_ids:]
-    rel_poses = torch.tensor(rel_poses).float().half()
+    rel_poses = torch.tensor(rel_poses).float() #.half()
     rel_poses_test = rel_poses[:test_ids]
     rel_poses = rel_poses[test_ids:]
 

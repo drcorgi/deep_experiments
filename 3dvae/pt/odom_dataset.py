@@ -10,7 +10,7 @@ import torch.optim as optim
 from glob import glob
 from torch.utils.data import Dataset, DataLoader
 from torchvision import transforms, utils
-from pt_ae import VanillaAutoencoder
+from pt_ae import VanillaAutoencoder, MLPAutoencoder
 from datetime import datetime
 
 def my_collate(batch):
@@ -64,7 +64,7 @@ class ToTensor(object):
 
 class FluxToTensor(object):
     def __call__(self,flux):
-        return torch.from_numpy(flux).transpose(0,2).transpose(1,2).float()
+        return torch.from_numpy(flux).transpose(2,0).float()
 
 class H5Dataset(Dataset):
     def __init__(self, file_path, chunk_size, transform=None):
@@ -170,7 +170,8 @@ if __name__=='__main__':
     device = torch.device("cuda:0" if use_cuda else "cpu")
     print(device)
     ##model = VanillaAutoencoder((1,)+new_dim).to(device)
-    model = VanillaAutoencoder((2,)+new_dim,h_dim).to(device)
+    #model = VanillaAutoencoder((2,)+new_dim,h_dim).to(device)
+    model = MLPAutoencoder((2,)+new_dim,h_dim).to(device)
     params = model.parameters()
     optimizer = optim.Adam(params,lr=3e-4)
     min_loss = 1e15

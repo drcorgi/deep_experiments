@@ -11,7 +11,7 @@ import torch.optim as optim
 from glob import glob
 from torch.utils.data import Dataset, DataLoader
 from torchvision import transforms, utils
-from pt_ae import VanillaAutoencoder
+from pt_ae import VanillaAutoencoder, MLPAutoencoder
 from datetime import datetime
 from odom_dataset import my_collate, Rescale, ToTensor, H5Dataset, FramesDataset, FluxToTensor, FluxH5Dataset
 from odom_loader import load_kitti_odom
@@ -52,7 +52,8 @@ if __name__=='__main__':
     device = torch.device("cuda:0" if use_cuda else "cpu")
     print(device)
     ##model = VanillaAutoencoder((1,)+new_dim).to(device)
-    model = VanillaAutoencoder((2,)+new_dim,h_dim).to(device)
+    #model = VanillaAutoencoder((2,)+new_dim,h_dim).to(device)
+    model = MLPAutoencoder((2,)+new_dim,h_dim).to(device)
 
     if os.path.isfile(model_fn):
         print('Loading existing model')
