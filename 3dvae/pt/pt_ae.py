@@ -216,6 +216,7 @@ class Conv1dMapper(nn.Module):
         x = x.view((-1,)+tuple(self.out_shape))
 
         x[:,[1,4,6,7,9],:] = torch.zeros((x.size(0),5,self.out_shape[-1])).cuda()
+        x[:,[3,11],0] = torch.tensor(0.0).cuda()
         x[:,5,:] = torch.tensor(1.0).cuda()
 
         for i in self.regular_pts[1:]:
