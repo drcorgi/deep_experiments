@@ -8,7 +8,7 @@ import torch
 import torch.optim as optim
 
 from pt_ae import Conv1dMapper, MLPMapper
-from plotter import get_3d_points__, get_3d_points_t, c3dto2d, abs2relative, plot_3d_points_, plot_abs
+from plotter import get_3d_points__, get_3d_points_t, c3dto2d, abs2relative, abs2relative_, plot_3d_points_, plot_abs
 
 class MapTrainer():
     def __init__(self,model,model_fn,batch_size,valid_ids,device):
@@ -50,7 +50,7 @@ class MapTrainer():
         if not os.path.isdir('tmp'):
             os.mkdir('tmp')
         t = time.time()
-        plot_3d_points_(gt,pts,'tmp/{}_projections_xyz.png'.format(t),wlen=seq_len) #gt
+        plot_3d_points_(pts_,pts,'tmp/{}_projections_xyz.png'.format(t),wlen=seq_len) #gt
         plot_abs(abs_,pts,'tmp/{}_absolute_gt_3d.png'.format(t))
 
     def evaluate(self,data_x,data_y):
@@ -149,7 +149,7 @@ if __name__ == '__main__':
     frames = [np.array(s) for s in frames]
     frames = np.concatenate(frames,axis=0).transpose(0,2,1)
     #abs_poses = [s for s in abs_poses] #[s[:-1] for s in abs_poses]
-    rel_poses = [abs2relative(s,seq_len,1) for s in abs_poses]
+    rel_poses = [abs2relative(s,seq_len,1) for s in abs_poses] ## abs2relative
     rel_poses = np.concatenate(rel_poses,axis=0).transpose(0,2,1)
     print(frames.shape,rel_poses.shape)
 
@@ -171,5 +171,5 @@ if __name__ == '__main__':
     t.train(frames,rel_poses,epochs)
     t.evaluate(frames_test,rel_poses_test)
     abs_poses = abs_poses[0][:test_ids]
-    abs_poses = abs2relative(abs_poses,len(abs_poses),1)[0]
+    abs_poses = abs2relative(abs_poses,len(abs_poses),1)[0] ## abs2relative
     t.plot_eval(frames_test,rel_poses_test,abs_poses,seq_len)

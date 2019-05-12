@@ -64,8 +64,8 @@ def flat_homogen(x):
 
 def abs2relative_(abs_poses,wsize,stride):
     rposes = []
-    for i in range(len(abs_poses)-(wsize-1)):
-        rposes.append([-abs_poses[i]+abs_poses[j] for j in range(i,i+wsize,1)])
+    for i in range(len(abs_poses)-(stride*wsize-1)):
+        rposes.append([-abs_poses[i]+abs_poses[j] for j in range(i,i+stride*wsize,stride)])
     return np.array(rposes)
 
 def abs2relative(abs_poses,wsize,stride):
@@ -114,7 +114,7 @@ def get_3d_points__(rposes,wlen):
         #in_p = np.matmul(aposes[-wlen//2],rposes[i-wlen//2][wlen//2])
         in_p = np.matmul(aposes[-1],rposes[i-1][1])
         aposes += [np.matmul(in_p,rposes[i][j]) for j in range(wlen)]
-        #in_p = aposes[-wlen+1]+rposes[i-wlen+1][-1]
+        #in_p = aposes[-1]+rposes[i-1][1]
         #aposes += [in_p+rposes[i][j] for j in range(wlen)]
     return np.array([[p[0,3],p[1,3],p[2,3]] for p in aposes])
 

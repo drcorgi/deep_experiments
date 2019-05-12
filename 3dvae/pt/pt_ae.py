@@ -191,7 +191,7 @@ class Conv1dMapper(nn.Module):
         self.bn4 = nn.BatchNorm1d(100*self.in_shape[1])
         self.fc2 = nn.Linear(100*self.in_shape[1],100*self.in_shape[1])
         self.bn5 = nn.BatchNorm1d(100*self.in_shape[1])
-        self.fc3 = nn.Linear(100*self.in_shape[1],np.prod(out_shape))
+        self.fc3 = nn.Linear(100*self.in_shape[1],out_shape[-1]*3) # seq_len * x,y,theta
         self.dropout1 = nn.Dropout(p=0.1)
         self.dropout2 = nn.Dropout(p=0.1)
         self.dropout3 = nn.Dropout(p=0.1)
@@ -210,15 +210,20 @@ class Conv1dMapper(nn.Module):
         x = self.dropout4(self.bn4(F.relu(self.fc1(x))))
         x = self.dropout5(self.bn5(F.relu(self.fc2(x))))
         x = self.fc3(x)
-        x = x.view((-1,)+tuple(self.out_shape))
-        x[:,[1,4,6,7,9],:] = torch.zeros(x.size(0),5,x.size(2)).cuda()
-        x[:,5,:] = torch.tensor(1.0).cuda()
+        #x = x.view((-1,)+tuple(self.out_shape))
+        x = x.view((-1,3,self.out_shape[-1]))
 
-        #x[:,[2,8],:] = torch.zeros(x.size(0),2,x.size(2)).cuda()
-        #x[:,[0,10],:] = torch.tensor(1.0).cuda()
-        #x[:,[3,11],:] = torch.ones(x.size(0),2,x.size(2)).cuda()
-
-        return x
+        x_ = torch.zeros((x.size(0),)+tuple(self.out_shape)).cuda()
+        x_[:,5,:] = torch.tensor(1.0).cuda()
+        x_[:,0,:] = torch.cos(x[:,0,:])
+        x_[:,2,:] = -torch.sin(x[:,0,:])
+        x_[:,8,:] = -x_[:,2,:]
+        x_[:,10,:] = x_[:,0,:]
+        x_[:,3,:] = x[:,1,:]
+        x_[:,11,:] = x[:,2,:]
+        #x[:,[1,4,6,7,9],:] = torch.zeros(x.size(0),5,x.size(2)).cuda()
+        #x[:,5,:] = torch.tensor(1.0).cuda() ## 1.0
+        return x_
 
 if __name__=='__main__':
     model = Conv1dMapper([64,128],5) #Vanilla1dAutoencoder([64,128]) #VanillaAutoencoder([1,64,64])
