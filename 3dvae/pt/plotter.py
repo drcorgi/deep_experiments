@@ -111,7 +111,8 @@ def get_3d_points__(rposes,wlen):
     aposes = rposes[0]
     for i in range(wlen,len(rposes),wlen):
         #in_p = aposes[-1]
-        in_p = np.matmul(aposes[-1],rposes[i-1][1])
+        #in_p = np.matmul(aposes[-1],rposes[i-1][1])
+        in_p = aposes[-1]
         aposes += [np.matmul(in_p,rposes[i][j]) for j in range(wlen)]
         #for j in range(wlen):
         #    aposes.append(np.matmul(aposes[-1],rposes[i][j]))

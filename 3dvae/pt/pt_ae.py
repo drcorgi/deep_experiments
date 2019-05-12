@@ -191,16 +191,16 @@ class Conv1dMapper(nn.Module):
         self.bn4 = nn.BatchNorm1d(100*self.in_shape[1])
         self.fc2 = nn.Linear(100*self.in_shape[1],100*self.in_shape[1])
         self.bn5 = nn.BatchNorm1d(100*self.in_shape[1])
-        self.fc3 = nn.Linear(100*self.in_shape[1],np.prod(out_shape)) # seq_len * x,y,theta
+        self.fc3 = nn.Linear(100*self.in_shape[1],3*2) # seq_len * x,y,theta
         self.dropout1 = nn.Dropout(p=0.1)
         self.dropout2 = nn.Dropout(p=0.1)
         self.dropout3 = nn.Dropout(p=0.1)
         self.dropout4 = nn.Dropout(p=0.5)
         self.dropout5 = nn.Dropout(p=0.5)
 
-        self.control_dist = in_shape[1]-1 # in_shape[1] % 3 == 1
-        self.control_pts = [1,self.control_dist]
-        self.regular_pts = [p for p in range(in_shape[1]) if p not in self.control_pts]
+        self.control_dist = in_shape[1] # in_shape[1] % 3 == 1
+        self.control_pts = [0,-1]
+        self.regular_pts = [p for p in range(1,in_shape[1]-1)]
 
     def forward(self,x):
         x = self.bn1(F.relu(self.conv1(x)))
@@ -213,7 +213,8 @@ class Conv1dMapper(nn.Module):
         x = self.dropout4(self.bn4(F.relu(self.fc1(x))))
         x = self.dropout5(self.bn5(F.relu(self.fc2(x))))
         x = self.fc3(x)
-        x = x.view((-1,)+tuple(self.out_shape))
+
+        '''x = x.view((-1,)+tuple(self.out_shape))
 
         x[:,[1,4,6,7,9],:] = torch.zeros((x.size(0),5,self.out_shape[-1])).cuda()
         x[:,[3,11],0] = torch.tensor(0.0).cuda()
@@ -227,9 +228,9 @@ class Conv1dMapper(nn.Module):
             for k in [0,2,8,10,3,11]:
                 x[:,k,i] = alpha*x[:,k,l].clone() + alpha_*x[:,k,r].clone()
 
-        return x
+        return x'''
 
-        '''x = x.view((-1,3,self.in_shape[1]))
+        x = x.view((-1,3,2))
         x_ = torch.zeros((x.size(0),)+tuple(self.out_shape)).cuda()
         x_[:,5,:] = torch.tensor(1.0).cuda()
 
@@ -239,16 +240,17 @@ class Conv1dMapper(nn.Module):
         x_[:,10,self.control_pts] = x_[:,0,self.control_pts]
         x_[:,3,self.control_pts] = x[:,1,self.control_pts]
         x_[:,11,self.control_pts] = x[:,2,self.control_pts]
+        x_[:,[3,11],0] = torch.tensor(0.0).cuda()
 
         for i in self.regular_pts:
             j = i//self.control_dist
-            l,r = j*self.control_dist,(j+1)*self.control_dist
+            l,r = self.control_pts[j],self.control_pts[j+1]
             alpha = torch.tensor((i-l)/self.control_dist).cuda()
             alpha_ = (torch.tensor(1.0) - alpha).cuda()
             for k in [0,2,8,10,3,11]:
                 x_[:,k,i] = alpha*x_[:,k,l].clone() + alpha_*x_[:,k,r].clone()
 
-        return x_'''
+        return x_
 
 if __name__=='__main__':
     model = Conv1dMapper([64,128],5) #Vanilla1dAutoencoder([64,128]) #VanillaAutoencoder([1,64,64])
