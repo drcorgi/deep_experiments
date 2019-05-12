@@ -252,6 +252,29 @@ class Conv1dMapper(nn.Module):
 
         return x_
 
+class Conv1dRecMapper(nn.Module):
+    def __init__(self,in_shape,out_shape):
+        super().__init__()
+        self.in_shape = in_shape
+        self.out_shape = out_shape
+        self.rec = nn.GRU(in_shape[0],in_shape[0],2)
+        self.fc1 = nn.Linear(in_shape[0],in_shape[0])
+        self.fc2 = nn.Linear(in_shape[0],out_shape[0])
+
+    def forward(self,x):
+        #print(x.size())
+        batch_len = x.size(0)
+        x = x.transpose(0,1).transpose(0,2)
+        #print(x.size())
+        h0 = torch.ones(2,batch_len,self.in_shape[0]).cuda()
+        x, hn = self.rec(x,h0)
+        #print(x.size())
+        x = x.view(-1,self.in_shape[0])
+        x = F.relu(self.fc1(x))
+        x = F.relu(self.fc2(x))
+        x = x.view((-1,)+self.out_shape)
+        return x
+
 if __name__=='__main__':
     model = Conv1dMapper([64,128],5) #Vanilla1dAutoencoder([64,128]) #VanillaAutoencoder([1,64,64])
     loss_fn = torch.nn.MSELoss()
