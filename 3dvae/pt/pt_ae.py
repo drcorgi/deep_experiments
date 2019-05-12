@@ -198,8 +198,8 @@ class Conv1dMapper(nn.Module):
         self.dropout4 = nn.Dropout(p=0.5)
         self.dropout5 = nn.Dropout(p=0.5)
 
-        self.control_dist = in_shape[1]//3 # in_shape[1] % 3 == 1
-        self.control_pts = [1,self.control_dist,2*self.control_dist,3*self.control_dist]
+        self.control_dist = in_shape[1]-1 # in_shape[1] % 3 == 1
+        self.control_pts = [1,self.control_dist]
         self.regular_pts = [p for p in range(in_shape[1]) if p not in self.control_pts]
 
     def forward(self,x):
