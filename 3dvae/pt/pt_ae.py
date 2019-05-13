@@ -191,7 +191,7 @@ class Conv1dMapper(nn.Module):
         self.bn4 = nn.BatchNorm1d(100*self.in_shape[1])
         self.fc2 = nn.Linear(100*self.in_shape[1],100*self.in_shape[1])
         self.bn5 = nn.BatchNorm1d(100*self.in_shape[1])
-        self.fc3 = nn.Linear(100*self.in_shape[1],3*2) # seq_len * x,y,theta
+        self.fc3 = nn.Linear(100*self.in_shape[1],np.prod(out_shape)) # seq_len * x,y,theta
         self.dropout1 = nn.Dropout(p=0.1)
         self.dropout2 = nn.Dropout(p=0.1)
         self.dropout3 = nn.Dropout(p=0.1)
@@ -213,6 +213,13 @@ class Conv1dMapper(nn.Module):
         x = self.dropout4(self.bn4(F.relu(self.fc1(x))))
         x = self.dropout5(self.bn5(F.relu(self.fc2(x))))
         x = self.fc3(x)
+        x = x.view((-1,)+self.out_shape)
+
+        x[:,[1,4,6,7,9],:] = torch.zeros((x.size(0),5,self.out_shape[-1])).cuda()
+        x[:,[3,11],0] = torch.tensor(0.0).cuda()
+        x[:,5,:] = torch.tensor(1.0).cuda()
+
+        return x
 
         '''x = x.view((-1,)+tuple(self.out_shape))
 
@@ -230,7 +237,7 @@ class Conv1dMapper(nn.Module):
 
         return x'''
 
-        x = x.view((-1,3,2))
+        '''x = x.view((-1,3,2))
         x_ = torch.zeros((x.size(0),)+tuple(self.out_shape)).cuda()
         x_[:,5,:] = torch.tensor(1.0).cuda()
 
@@ -250,29 +257,32 @@ class Conv1dMapper(nn.Module):
             for k in [0,2,8,10,3,11]:
                 x_[:,k,i] = alpha*x_[:,k,l].clone() + alpha_*x_[:,k,r].clone()
 
-        return x_
+        return x_'''
 
 class Conv1dRecMapper(nn.Module):
     def __init__(self,in_shape,out_shape):
         super().__init__()
         self.in_shape = in_shape
         self.out_shape = out_shape
-        self.rec = nn.GRU(in_shape[0],in_shape[0],2)
-        self.fc1 = nn.Linear(in_shape[0],in_shape[0])
-        self.fc2 = nn.Linear(in_shape[0],out_shape[0])
+        self.rec = nn.GRU(in_shape[0],2*in_shape[0],1,batch_first=True)
+        self.fc1 = nn.Linear(2*in_shape[0],2*in_shape[0])
+        self.fc2 = nn.Linear(2*in_shape[0],out_shape[0])
 
     def forward(self,x):
         #print(x.size())
         batch_len = x.size(0)
-        x = x.transpose(0,1).transpose(0,2)
+        x = x.transpose(1,2)
         #print(x.size())
-        h0 = torch.ones(2,batch_len,self.in_shape[0]).cuda()
+        h0 = torch.zeros(1,batch_len,2*self.in_shape[0]).cuda()
         x, hn = self.rec(x,h0)
+        x = x.transpose(1,2) ##
         #print(x.size())
-        x = x.view(-1,self.in_shape[0])
+        x = x.contiguous().view(-1,2*self.in_shape[0])
+        #print(x.size())
         x = F.relu(self.fc1(x))
         x = F.relu(self.fc2(x))
         x = x.view((-1,)+self.out_shape)
+        #print(x.size())
         return x
 
 if __name__=='__main__':

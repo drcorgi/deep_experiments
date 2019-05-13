@@ -110,7 +110,6 @@ def get_3d_points__(rposes,wlen):
     rposes = [[homogen(p) for p in r] for r in rposes]
     aposes = rposes[0]
     for i in range(wlen,len(rposes),wlen):
-        #in_p = aposes[-1]
         #in_p = np.matmul(aposes[-1],rposes[i-1][1])
         in_p = aposes[-1]
         aposes += [np.matmul(in_p,rposes[i][j]) for j in range(wlen)]
