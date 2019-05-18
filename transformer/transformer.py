@@ -48,7 +48,7 @@ class AttentionHead(nn.Module):
         self.W_v = nn.Parameter(torch.zeros(d_model,d_model,requires_grad=True))
         self.sqrt_d = torch.tensor(np.sqrt(d_model))
 
-    def forward(self,x):
+    def forward(self,x,mask_from=None):
         #print(x.size())
         Q = torch.bmm(self.W_q.unsqueeze(0).repeat(x.size(0),1,1),x)
         #print(Q.size())
@@ -58,10 +58,12 @@ class AttentionHead(nn.Module):
         #print(V.size())
         x = torch.bmm(Q.transpose(1,2),K)/self.sqrt_d
         #print(x.size())
+        if mask_from is not None:
+            x[:,mask_from:,mask_from:] = torch.tensor(-1e12)
         x = F.softmax(x)
         x = torch.bmm(V,x)
         #print(x.size())
-        return x
+        return x,Q,K,V
 
 class MultiHeadAttention(nn.Module):
     def __init__(self,d_model,n_heads):
@@ -72,14 +74,17 @@ class MultiHeadAttention(nn.Module):
         # D, n_heads*D x n_heads*D, D
         self.W = nn.Parameter(torch.zeros(n_heads*d_model,d_model),requires_grad=True)
 
-    def forward(self,x):
+    def forward(self,x,mask_from=None):
         #print(x.size())
-        x = [h(x) for h in self.heads]
+        x,Q,K,V = zip(*[h(x,mask_from) for h in self.heads])
+        x,Q,K,V = [list(a) for a in [x,Q,K,V]]
+        #print(len(list(zip([h(x) for h in self.heads]))))
+
         x = torch.cat(x,dim=1)
-        #print(x.size(),self.W.size())
+        #print(x)
         x = torch.bmm(self.W.unsqueeze(0).repeat(x.size(0),1,1).transpose(1,2),x)
         #print(x.size())
-        return x
+        return x,Q,K,V
 
 class TransformerEncoder(nn.Module):
     def __init__(self,d_model,n_heads):
@@ -87,23 +92,26 @@ class TransformerEncoder(nn.Module):
         self.att = MultiHeadAttention(d_model,n_heads)
         self.bn1 = nn.BatchNorm1d(d_model)
         self.bn2 = nn.BatchNorm1d(d_model)
-        self.fc = nn.Linear(d_model,d_model)
+        self.fc1 = nn.Linear(d_model,4*d_model)
+        self.fc2 = nn.Linear(4*d_model,d_model)
 
-    def forward(self,x):
+    def forward(self,x,mask_from=None):
         #print(x.size())
-        x_ = self.att(x)
+        x_,Q,K,V = self.att(x,mask_from)
         #print(x_.size())
         x = self.bn1(x+x_)
         size = x.size()
         #print(size)
         x = x.view(-1,x.size(1))
-        x_ = F.relu(self.fc(x))
+        x_ = F.relu(self.fc1(x))
+        x_ = self.fc2(x_)
         x = x.view(size)
         x_ = x_.view(size)
         #print(x_.size())
         x = self.bn2(x+x_)
         #print(x.size())
-        return x
+        #print(x)
+        return x,Q,K,V
 
 class TransformerEncoderStack(nn.Module):
     def __init__(self,d_model,n_heads,n_encoders):
@@ -113,13 +121,15 @@ class TransformerEncoderStack(nn.Module):
         for i in range(n_encoders):
             self.encs.append(TransformerEncoder(d_model,n_heads))
 
-    def forward(self,x):
+    def forward(self,x,mask_from=None):
         x = self.pos_enc(x)
         #print(x.size())
-        for enc in self.encs:
-            x = enc(x)
+        for enc in self.encs[:-1]:
+            x = enc(x,mask_from)[0]
             #print(x.size())
-        return x
+        x,Q,K,V = self.encs[-1](x,mask_from)
+        #print(x)
+        return x,Q,K,V
 
 if __name__ == '__main__':
     model = TransformerEncoderStack(64,8,4)
@@ -138,7 +148,7 @@ if __name__ == '__main__':
         optimizer.zero_grad()
         x = data[ids[i]]
         #y = data_y[ids[i]]
-        y_ = model(x)
+        y_ = model(x,mask_from=4)[0]
         loss = loss_fn(x,y_)
         print(loss.item())
         loss.backward()
