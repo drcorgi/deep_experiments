@@ -219,7 +219,8 @@ class TransformerDecoderStack(nn.Module):
     def forward(self,x,mask_from,K,V):
         #print(x.size())
         size = (x.size(0),self.d_model,x.size(2))
-        x = x.view(-1,x.size(1))
+        print(size)
+        x = x.contiguous().view(-1,x.size(1))
         x = F.relu(self.fc1(x))
         x = x.view(size)
         x = self.pos_enc(x)
@@ -230,7 +231,7 @@ class TransformerDecoderStack(nn.Module):
         size = (x.size(0),self.d_out,x.size(2))
         x = x.view(-1,x.size(1))
         x = F.relu(self.fc2(x))
-        x = x.view(size)[:,:,-1:]
+        x = x.view(size)
         #print(x)
         return x
 
@@ -243,13 +244,10 @@ class Transformer(nn.Module):
 
     def forward(self,x):
         x,K,V = self.enc(x)
-        #print(x.size())
-        y = torch.zeros(x.size(0),self.d_out,x.size(2)+1)
-        for i in range(1,x.size(2)+1):
-            #y[:,:,[i]]
-            z = self.dec(y[:,:,:i],i,K,V) #[:,:,[-1]]
-            print(z.size())
-        return y[:,:,1:]
+        y = torch.zeros(x.size(0),self.d_out,x.size(2))
+        for i in range(x.size(2)):
+            y = self.dec(y,i+1,K,V)
+        return y
 
 if __name__ == '__main__':
     device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
