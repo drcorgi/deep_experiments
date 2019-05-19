@@ -49,24 +49,62 @@ class AttentionHead(nn.Module):
         self.sqrt_d = torch.tensor(np.sqrt(d_model))
 
     def forward(self,x,mask_from=None,Q=None,K=None,V=None):
-        #print(x.size())
         if Q is None:
             Q = torch.bmm(self.W_q.unsqueeze(0).repeat(x.size(0),1,1),x)
-        #print(Q.size())
         if K is None:
             K = torch.bmm(self.W_k.unsqueeze(0).repeat(x.size(0),1,1),x)
-        #print(K.size())
         if V is None:
             V = torch.bmm(self.W_v.unsqueeze(0).repeat(x.size(0),1,1),x)
-        #print(Q.size(),K.size())
         x = torch.bmm(Q.transpose(1,2),K)/self.sqrt_d
-        #print(x.size())
         if mask_from is not None:
             x[:,mask_from:,mask_from:] = torch.tensor(-1e12)
         x = F.softmax(x)
         x = torch.bmm(V,x)
-        #print(x.size())
         return x,Q,K,V
+
+class MultiHeadAttention_(nn.Module):
+    def __init__(self,d_model,n_heads):
+        super().__init__()
+        self.W_q = nn.Parameter(torch.zeros(n_heads,d_model,d_model,requires_grad=True))
+        self.W_k = nn.Parameter(torch.zeros(n_heads,d_model,d_model,requires_grad=True))
+        self.W_v = nn.Parameter(torch.zeros(n_heads,d_model,d_model,requires_grad=True))
+        self.W = nn.Parameter(torch.zeros(n_heads*d_model,d_model),requires_grad=True)
+        self.n_heads = n_heads
+        self.sqrt_d = torch.tensor(np.sqrt(d_model))
+
+    def forward(self,x,mask_from=None):
+        size = x.size()
+        x = x.unsqueeze(1).repeat(1,self.n_heads,1,1)
+        x = x.view(-1,size[1],size[2])
+        Q = torch.bmm(self.W_q.repeat(size[0],1,1),x)
+        K = torch.bmm(self.W_k.repeat(size[0],1,1),x)
+        V = torch.bmm(self.W_v.repeat(size[0],1,1),x)
+        x = torch.bmm(Q.transpose(1,2),K)/self.sqrt_d
+        if mask_from is not None:
+            x[:,mask_from:,mask_from:] = torch.tensor(-1e12)
+        x = F.softmax(x)
+        x = torch.bmm(V,x)
+        x = x.view(size[0],self.n_heads*size[1],size[2])
+        x = torch.bmm(self.W.unsqueeze(0).repeat(size[0],1,1).transpose(1,2),x)
+        return x,Q,K,V
+
+class MultiHeadEncDec(nn.Module):
+    def __init__(self,d_model,n_heads):
+        super().__init__()
+        self.W = nn.Parameter(torch.zeros(n_heads*d_model,d_model),requires_grad=True)
+        self.n_heads = n_heads
+        self.sqrt_d = torch.tensor(np.sqrt(d_model))
+
+    def forward(self,x,Q,K,V):
+        size = x.size()
+        x = x.unsqueeze(1).repeat(1,self.n_heads,1,1)
+        x = x.view(-1,size[1],size[2])
+        x = torch.bmm(Q.transpose(1,2),K)/self.sqrt_d
+        x = F.softmax(x)
+        x = torch.bmm(V,x)
+        x = x.view(size[0],self.n_heads*size[1],size[2])
+        x = torch.bmm(self.W.unsqueeze(0).repeat(size[0],1,1).transpose(1,2),x)
+        return x
 
 class MultiHeadAttention(nn.Module):
     def __init__(self,d_model,n_heads):
@@ -83,13 +121,12 @@ class MultiHeadAttention(nn.Module):
             x,Q,K,V = zip(*[h(x,mask_from) for h in self.heads])
             x,Q,K,V = [list(a) for a in [x,Q,K,V]]
         else:
-            x,Q,_,_ = zip(*[self.heads[i](x,mask_from,Q[i],K[i],V[i])\
+            x,_,_,_ = zip(*[self.heads[i](x,mask_from,Q[i],K[i],V[i])\
                           for i in range(len(self.heads))])
             x = list(x)
-        #print(len(list(zip([h(x) for h in self.heads]))))
 
         x = torch.cat(x,dim=1)
-        #print(x)
+        #print(x.size())
         x = torch.bmm(self.W.unsqueeze(0).repeat(x.size(0),1,1).transpose(1,2),x)
         #print(x.size())
         return x,Q,K,V
@@ -97,7 +134,7 @@ class MultiHeadAttention(nn.Module):
 class TransformerEncoder(nn.Module):
     def __init__(self,d_model,n_heads):
         super().__init__()
-        self.att = MultiHeadAttention(d_model,n_heads)
+        self.att = MultiHeadAttention_(d_model,n_heads)
         self.bn1 = nn.BatchNorm1d(d_model)
         self.bn2 = nn.BatchNorm1d(d_model)
         self.fc1 = nn.Linear(d_model,4*d_model)
@@ -124,9 +161,9 @@ class TransformerEncoder(nn.Module):
 class TransformerDecoder(nn.Module):
     def __init__(self,d_model,n_heads):
         super().__init__()
-        self.att = MultiHeadAttention(d_model,n_heads)
+        self.att = MultiHeadAttention_(d_model,n_heads)
         self.bn1 = nn.BatchNorm1d(d_model)
-        self.enc_dec = MultiHeadAttention(d_model,n_heads)
+        self.enc_dec = MultiHeadEncDec(d_model,n_heads)
         self.bn2 = nn.BatchNorm1d(d_model)
         self.fc1 = nn.Linear(d_model,4*d_model)
         self.fc2 = nn.Linear(4*d_model,d_model)
@@ -134,10 +171,10 @@ class TransformerDecoder(nn.Module):
 
     def forward(self,x,mask_from,K,V):
         x_,Q,_,_ = self.att(x,mask_from)
-        #print(x_.size())
+        #print(len(Q),len(K),len(V))
         x = self.bn1(x+x_)
         size = x.size()
-        x_,_,_,_ = self.enc_dec(x,mask_from=None,Q=Q,K=K,V=V)
+        x_ = self.enc_dec(x,Q=Q,K=K,V=V)
         x = self.bn2(x+x_)
         #print(size)
         x = x.view(-1,x.size(1))
@@ -162,11 +199,9 @@ class TransformerEncoderStack(nn.Module):
     def forward(self,x):
         x = self.pos_enc(x)
         #print(x.size())
-        for enc in self.encs[:-1]:
-            x = enc(x)[0]
+        for enc in self.encs:
+            x,_,K,V = enc(x)
             #print(x.size())
-        x,_,K,V = self.encs[-1](x)
-        #print(x)
         return x,K,V
 
 class TransformerDecoderStack(nn.Module):
@@ -209,24 +244,24 @@ class Transformer(nn.Module):
     def forward(self,x):
         x,K,V = self.enc(x)
         #print(x.size())
-        all_y = torch.zeros(x.size(0),self.d_out,x.size(2)+1)
-        y = all_y[:,:,[0]]
+        y = torch.zeros(x.size(0),self.d_out,x.size(2)+1)
         for i in range(1,x.size(2)+1):
-            y = self.dec(y,i,K,V)
-            print(y.size())
-            all_y[:,:,[i]] = y
-        return all_y[:,:,1:]
+            #y[:,:,[i]]
+            z = self.dec(y[:,:,:i],i,K,V) #[:,:,[-1]]
+            print(z.size())
+        return y[:,:,1:]
 
 if __name__ == '__main__':
     device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
 
-    model = Transformer(32,32,4,2,2)
-    #TransformerDecoderStack(64,64,8,4)
-    #TransformerDecoder(64,8)
-    #TransformerEncoderStack(64,8,4)
-    #TransformerEncoder(64,8)
-    #MultiHeadAttention(64,8)
-    #AttentionHead(64)
+    model = Transformer(32,32,4,3,2)
+    #model = TransformerDecoderStack(32,32,4,2)
+    #model = TransformerDecoder(32,4)
+    #model = TransformerEncoderStack(32,4,2)
+    #model = TransformerEncoder(32,4)
+    #model = MultiHeadAttention(32,4)
+    #model = AttentionHead(32)
+    #model = MultiHeadAttention_(32,4)
     params = model.parameters()
 
     loss_fn = torch.nn.MSELoss()
@@ -239,11 +274,16 @@ if __name__ == '__main__':
         optimizer.zero_grad()
         x = data[ids[i]]
         #y = data_y[ids[i]]
-        #K = [torch.zeros(64,64,128) for _ in range(8)]
-        #V = [torch.ones(64,64,128) for _ in range(8)]
-        y_ = model(x)
+        #K = torch.zeros(64*4,32,16).float()
+        #V = torch.ones(64*4,32,16).float()
+        y_, *_ = model(x)
         loss = loss_fn(x,y_)
         print(loss.item())
         loss.backward()
-        #for p in model.parameters(): print(p.grad)
+        #for p in model.parameters():
+        #    if p.grad is None:
+        #        print('.')
+        for name,p in model.named_parameters():
+            if p.grad is None:
+                print(name)
         optimizer.step()
