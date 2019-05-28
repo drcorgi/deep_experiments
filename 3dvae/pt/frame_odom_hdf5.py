@@ -48,9 +48,9 @@ if __name__ == '__main__':
     poses_test = h5_test.create_dataset('poses',shape=(test_segments,chunk_size,12),dtype=np.float32)
     poses_train = h5_train.create_dataset('poses',shape=(train_segments,chunk_size,12),dtype=np.float32)
 
-    sid_len_valid = h5_valid.create_dataset('sid',shape=(valid_segments,chunk_size,2),dtype=np.uint32)
-    sid_len_test = h5_test.create_dataset('sid',shape=(test_segments,chunk_size,2),dtype=np.uint32)
-    sid_len_train = h5_train.create_dataset('sid',shape=(train_segments,chunk_size,2),dtype=np.uint32)
+    sid_len_valid = h5_valid.create_dataset('sid_len',shape=(valid_segments,chunk_size,2),dtype=np.uint32)
+    sid_len_test = h5_test.create_dataset('sid_len',shape=(test_segments,chunk_size,2),dtype=np.uint32)
+    sid_len_train = h5_train.create_dataset('sid_len',shape=(train_segments,chunk_size,2),dtype=np.uint32)
 
     # odometry can be loaded all at once; no need for hdf5
     frame_chunk = []

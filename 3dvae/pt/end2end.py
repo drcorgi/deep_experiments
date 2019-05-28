@@ -67,8 +67,9 @@ class H5SeqDataset(Dataset):
     def __init__(self, file_path, seq_len, chunk_size, transform=None):
         super().__init__()
         h5_file = h5py.File(file_path)
-        self.frames = h5_file.get('frames/frames')
-        self.poses = h5_file.get('poses/poses')
+        self.frames = h5_file.get('frames')
+        self.poses = h5_file.get('poses')
+        self.sid_len = h5_file.get('sid_len')
         self.seq_len = seq_len
         self.transform = transform
         self.chunk_size = chunk_size
