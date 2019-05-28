@@ -34,6 +34,7 @@ if __name__=='__main__':
             entry['sub_base'] = id_sub_base
             entry['sequence'] = fn[-6:-4]
             entry['sid_frame'] = fid
+            entry['slength'] = len(content)
             entry['frame_fn'] = fns[frame_fn_id]
             entry['odom_fn'] = fn
             fid += 1
