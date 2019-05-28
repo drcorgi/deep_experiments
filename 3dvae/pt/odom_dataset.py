@@ -106,14 +106,11 @@ class FluxH5Dataset(Dataset):
                 x = self.transform[0](x)
                 x_ = self.transform[0](x_)
             x = cv2.calcOpticalFlowFarneback(x,x_,None,0.5,3,15,3,5,1.2,0)
-            #print(x.shape)
             if self.transform[1]:
                 x = self.transform[1](x)
-            #print(x.shape)
             return x
         except Exception as e:
             print(e)
-            #pass
 
     def __len__(self):
         return self.chunk_size*self.data.shape[0]
