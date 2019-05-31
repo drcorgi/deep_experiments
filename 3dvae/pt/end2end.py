@@ -7,19 +7,26 @@ import numpy as np
 import torch
 import torch.optim as optim
 
+sys.path.append('topos')
+sys.path.append('preprocess')
+sys.path.append('misc')
+sys.path.append('sample')
+
 from glob import glob
 from torch.utils.data import Dataset, DataLoader
 from torchvision import transforms, utils
-from pt_ae import VanillaAutoencoder, MLPAutoencoder
+from pt_ae import DirectOdometry, VanillaAutoencoder, MLPAutoencoder
 from datetime import datetime
 from plotter import c3dto2d, abs2relative
 
 def my_collate(batch):
-    batch_ = []
+    batch_x = []
+    batch_y = []
     for b in batch:
         if b is not None:
-            batch_.append(b)
-    return torch.stack(batch_)
+            batch_x.append(b[0])
+            batch_y.append(b[1])
+    return torch.stack(batch_x), torch.stack(batch_y)
 
 class Rescale(object):
     def __init__(self, output_size):
@@ -75,31 +82,31 @@ class H5SeqDataset(Dataset):
         self.chunk_size = chunk_size
 
     def __getitem__(self, index):
-        if index + self.seq_len > len(self.poses):
-            raise Exception('Sequence index out of range.')
+        i,j = index//self.chunk_size, index%self.chunk_size
+        if self.sid_len[i][j][0] + self.seq_len + 1 > self.sid_len[i][j][1]:
+            #raise Exception('Sequence index out of range.')
+            return None
         try:
             x = []
             for i in range(index,index+self.seq_len):
-                frame = self.data[i//self.chunk_size][i%self.chunk_size]
+                frame = self.frames[i//self.chunk_size][i%self.chunk_size]
                 if self.transform:
                     frame = self.transform(frame)
                 x.append(frame)
-            x = torch.cat(x,dim=0)
+            x = torch.cat(x,dim=0).unsqueeze(1)
             y = []
             for i in range(index,index+self.seq_len):
                 p = self.poses[i//self.chunk_size][i%self.chunk_size]
                 p = c3dto2d(p)
                 y.append(p)
-            print('...',y.shape)
-            y = abs2relative(y,self.seq_len,1)
-            print(y.shape)
-            #y = np.concatenate(y,axis=0).transpose(0,2,1)
+            y = abs2relative(y,self.seq_len,1)[0]
+            y = torch.from_numpy(y).float()
             return x,y
         except Exception as e:
             print(e)
 
     def __len__(self):
-        return self.chunk_size*self.data.shape[0]
+        return self.chunk_size*self.frames.shape[0]
 
 if __name__=='__main__':
     train_dir = sys.argv[1] #'/home/ronnypetson/Documents/deep_odometry/kitti/joint_frames_odom_train.h5'
@@ -119,9 +126,9 @@ if __name__=='__main__':
     transf = transforms.Compose([Rescale(new_dim),ToTensor()])
     ##transf = [Rescale(new_dim),ToTensor()] #,FluxToTensor()]
 
-    train_dataset = H5Dataset(train_dir,10,transf)
-    valid_dataset = H5Dataset(valid_dir,10,transf)
-    test_dataset = H5Dataset(test_dir,10,transf)
+    train_dataset = H5SeqDataset(train_dir,16,10,transf)
+    valid_dataset = H5SeqDataset(valid_dir,16,10,transf)
+    test_dataset = H5SeqDataset(test_dir,16,10,transf)
     ##train_dataset = FluxH5Dataset(train_dir,10,transf)
     ##valid_dataset = FluxH5Dataset(valid_dir,10,transf)
     ##test_dataset = FluxH5Dataset(test_dir,10,transf)
@@ -135,8 +142,9 @@ if __name__=='__main__':
     device = torch.device("cuda:0" if use_cuda else "cpu")
     print(device)
     ##model = VanillaAutoencoder((1,)+new_dim).to(device)
-    model = VanillaAutoencoder((2,)+new_dim,h_dim).to(device)
+    #model = VanillaAutoencoder((2,)+new_dim,h_dim).to(device)
     #model = MLPAutoencoder((2,)+new_dim,h_dim).to(device)
+    model = DirectOdometry((1,)+new_dim,(12,),h_dim).to(device)
     params = model.parameters()
     optimizer = optim.Adam(params,lr=3e-4)
     min_loss = 1e15
@@ -157,21 +165,23 @@ if __name__=='__main__':
     for i in range(epoch,num_epochs):
         model.train()
         losses = []
-        for j,x in enumerate(train_loader):
+        for j,xy in enumerate(train_loader):
+            x,y = xy[0].to(device), xy[1].to(device)
             optimizer.zero_grad()
-            x = x.to(device)
+            #x = x.to(device)
             y_ = model(x)
-            loss = loss_fn(y_,x)
+            loss = loss_fn(y_,y)
             loss.backward()
             optimizer.step()
             losses.append(loss.item())
             print('Batch {}\tloss: {}'.format(j,loss.item()))
         model.eval()
         v_losses = []
-        for j,x in enumerate(valid_loader):
-            x = x.to(device)
+        for j,xy in enumerate(valid_loader):
+            x,y = xy[0].to(device), xy[1].to(device)
+            #x = x.to(device)
             y_ = model(x)
-            loss = loss_fn(y_,x)
+            loss = loss_fn(y_,y)
             v_losses.append(loss.item())
         mean_train, mean_valid = np.mean(losses),np.mean(v_losses)
         epoch_losses.append([i,mean_train,mean_valid])
@@ -184,10 +194,11 @@ if __name__=='__main__':
                         'epoch': i+1}, model_fn)
     model.eval()
     t_losses = []
-    for j,x in enumerate(test_loader):
-        x = x.to(device)
+    for j,xy in enumerate(test_loader):
+        x,y = xy[0].to(device), xy[1].to(device)
+        #x = x.to(device)
         y_ = model(x)
-        loss = loss_fn(y_,x)
+        loss = loss_fn(y_,y)
         t_losses.append(loss.item())
     mean_test = np.mean(t_losses)
     epoch_losses.append([-1,0.0,mean_test])

@@ -12,8 +12,8 @@ if __name__ == '__main__':
     ''' Metadados da base de Odometria visual
         Tipo: lista de dicionários ('sub_base' 'sequence' 'sid_frame' 'frame_fn' 'odom_fn')
     '''
-    meta_fn = sys.argv[1] # 'visual_odometry_database.meta'
-    h5_fn = sys.argv[2] # '/home/ronnypetson/Documents/deep_odometry/kitti/frames_odom'
+    meta_fn = sys.argv[1] # '../visual_odometry_database.meta'
+    h5_fn = sys.argv[2] # '/home/ronnypetson/Documents/deep_odometry/kitti/joint_frames_odom'
 
     with open(meta_fn,'rb') as f:
         meta = pickle.load(f)
@@ -56,7 +56,6 @@ if __name__ == '__main__':
     frame_chunk = []
     poses_chunk = []
     sid_len_chunk = []
-    included = 20
     for i in range(included):
         img = cv2.imread(meta[i]['frame_fn'],0)
         img = cv2.resize(img,(width,height))

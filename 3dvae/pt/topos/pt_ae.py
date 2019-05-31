@@ -115,15 +115,25 @@ class DirectOdometry(nn.Module):
 
     def forward(self,x):
         size = x.size()
+        print(size)
         x = x.view(-1,size[2],size[3],size[4])
+        print(x.size())
         x = F.relu(self.conv1(x))
+        print(x.size())
         x = F.relu(self.conv2(x))
+        print(x.size())
         x = F.relu(self.conv3(x))
-        x = x.view(-1,flat_dim)
+        print(x.size())
+        x = x.view(-1,self.flat_dim)
+        print(x.size())
         x = F.relu(self.fc1(x))
-        x = x.view(-1,size[1],self.n_hidden)
+        print(x.size())
+        x = x.view(-1,size[1],self.n_hidden).transpose(1,2)
+        print(x.size())
         x = F.relu(self.conv4(x))
-        x = self.conv5(x)
+        print(x.size())
+        x = self.conv5(x).transpose(1,2)
+        print(x.size())
         return x
 
 class MLPAutoencoder(nn.Module):
