@@ -56,7 +56,6 @@ def plot_2d_points_(gt,est,ign=1,ddir='/home/ronnypetson/models'):
     plt.close(fig)
 
 def homogen(x):
-    print(x.shape)
     assert len(x) == 12
     return np.array(x.tolist()+[0.0,0.0,0.0,1.0]).reshape((4,4))
 
@@ -154,4 +153,4 @@ def plot_eval(model,test_loader,seq_len,device='cuda:0'):
         os.mkdir('tmp')
     t = time.time()
     plot_3d_points_(pts_,pts_,'tmp/{}_projections_xyz.png'.format(t),wlen=seq_len) #gt
-    plot_abs(pts_,pts_,'tmp/{}_absolute_gt_3d.png'.format(t))
+    #plot_abs(pts_,pts_,'tmp/{}_absolute_gt_3d.png'.format(t))
