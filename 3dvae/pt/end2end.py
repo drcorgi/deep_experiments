@@ -83,10 +83,10 @@ class H5SeqDataset(Dataset):
 
     def __getitem__(self, index):
         i,j = index//self.chunk_size, index%self.chunk_size
-        if self.sid_len[i][j][0] + self.seq_len >= self.sid_len[i][j][1]:
+        print(self.sid_len[i][j][0],self.sid_len[i][j][1])
+        if self.sid_len[i][j][0] + self.seq_len >= self.sid_len[i][j][1] or index + self.seq_len >= self.__len__():
             index = index - self.seq_len - 1
         try:
-            print(index)
             x = []
             for i in range(index,index+self.seq_len):
                 frame = self.frames[i//self.chunk_size][i%self.chunk_size]
