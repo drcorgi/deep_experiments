@@ -86,6 +86,7 @@ class H5SeqDataset(Dataset):
         if self.sid_len[i][j][0] + self.seq_len >= self.sid_len[i][j][1]:
             index = index - self.seq_len - 1
         try:
+            print(index)
             x = []
             for i in range(index,index+self.seq_len):
                 frame = self.frames[i//self.chunk_size][i%self.chunk_size]
