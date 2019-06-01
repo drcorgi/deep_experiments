@@ -84,8 +84,7 @@ class H5SeqDataset(Dataset):
     def __getitem__(self, index):
         i,j = index//self.chunk_size, index%self.chunk_size
         if self.sid_len[i][j][0] + self.seq_len + 1 > self.sid_len[i][j][1]:
-            #raise Exception('Sequence index out of range.')
-            return None
+            index = index - self.seq_len - 1
         try:
             x = []
             for i in range(index,index+self.seq_len):
