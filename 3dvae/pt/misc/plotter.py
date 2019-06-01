@@ -131,7 +131,7 @@ def get_3d_points_t(rposes,wlen,gt_poses):
         #aposes += [in_p+rposes[i][j] for j in range(wlen)]
     return np.array([[p[0,3],p[1,3],p[2,3]] for p in aposes])
 
-def plot_eval(model,test_loader,seq_len):
+def plot_eval(model,test_loader,seq_len,device='cuda:0'):
     rel_poses = []
     data_y = []
     for xy in test_loader:
