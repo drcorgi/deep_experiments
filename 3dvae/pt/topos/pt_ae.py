@@ -110,6 +110,7 @@ class DirectOdometry(nn.Module):
         self.flat_dim = self.new_h*self.new_w
         print('Flat dim',self.flat_dim)
         self.fc1 = nn.Linear(self.flat_dim,self.n_hidden)
+        self.drop1 = nn.Dropout(0.5)
         self.conv4 = nn.Conv1d(self.n_hidden,self.n_hidden,3,1,padding=1)
         self.conv5 = nn.Conv1d(self.n_hidden,out_shape[0],3,1,padding=1)
 
@@ -121,6 +122,7 @@ class DirectOdometry(nn.Module):
         x = F.relu(self.conv3(x))
         x = x.view(-1,self.flat_dim)
         x = F.relu(self.fc1(x))
+        x = self.drop1(x)
         x = x.view(-1,size[1],self.n_hidden).transpose(1,2)
         x = F.relu(self.conv4(x))
         x = self.conv5(x).transpose(1,2)
