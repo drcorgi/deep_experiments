@@ -17,7 +17,7 @@ from torch.utils.data import Dataset, DataLoader
 from torchvision import transforms, utils
 from pt_ae import DirectOdometry, VanillaAutoencoder, MLPAutoencoder
 from datetime import datetime
-from plotter import c3dto2d, abs2relative
+from plotter import c3dto2d, abs2relative, plot_eval
 
 def my_collate(batch):
     batch_x = []
@@ -122,12 +122,13 @@ if __name__=='__main__':
     new_dim = (int(sys.argv[7]),int(sys.argv[8]))
     batch_size = int(sys.argv[9])
     num_epochs = int(sys.argv[10])
+    seq_len = 16
     transf = transforms.Compose([Rescale(new_dim),ToTensor()])
     ##transf = [Rescale(new_dim),ToTensor()] #,FluxToTensor()]
 
-    train_dataset = H5SeqDataset(train_dir,16,10,transf)
-    valid_dataset = H5SeqDataset(valid_dir,16,10,transf)
-    test_dataset = H5SeqDataset(test_dir,16,10,transf)
+    train_dataset = H5SeqDataset(train_dir,seq_len,10,transf)
+    valid_dataset = H5SeqDataset(valid_dir,seq_len,10,transf)
+    test_dataset = H5SeqDataset(test_dir,seq_len,10,transf)
     ##train_dataset = FluxH5Dataset(train_dir,10,transf)
     ##valid_dataset = FluxH5Dataset(valid_dir,10,transf)
     ##test_dataset = FluxH5Dataset(test_dir,10,transf)
@@ -167,7 +168,6 @@ if __name__=='__main__':
         for j,xy in enumerate(train_loader):
             x,y = xy[0].to(device), xy[1].to(device)
             optimizer.zero_grad()
-            #x = x.to(device)
             y_ = model(x)
             loss = loss_fn(y_,y)
             loss.backward()
@@ -178,7 +178,6 @@ if __name__=='__main__':
         v_losses = []
         for j,xy in enumerate(valid_loader):
             x,y = xy[0].to(device), xy[1].to(device)
-            #x = x.to(device)
             y_ = model(x)
             loss = loss_fn(y_,y)
             v_losses.append(loss.item())
@@ -192,10 +191,10 @@ if __name__=='__main__':
                         'min_loss': min_loss,
                         'epoch': i+1}, model_fn)
     model.eval()
+    plot_eval(model,test_loader,seq_len)
     t_losses = []
     for j,xy in enumerate(test_loader):
         x,y = xy[0].to(device), xy[1].to(device)
-        #x = x.to(device)
         y_ = model(x)
         loss = loss_fn(y_,y)
         t_losses.append(loss.item())
