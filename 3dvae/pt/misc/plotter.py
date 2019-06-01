@@ -130,3 +130,27 @@ def get_3d_points_t(rposes,wlen,gt_poses):
         #in_p = aposes[-wlen+1]+rposes[i-wlen+1][-1]
         #aposes += [in_p+rposes[i][j] for j in range(wlen)]
     return np.array([[p[0,3],p[1,3],p[2,3]] for p in aposes])
+
+def plot_eval(model,test_loader,seq_len):
+    rel_poses = []
+    data_y = []
+    for xy in test_loader:
+        x,y = xy[0].to(device), xy[1].to(device)
+        y_ = model(x)
+        data_y += y.cpu().detach().numpy().tolist()
+        rel_poses += y_.cpu().detach().numpy().tolist()
+
+    rel_poses = np.array(rel_poses).transpose(0,2,1)
+    gt = np.array(data_y).transpose(0,2,1)
+    #abs_ = 
+
+    pts = get_3d_points_t(rel_poses,seq_len,abs_)
+    pts_ = get_3d_points__(rel_poses,seq_len)
+    gt = get_3d_points__(gt,seq_len)
+
+    print(gt.shape,pts.shape)
+    if not os.path.isdir('tmp'):
+        os.mkdir('tmp')
+    t = time.time()
+    plot_3d_points_(pts_,pts,'tmp/{}_projections_xyz.png'.format(t),wlen=seq_len) #gt
+    plot_abs(pts_,pts,'tmp/{}_absolute_gt_3d.png'.format(t))
