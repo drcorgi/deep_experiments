@@ -7,10 +7,10 @@ import numpy as np
 import torch
 import torch.optim as optim
 
-sys.path.append(os.getcwd()+'/topos')
-sys.path.append(os.getcwd()+'/preprocess')
-sys.path.append(os.getcwd()+'/misc')
-sys.path.append(os.getcwd()+'/sample')
+sys.path.append(os.path.dirname(os.path.realpath(__file__))+'/topos')
+sys.path.append(os.path.dirname(os.path.realpath(__file__))+'/preprocess')
+sys.path.append(os.path.dirname(os.path.realpath(__file__))+'/misc')
+sys.path.append(os.path.dirname(os.path.realpath(__file__))+'/sample')
 
 from glob import glob
 from torch.utils.data import Dataset, DataLoader
