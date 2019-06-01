@@ -56,6 +56,7 @@ def plot_2d_points_(gt,est,ign=1,ddir='/home/ronnypetson/models'):
     plt.close(fig)
 
 def homogen(x):
+    print(x.shape)
     assert len(x) == 12
     return np.array(x.tolist()+[0.0,0.0,0.0,1.0]).reshape((4,4))
 
