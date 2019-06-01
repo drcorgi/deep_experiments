@@ -192,6 +192,7 @@ if __name__=='__main__':
                         'min_loss': min_loss,
                         'epoch': i+1}, model_fn)
     model.eval()
+    print('Start of plot_eval')
     plot_eval(model,test_loader,seq_len,device)
     print('End of plot_eval')
     t_losses = []

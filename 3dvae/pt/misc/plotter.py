@@ -141,8 +141,8 @@ def plot_eval(model,test_loader,seq_len,device='cuda:0'):
         data_y += y.cpu().detach().numpy().tolist()
         rel_poses += y_.cpu().detach().numpy().tolist()
 
-    rel_poses = np.array(rel_poses).transpose(0,2,1)
-    gt = np.array(data_y).transpose(0,2,1)
+    rel_poses = np.array(rel_poses) #.transpose(0,2,1)
+    gt = np.array(data_y) #.transpose(0,2,1)
     #abs_ = 
 
     #pts = get_3d_points_t(rel_poses,seq_len,abs_)
