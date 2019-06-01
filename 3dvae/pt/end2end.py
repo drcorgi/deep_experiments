@@ -83,7 +83,7 @@ class H5SeqDataset(Dataset):
 
     def __getitem__(self, index):
         i,j = index//self.chunk_size, index%self.chunk_size
-        if self.sid_len[i][j][0] + self.seq_len > self.sid_len[i][j][1]:
+        if self.sid_len[i][j][0] + self.seq_len >= self.sid_len[i][j][1]:
             index = index - self.seq_len - 1
         try:
             x = []
@@ -192,6 +192,7 @@ if __name__=='__main__':
                         'epoch': i+1}, model_fn)
     model.eval()
     plot_eval(model,test_loader,seq_len,device)
+    print('End of plot_eval')
     t_losses = []
     for j,xy in enumerate(test_loader):
         x,y = xy[0].to(device), xy[1].to(device)
