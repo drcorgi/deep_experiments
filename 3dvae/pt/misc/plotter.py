@@ -144,13 +144,13 @@ def plot_eval(model,test_loader,seq_len,device='cuda:0'):
     gt = np.array(data_y).transpose(0,2,1)
     #abs_ = 
 
-    pts = get_3d_points_t(rel_poses,seq_len,abs_)
+    #pts = get_3d_points_t(rel_poses,seq_len,abs_)
     pts_ = get_3d_points__(rel_poses,seq_len)
     gt = get_3d_points__(gt,seq_len)
 
-    print(gt.shape,pts.shape)
+    print(gt.shape,pts_.shape)
     if not os.path.isdir('tmp'):
         os.mkdir('tmp')
     t = time.time()
-    plot_3d_points_(pts_,pts,'tmp/{}_projections_xyz.png'.format(t),wlen=seq_len) #gt
-    plot_abs(pts_,pts,'tmp/{}_absolute_gt_3d.png'.format(t))
+    plot_3d_points_(pts_,pts_,'tmp/{}_projections_xyz.png'.format(t),wlen=seq_len) #gt
+    plot_abs(pts_,pts_,'tmp/{}_absolute_gt_3d.png'.format(t))
