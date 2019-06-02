@@ -193,9 +193,9 @@ if __name__=='__main__':
                         'epoch': i+1}, model_fn)
     model.eval()
     print('Start of plot_eval')
-    plot_eval(model,valid_loader,seq_len,device)
+    plot_eval(model,test_loader,seq_len,device)
     print('End of plot_eval')
-    '''t_losses = []
+    t_losses = []
     for xy in test_loader:
         x,y = xy[0].to(device), xy[1].to(device)
         y_ = model(x)
@@ -205,4 +205,4 @@ if __name__=='__main__':
     epoch_losses.append([-1,0.0,mean_test])
     print('Test loss:',np.mean(mean_test))
     # Save training log
-    np.save('{}/{}_log.npy'.format(log_folder,datetime.now()),epoch_losses)'''
+    np.save('{}/{}_log.npy'.format(log_folder,datetime.now()),epoch_losses)
