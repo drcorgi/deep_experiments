@@ -199,7 +199,7 @@ if __name__=='__main__':
     t_losses = []
     for xy in test_loader:
         x,y = xy[0].to(device), xy[1].to(device)
-        print(x.size(),y.size())
+        #print(x.size(),y.size())
         y_ = model(x)
         loss = loss_fn(y_,y)
         t_losses.append(loss.item())
