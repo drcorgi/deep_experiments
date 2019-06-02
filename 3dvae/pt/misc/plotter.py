@@ -182,5 +182,5 @@ def plot_eval(model,test_loader,seq_len,device='cuda:0'):
     if not os.path.isdir('tmp'):
         os.mkdir('tmp')
     t = time.time()
-    plot_3d_points_(pts,pts_,'tmp/{}_projections_xyz.png'.format(t),wlen=seq_len) #gt
+    plot_3d_points_(pts,pts,'tmp/{}_projections_xyz.png'.format(t),wlen=seq_len) #gt
     #plot_abs(abs_,pts_,'tmp/{}_absolute_gt_3d.png'.format(t))
