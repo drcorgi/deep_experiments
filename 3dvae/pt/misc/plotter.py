@@ -162,6 +162,7 @@ def plot_eval(model,test_loader,seq_len,device='cuda:0'):
     gt = np.array(data_y) #.transpose(0,2,1)
     print(rel_poses.shape)
     abs_ = relative2abs(rel_poses,seq_len)
+    print(abs_.shape)
 
     pts = get_3d_points_t(rel_poses,seq_len,abs_)
     pts_ = get_3d_points__(rel_poses,seq_len)
