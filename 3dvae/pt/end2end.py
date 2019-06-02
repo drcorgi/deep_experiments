@@ -82,15 +82,12 @@ class H5SeqDataset(Dataset):
         self.chunk_size = chunk_size
 
     def __getitem__(self, index):
-        i,j = index//self.chunk_size, index%self.chunk_size
-        #print(self.sid_len[i][j][0],self.sid_len[i][j][1])
-        #if self.sid_len[i][j][1] == 0:
-        #    index = np.random.choice(self.__len__())
-        print(index,self.sid_len[i][j][0],self.sid_len[i][j][1])
-        if self.sid_len[i][j][0] + self.seq_len >= self.sid_len[i][j][1]\
+        #i,j = index//self.chunk_size, index%self.chunk_size
+        #print(index,self.sid_len[i][j][0],self.sid_len[i][j][1])
+        '''if self.sid_len[i][j][0] + self.seq_len >= self.sid_len[i][j][1]\
            or index + self.seq_len >= self.__len__():
-            index = index - self.seq_len - 1
-        print(index)
+            index = index - self.seq_len - 1'''
+        index = max(2,index)
         try:
             x = []
             for i in range(index,index+self.seq_len):
@@ -106,7 +103,6 @@ class H5SeqDataset(Dataset):
                 y.append(p)
             y = abs2relative(y,self.seq_len,1)[0]
             y = torch.from_numpy(y).float()
-            #print(x.size(),y.size())
             return x,y
         except Exception as e:
             print(e)
@@ -204,6 +200,7 @@ if __name__=='__main__':
     t_losses = []
     for xy in test_loader:
         x,y = xy[0].to(device), xy[1].to(device)
+        print(x.size(),y.size())
         y_ = model(x)
         loss = loss_fn(y_,y)
         t_losses.append(loss.item())
