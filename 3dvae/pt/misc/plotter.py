@@ -160,14 +160,16 @@ def get_3d_points_t2(rposes,wlen,gt_poses):
 def plot_eval(model,test_loader,seq_len,device='cuda:0'):
     rel_poses = []
     data_y = []
-    for xy in test_loader:
+    for i,xy in enumerate(test_loader):
+        if i%seq_len != 0:
+            continue
         x,y = xy[0].to(device), xy[1].to(device)
         y_ = model(x)
         data_y += y.cpu().detach().numpy().reshape(-1,12).tolist()
         rel_poses += y_.cpu().detach().numpy().reshape(-1,12).tolist()
 
-    rel_poses = np.array(rel_poses[::seq_len]) #.transpose(0,2,1)
-    gt = np.array(data_y[::seq_len]) #.transpose(0,2,1)
+    rel_poses = np.array(rel_poses) #.transpose(0,2,1)
+    gt = np.array(data_y) #.transpose(0,2,1)
     print(rel_poses.shape)
     abs_ = np.array(relative2abs(rel_poses,seq_len))
     pts_ = np.array(relative2abs(gt,seq_len))
