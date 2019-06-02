@@ -86,7 +86,7 @@ class H5SeqDataset(Dataset):
         #print(self.sid_len[i][j][0],self.sid_len[i][j][1])
         #if self.sid_len[i][j][1] == 0:
         #    index = np.random.choice(self.__len__())
-        print(index)
+        print(index,self.sid_len[i][j][0],self.sid_len[i][j][1])
         if self.sid_len[i][j][0] + self.seq_len >= self.sid_len[i][j][1]\
            or index + self.seq_len >= self.__len__():
             index = index - self.seq_len - 1
