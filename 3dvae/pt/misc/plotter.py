@@ -12,10 +12,10 @@ from multiprocessing import Pool
 def c3dto2d(p):
     p[[1,4,6,7,9]] = np.zeros(5,dtype=np.float32)
     p[5] = 1.0
-    det = np.linalg.det([p[[0,2]],p[[8,10]]])
+    '''det = np.linalg.det([p[[0,2]],p[[8,10]]])
     if det < 5e-1:
         print(p)
-    p[[0,2,8,10]] = p[[0,2,8,10]]/(det+1e-7)
+    p[[0,2,8,10]] = p[[0,2,8,10]]/(det+1e-7)'''
     return p
 
 def plot_abs(gt,rec,out_fn):
@@ -161,15 +161,15 @@ def plot_eval(model,test_loader,seq_len,device='cuda:0'):
     rel_poses = []
     data_y = []
     for i,xy in enumerate(test_loader):
-        if i%seq_len != 0:
-            continue
+        #if i%seq_len != 0:
+        #    continue
         x,y = xy[0].to(device), xy[1].to(device)
         y_ = model(x)
         data_y += y.cpu().detach().numpy().reshape(-1,12).tolist()
         rel_poses += y_.cpu().detach().numpy().reshape(-1,12).tolist()
 
-    rel_poses = np.array(rel_poses) #.transpose(0,2,1)
-    gt = np.array(data_y) #.transpose(0,2,1)
+    rel_poses = np.array(rel_poses[::seq_len]) #.transpose(0,2,1)
+    gt = np.array(data_y[::seq_len]) #.transpose(0,2,1)
     print(rel_poses.shape)
     abs_ = np.array(relative2abs(gt,seq_len))
     pts_ = np.array(relative2abs(rel_poses,seq_len))
