@@ -84,6 +84,7 @@ def relative2abs(rel_poses,wsize):
     abs_poses = poses[:wsize]
     for i in range(wsize,len(poses)):
         in_p = abs_poses[wsize*(i//wsize)-1]
+        print(in_p.shape)
         in_p = np.linalg.inv(in_p)
         abs_poses.append(flat_homogen(np.matmul(in_p,poses[i])))
     return abs_poses
