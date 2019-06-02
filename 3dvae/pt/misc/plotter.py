@@ -148,8 +148,8 @@ def plot_eval(model,test_loader,seq_len,device='cuda:0'):
     for xy in test_loader:
         x,y = xy[0].to(device), xy[1].to(device)
         y_ = model(x)
-        data_y += y.cpu().detach().numpy().reshape(-1,12)
-        rel_poses += y_.cpu().detach().numpy().reshape(-1,12)
+        data_y += y.cpu().detach().numpy().reshape(-1,12).tolist()
+        rel_poses += y_.cpu().detach().numpy().reshape(-1,12).tolist()
 
     rel_poses = np.array(rel_poses) #.transpose(0,2,1)
     gt = np.array(data_y) #.transpose(0,2,1)
