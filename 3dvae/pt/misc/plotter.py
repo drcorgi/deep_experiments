@@ -149,6 +149,14 @@ def get_3d_points_t(rposes,wlen,gt_poses):
         #aposes += [in_p+rposes[i][j] for j in range(wlen)]
     return np.array([[p[0,3],p[1,3],p[2,3]] for p in aposes])
 
+def get_3d_points_t2(rposes,wlen,gt_poses):
+    rposes = [homogen(p) for p in rposes]
+    aposes = rposes[0]
+    for i in range(wlen,len(rposes),wlen):
+        in_p = homogen(gt_poses[i])
+        aposes += [np.matmul(in_p,rposes[i][j]) for j in range(wlen)]
+    return np.array([[p[0,3],p[1,3],p[2,3]] for p in aposes])
+
 def plot_eval(model,test_loader,seq_len,device='cuda:0'):
     rel_poses = []
     data_y = []
@@ -164,7 +172,7 @@ def plot_eval(model,test_loader,seq_len,device='cuda:0'):
     abs_ = np.array(relative2abs(rel_poses,seq_len))
     print(abs_.shape)
 
-    pts = get_3d_points_t(rel_poses,seq_len,abs_)
+    pts = get_3d_points_t2(rel_poses,seq_len,abs_)
     pts_ = get_3d_points__(rel_poses,seq_len)
     gt = get_3d_points__(gt,seq_len)
 
