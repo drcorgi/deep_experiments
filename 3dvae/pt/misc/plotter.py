@@ -77,6 +77,17 @@ def abs2relative(abs_poses,wsize,stride):
         #rposes.append([flat_homogen(np.matmul(np.linalg.inv(poses[min(i,j-1)]),poses[j])) for j in range(i,i+stride*wsize,stride)])
     return np.array(rposes)
 
+def relative2abs(rel_poses,wsize):
+    ''' rel_poses: array de poses relativas (contíguo)
+    '''
+    poses = [homogen(p) for p in rel_poses]
+    abs_poses = poses[:wsize]
+    for i in range(wsize,len(poses)):
+        in_p = abs_poses[wsize*(i//wsize)-1]
+        in_p = np.linalg.inv(in_p)
+        abs_poses.append(flat_homogen(np.matmul(in_p,poses[i])))
+   return abs_poses
+
 def get_3d_points_fast(rposes,wlen=32):
     rposes = [[homogen(p) for p in r] for r in rposes]
     aposes = [rposes[0][0]]
@@ -146,9 +157,9 @@ def plot_eval(model,test_loader,seq_len,device='cuda:0'):
 
     rel_poses = np.array(rel_poses) #.transpose(0,2,1)
     gt = np.array(data_y) #.transpose(0,2,1)
-    #abs_ = 
+    abs_ = relative2abs(rel_poses,seq_len)
 
-    #pts = get_3d_points_t(rel_poses,seq_len,abs_)
+    pts = get_3d_points_t(rel_poses,seq_len,abs_)
     pts_ = get_3d_points__(rel_poses,seq_len)
     gt = get_3d_points__(gt,seq_len)
 
@@ -156,5 +167,5 @@ def plot_eval(model,test_loader,seq_len,device='cuda:0'):
     if not os.path.isdir('tmp'):
         os.mkdir('tmp')
     t = time.time()
-    plot_3d_points_(gt,pts_,'tmp/{}_projections_xyz.png'.format(t),wlen=seq_len) #gt
-    #plot_abs(pts_,pts_,'tmp/{}_absolute_gt_3d.png'.format(t))
+    plot_3d_points_(pts,pts_,'tmp/{}_projections_xyz.png'.format(t),wlen=seq_len) #gt
+    plot_abs(abs_,pts_,'tmp/{}_absolute_gt_3d.png'.format(t))
