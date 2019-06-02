@@ -86,7 +86,8 @@ def relative2abs(rel_poses,wsize):
         in_p = abs_poses[wsize*(i//wsize)-1]
         print(in_p.shape)
         in_p = np.linalg.inv(in_p)
-        abs_poses.append(flat_homogen(np.matmul(in_p,poses[i])))
+        abs_poses.append(np.matmul(in_p,poses[i]))
+    abs_poses = [flat_homogen(p) for p in abs_poses]
     return abs_poses
 
 def get_3d_points_fast(rposes,wlen=32):
