@@ -100,7 +100,7 @@ def get_3d_points_fast(rposes,wlen=32):
         aposes.append(abs_pose)
     return np.array([[p[0,3],p[1,3],p[2,3]] for p in aposes])
 
-def get_3d_points_(rposes,wlen=32):
+def get_3d_points_(rposes,wlen):
     rposes = [[homogen(p) for p in r] for r in rposes]
     aposes = [rposes[0]]
     for i in range(1,len(rposes),1):
@@ -157,13 +157,14 @@ def plot_eval(model,test_loader,seq_len,device='cuda:0'):
 
     rel_poses = np.array(rel_poses) #.transpose(0,2,1)
     gt = np.array(data_y) #.transpose(0,2,1)
+    print(rel_poses.shape)
     abs_ = relative2abs(rel_poses,seq_len)
 
     pts = get_3d_points_t(rel_poses,seq_len,abs_)
     pts_ = get_3d_points__(rel_poses,seq_len)
     gt = get_3d_points__(gt,seq_len)
 
-    print(gt.shape,pts_.shape)
+    print(pts.shape,pts_.shape,gt.shape)
     if not os.path.isdir('tmp'):
         os.mkdir('tmp')
     t = time.time()
