@@ -13,6 +13,7 @@ def c3dto2d(p):
     p[[1,4,6,7,9]] = np.zeros(5,dtype=np.float32)
     p[5] = 1.0
     det = np.linalg.det([p[[0,2]],p[[8,10]]])
+    print(p,det)
     p[[0,2,8,10]] = p[[0,2,8,10]]/(det+1e-7)
     return p
 
@@ -84,7 +85,7 @@ def relative2abs(rel_poses,wsize):
     abs_poses = poses[:wsize]
     for i in range(wsize,len(poses)):
         in_p = abs_poses[wsize*(i//wsize)-1]
-        print(in_p)
+        #print(in_p)
         try:
             in_p = np.linalg.inv(in_p)
             abs_poses.append(np.matmul(in_p,poses[i]))
