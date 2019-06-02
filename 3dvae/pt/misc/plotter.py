@@ -134,7 +134,11 @@ def get_3d_points_t(rposes,wlen,gt_poses):
 def plot_eval(model,test_loader,seq_len,device='cuda:0'):
     rel_poses = []
     data_y = []
+    i = -1
     for xy in test_loader:
+        i += 1
+        if i%seq_len != 0:
+            continue
         x,y = xy[0].to(device), xy[1].to(device)
         y_ = model(x)
         data_y += y.cpu().detach().numpy().tolist()
