@@ -84,8 +84,9 @@ class H5SeqDataset(Dataset):
     def __getitem__(self, index):
         i,j = index//self.chunk_size, index%self.chunk_size
         #print(self.sid_len[i][j][0],self.sid_len[i][j][1])
-        if self.sid_len[i][j][1] == 0:
-            index = np.random.choice(self.__len__())
+        #if self.sid_len[i][j][1] == 0:
+        #    index = np.random.choice(self.__len__())
+        print(index)
         if self.sid_len[i][j][0] + self.seq_len >= self.sid_len[i][j][1]\
            or index + self.seq_len >= self.__len__():
             index = index - self.seq_len - 1
@@ -105,7 +106,7 @@ class H5SeqDataset(Dataset):
                 y.append(p)
             y = abs2relative(y,self.seq_len,1)[0]
             y = torch.from_numpy(y).float()
-            print(x.size(),y.size())
+            #print(x.size(),y.size())
             return x,y
         except Exception as e:
             print(e)
