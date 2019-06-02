@@ -13,7 +13,9 @@ def c3dto2d(p):
     p[[1,4,6,7,9]] = np.zeros(5,dtype=np.float32)
     p[5] = 1.0
     det = np.linalg.det([p[[0,2]],p[[8,10]]])
-    print(p,det)
+    print(det)
+    if det  < 1e-3:
+        print(p)
     p[[0,2,8,10]] = p[[0,2,8,10]]/(det+1e-7)
     return p
 
