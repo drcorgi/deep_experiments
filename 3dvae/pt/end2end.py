@@ -72,6 +72,10 @@ class ToTensor(object):
     def __call__(self,image):
         return torch.from_numpy(image).unsqueeze(0).float()
 
+class Edges(object):
+    def __call__(self,image):
+        return cv2.Canny(image,100,200)
+
 class H5SeqDataset(Dataset):
     def __init__(self, file_path, seq_len, chunk_size, transform=None):
         super().__init__()
@@ -128,7 +132,7 @@ if __name__=='__main__':
     batch_size = int(sys.argv[9])
     num_epochs = int(sys.argv[10])
     seq_len = 16
-    transf = transforms.Compose([Rescale(new_dim),ToTensor()])
+    transf = transforms.Compose([Rescale(new_dim),Edges(),ToTensor()])
     ##transf = [Rescale(new_dim),ToTensor()] #,FluxToTensor()]
 
     train_dataset = H5SeqDataset(train_dir,seq_len,10,transf)
