@@ -104,13 +104,13 @@ class DirectOdometry(nn.Module):
         # Batch dim trick
         self.conv1 = nn.Conv2d(in_shape[0],self.filters,(5,5),(2,2))
         self.conv2 = nn.Conv2d(self.filters,self.filters,(3,3),(1,1))
-        self.conv3 = nn.Conv2d(self.filters,1,(3,3),(1,1))
+        self.conv3 = nn.Conv2d(self.filters,self.filters,(3,3),(1,1))
         self.new_h = (((((in_shape[1]-4)//2-2)//1)-2)//1)
         self.new_w = (((((in_shape[2]-4)//2-2)//1)-2)//1)
-        self.flat_dim = self.new_h*self.new_w
+        self.flat_dim = self.new_h*self.new_w*self.filters
         print('Flat dim',self.flat_dim)
         self.fc1 = nn.Linear(self.flat_dim,self.n_hidden)
-        #self.drop1 = nn.Dropout(0.5)
+        self.drop1 = nn.Dropout(0.5)
         self.conv4 = nn.Conv1d(self.n_hidden,self.n_hidden,3,1,padding=1)
         self.conv5 = nn.Conv1d(self.n_hidden,out_shape[0],3,1,padding=1)
 
@@ -122,10 +122,14 @@ class DirectOdometry(nn.Module):
         x = F.relu(self.conv3(x))
         x = x.view(-1,self.flat_dim)
         x = F.relu(self.fc1(x))
-        #x = self.drop1(x)
+        x = self.drop1(x)
+        #print(x.size())
         x = x.view(-1,size[1],self.n_hidden).transpose(1,2)
+        #print(x.size())
         x = F.relu(self.conv4(x))
+        #print(x.size())
         x = self.conv5(x).transpose(1,2)
+        #print(x.size())
         return x
 
 class MLPAutoencoder(nn.Module):
