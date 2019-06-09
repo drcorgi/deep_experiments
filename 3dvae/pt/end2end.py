@@ -54,7 +54,7 @@ class FluxRescale(object):
         self.output_size = output_size
 
     def __call__(self, image):
-        h, w = image.shape[:2]
+        h, w = image.shape[1:]
         if isinstance(self.output_size, int):
             if h > w:
                 new_h, new_w = self.output_size*h/w, self.output_size
@@ -63,10 +63,14 @@ class FluxRescale(object):
         else:
             new_h, new_w = self.output_size
         new_h, new_w = int(new_h),int(new_w)
-        image0 = cv2.resize(image[:,:,0],(new_h,new_w))
-        image1 = cv2.resize(image[:,:,1],(new_h,new_w))
-        image = np.stack([image0,image1],axis=2)
+        image0 = cv2.resize(image[0],(new_h,new_w))
+        image1 = cv2.resize(image[1],(new_h,new_w))
+        image = np.stack([image0,image1],axis=0)
         return image
+
+class FluxToTensor(object):
+    def __call__(self,flux):
+        return torch.from_numpy(flux).float()
 
 class ToTensor(object):
     def __call__(self,image):
@@ -96,11 +100,15 @@ class H5SeqDataset(Dataset):
         try:
             x = []
             for i in range(index,index+self.seq_len):
+                next = min(index+1,index+self.seq_len-1)
                 frame = self.frames[i//self.chunk_size][i%self.chunk_size]
+                next_frame = self.frames[next//self.chunk_size][next%self.chunk_size]
+                flux = cv2.calcOpticalFlowFarneback(frame,next_frame,None,0.5,3,15,3,5,1.2,0)
+                flux = flux.transpose(2,0,1)
                 if self.transform:
-                    frame = self.transform(frame)
-                x.append(frame)
-            x = torch.cat(x,dim=0).unsqueeze(1)
+                    flux = self.transform(flux)
+                x.append(flux.unsqueeze(0))
+            x = torch.cat(x,dim=0)
             y, abs = [], []
             for i in range(index,index+self.seq_len):
                 p = self.poses[i//self.chunk_size][i%self.chunk_size]
@@ -132,7 +140,7 @@ if __name__=='__main__':
     batch_size = int(sys.argv[9])
     num_epochs = int(sys.argv[10])
     seq_len = 16
-    transf = transforms.Compose([Rescale(new_dim),Edges(),ToTensor()])
+    transf = transforms.Compose([FluxRescale(new_dim),FluxToTensor()])
     ##transf = [Rescale(new_dim),ToTensor()] #,FluxToTensor()]
 
     train_dataset = H5SeqDataset(train_dir,seq_len,10,transf)
@@ -153,7 +161,7 @@ if __name__=='__main__':
     ##model = VanillaAutoencoder((1,)+new_dim).to(device)
     #model = VanillaAutoencoder((2,)+new_dim,h_dim).to(device)
     #model = MLPAutoencoder((2,)+new_dim,h_dim).to(device)
-    model = DirectOdometry((1,)+new_dim,(12,),h_dim).to(device)
+    model = DirectOdometry((2,)+new_dim,(12,),h_dim).to(device)
     params = model.parameters()
     optimizer = optim.Adam(params,lr=3e-4)
     min_loss = 1e15
