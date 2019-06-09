@@ -171,7 +171,7 @@ if __name__=='__main__':
     for i in range(epoch,num_epochs):
         model.train()
         losses = []
-        for j,xy in enumerate(train_loader):
+        for j,xy in enumerate(test_loader):
             x,y = xy[0].to(device), xy[1].to(device)
             optimizer.zero_grad()
             y_ = model(x)
