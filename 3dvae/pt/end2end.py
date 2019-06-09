@@ -182,7 +182,7 @@ if __name__=='__main__':
             print('Batch {}\tloss: {}'.format(j,loss.item()))
         model.eval()
         v_losses = []
-        for xy in valid_loader:
+        for xy in test_loader:
             x,y = xy[0].to(device), xy[1].to(device)
             y_ = model(x)
             loss = loss_fn(y_,y)
