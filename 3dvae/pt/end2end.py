@@ -80,7 +80,7 @@ class Edges(object):
     def __call__(self,image):
         return cv2.Canny(image,100,200)
 
-class H5SeqDataset(Dataset):
+class H5SeqFluxDataset(Dataset):
     def __init__(self, file_path, seq_len, chunk_size, transform=None):
         super().__init__()
         h5_file = h5py.File(file_path)
@@ -129,6 +129,46 @@ class H5SeqDataset(Dataset):
     def __len__(self):
         return self.chunk_size*self.frames.shape[0]
 
+class H5SeqDataset(Dataset):
+    def __init__(self, file_path, seq_len, chunk_size, transform=None):
+        super().__init__()
+        h5_file = h5py.File(file_path)
+        self.frames = h5_file.get('frames')
+        self.poses = h5_file.get('poses')
+        self.sid_len = h5_file.get('sid_len')
+        self.seq_len = seq_len
+        self.transform = transform
+        self.chunk_size = chunk_size
+
+    def __getitem__(self, index):
+        i,j = index//self.chunk_size, index%self.chunk_size
+        index = max(2,index)
+        if self.sid_len[i][j][0] + self.seq_len >= self.sid_len[i][j][1]\
+           or index + self.seq_len >= self.__len__():
+            index = index - self.seq_len - 1
+        try:
+            x = []
+            for i in range(index,index+self.seq_len):
+                frame = self.frames[i//self.chunk_size][i%self.chunk_size]
+                if self.transform:
+                    frame = self.transform(frame)
+                x.append(frame)
+            x = torch.cat(x,dim=0).unsqueeze(1)
+            y, abs = [], []
+            for i in range(index,index+self.seq_len):
+                p = self.poses[i//self.chunk_size][i%self.chunk_size]
+                p = c3dto2d(p)
+                y.append(p)
+                abs.append(p)
+            y = abs2relative(y,self.seq_len,1)[0]
+            y = torch.from_numpy(y).float()
+            return x, y, abs
+        except Exception as e:
+            print(e)
+
+    def __len__(self):
+        return self.chunk_size*self.frames.shape[0]
+
 if __name__=='__main__':
     train_dir = sys.argv[1] #'/home/ronnypetson/Documents/deep_odometry/kitti/joint_frames_odom_train.h5'
     valid_dir = sys.argv[2] #'/home/ronnypetson/Documents/deep_odometry/kitti/joint_frames_odom_valid.h5'
@@ -145,8 +185,8 @@ if __name__=='__main__':
     batch_size = int(sys.argv[9])
     num_epochs = int(sys.argv[10])
     seq_len = 16
-    #transf = transforms.Compose([FluxRescale(new_dim),FluxToTensor()])
-    transf = [Rescale(new_dim),FluxToTensor()] #,FluxToTensor()]
+    transf = transforms.Compose([Rescale(new_dim),ToTensor()])
+    #transf = [Rescale(new_dim),FluxToTensor()] #,FluxToTensor()]
 
     train_dataset = H5SeqDataset(train_dir,seq_len,10,transf)
     valid_dataset = H5SeqDataset(valid_dir,seq_len,10,transf)
@@ -166,7 +206,7 @@ if __name__=='__main__':
     ##model = VanillaAutoencoder((1,)+new_dim).to(device)
     #model = VanillaAutoencoder((2,)+new_dim,h_dim).to(device)
     #model = MLPAutoencoder((2,)+new_dim,h_dim).to(device)
-    model = DirectOdometry((2,)+new_dim,(12,),h_dim).to(device)
+    model = DirectOdometry((1,)+new_dim,(12,),h_dim).to(device)
     params = model.parameters()
     optimizer = optim.Adam(params,lr=3e-4)
     min_loss = 1e15
