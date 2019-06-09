@@ -103,10 +103,15 @@ class H5SeqDataset(Dataset):
                 next = min(index+1,index+self.seq_len-1)
                 frame = self.frames[i//self.chunk_size][i%self.chunk_size]
                 next_frame = self.frames[next//self.chunk_size][next%self.chunk_size]
-                flux = cv2.calcOpticalFlowFarneback(frame,next_frame,None,0.5,3,15,3,5,1.2,0)
-                flux = flux.transpose(2,0,1)
                 if self.transform:
-                    flux = self.transform(flux)
+                    frame = self.transform[0](frame)
+                    next_frame = self.transform[0](next_frame)
+                    flux = cv2.calcOpticalFlowFarneback(frame,next_frame,None,0.5,3,15,3,5,1.2,0)
+                    flux = flux.transpose(2,0,1)
+                    flux = self.transform[1](flux)
+                else:
+                    flux = cv2.calcOpticalFlowFarneback(frame,next_frame,None,0.5,3,15,3,5,1.2,0)
+                    flux = flux.transpose(2,0,1)
                 x.append(flux.unsqueeze(0))
             x = torch.cat(x,dim=0)
             y, abs = [], []
@@ -140,8 +145,8 @@ if __name__=='__main__':
     batch_size = int(sys.argv[9])
     num_epochs = int(sys.argv[10])
     seq_len = 16
-    transf = transforms.Compose([FluxRescale(new_dim),FluxToTensor()])
-    ##transf = [Rescale(new_dim),ToTensor()] #,FluxToTensor()]
+    #transf = transforms.Compose([FluxRescale(new_dim),FluxToTensor()])
+    transf = [Rescale(new_dim),FluxToTensor()] #,FluxToTensor()]
 
     train_dataset = H5SeqDataset(train_dir,seq_len,10,transf)
     valid_dataset = H5SeqDataset(valid_dir,seq_len,10,transf)
