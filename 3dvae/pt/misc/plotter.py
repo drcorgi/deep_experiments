@@ -12,10 +12,10 @@ from multiprocessing import Pool
 def c3dto2d(p):
     p[[1,4,6,7,9]] = np.zeros(5,dtype=np.float32)
     p[5] = 1.0
-    '''det = np.linalg.det([p[[0,2]],p[[8,10]]])
+    det = np.linalg.det([p[[0,2]],p[[8,10]]])
     if det < 5e-1:
-        print(p)
-    p[[0,2,8,10]] = p[[0,2,8,10]]/(det+1e-7)'''
+        print('small det',p)
+    p[[0,2,8,10]] = p[[0,2,8,10]]/(det+1e-7)
     return p
 
 def plot_abs(gt,rec,out_fn):
@@ -85,13 +85,9 @@ def relative2abs(rel_poses,wsize):
     poses = [homogen(p) for p in rel_poses]
     abs_poses = poses[:wsize]
     for i in range(wsize,len(poses)):
-        in_p = abs_poses[wsize*(i//wsize)-1]
-        #print(in_p)
-        #try:
-        in_p = np.linalg.inv(in_p)
+        j = wsize*(i//wsize)-1
+        in_p = abs_poses[j]
         abs_poses.append(np.matmul(in_p,poses[i]))
-        #except np.linalg.LinAlgError:
-            #abs_poses.append(abs_poses[-1])
     abs_poses = [flat_homogen(p) for p in abs_poses]
     return abs_poses
 
@@ -160,27 +156,25 @@ def get_3d_points_t2(rposes,wlen,gt_poses):
 def plot_eval(model,test_loader,seq_len,device='cuda:0'):
     rel_poses = []
     data_y = []
-    for i,xy in enumerate(test_loader):
-        #if i%seq_len != 0:
-        #    continue
-        x,y = xy[0].to(device), xy[1].to(device)
+    for x,y,abs in test_loader:
+        x,y,abs = x.to(device), y.to(device), np.array(abs).reshape(-1,12).tolist()
         y_ = model(x)
-        data_y += y.cpu().detach().numpy().reshape(-1,12).tolist()
+        data_y += abs
         rel_poses += y_.cpu().detach().numpy().reshape(-1,12).tolist()
 
-    rel_poses = np.array(rel_poses[::seq_len]) #.transpose(0,2,1)
+    rel_poses = np.array(rel_poses[::seq_len])
     gt = np.array(data_y[::seq_len]) #.transpose(0,2,1)
-    print(rel_poses.shape)
-    abs_ = np.array(relative2abs(gt,seq_len))
+    print(gt.shape)
+    #abs_ = np.array(relative2abs(gt,seq_len))
     pts_ = np.array(relative2abs(rel_poses,seq_len))
-    print(abs_.shape)
+    print(pts_.shape)
 
-    pts = np.array([[p[3],p[7],p[11]] for p in abs_]) #get_3d_points_t2(rel_poses,seq_len,abs_)
+    pts = np.array([[p[3],p[7],p[11]] for p in gt]) #get_3d_points_t2(rel_poses,seq_len,abs_)
     pts_ = np.array([[p[3],p[7],p[11]] for p in pts_])
 
-    print(pts.shape,pts_.shape)
+    print(pts.shape)
     if not os.path.isdir('tmp'):
         os.mkdir('tmp')
     t = time.time()
-    plot_3d_points_(pts,pts,'tmp/{}_projections_xyz.png'.format(t),wlen=seq_len) #gt
+    plot_3d_points_(pts,pts_,'tmp/{}_projections_xyz.png'.format(t),wlen=seq_len) #gt
     #plot_abs(abs_,pts_,'tmp/{}_absolute_gt_3d.png'.format(t))

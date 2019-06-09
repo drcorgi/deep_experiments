@@ -22,11 +22,13 @@ from plotter import c3dto2d, abs2relative, plot_eval
 def my_collate(batch):
     batch_x = []
     batch_y = []
+    batch_abs = []
     for b in batch:
         if b is not None:
             batch_x.append(b[0])
             batch_y.append(b[1])
-    return torch.stack(batch_x), torch.stack(batch_y)
+            batch_abs.append(b[2])
+    return torch.stack(batch_x), torch.stack(batch_y), batch_abs
 
 class Rescale(object):
     def __init__(self, output_size):
@@ -95,14 +97,15 @@ class H5SeqDataset(Dataset):
                     frame = self.transform(frame)
                 x.append(frame)
             x = torch.cat(x,dim=0).unsqueeze(1)
-            y = []
+            y, abs = [], []
             for i in range(index,index+self.seq_len):
                 p = self.poses[i//self.chunk_size][i%self.chunk_size]
                 p = c3dto2d(p)
                 y.append(p)
+                abs.append(p)
             y = abs2relative(y,self.seq_len,1)[0]
             y = torch.from_numpy(y).float()
-            return x,y
+            return x, y, abs
         except Exception as e:
             print(e)
 
@@ -164,6 +167,7 @@ if __name__=='__main__':
 
     loss_fn = torch.nn.MSELoss()
     epoch_losses = []
+    epoch = num_epochs-1
     for i in range(epoch,num_epochs):
         model.train()
         losses = []
@@ -196,7 +200,7 @@ if __name__=='__main__':
     print('Start of plot_eval')
     plot_eval(model,test_loader,seq_len,device)
     print('End of plot_eval')
-    t_losses = []
+    '''t_losses = []
     for xy in test_loader:
         x,y = xy[0].to(device), xy[1].to(device)
         #print(x.size(),y.size())
@@ -207,4 +211,4 @@ if __name__=='__main__':
     epoch_losses.append([-1,0.0,mean_test])
     print('Test loss:',np.mean(mean_test))
     # Save training log
-    np.save('{}/{}_log.npy'.format(log_folder,datetime.now()),epoch_losses)
+    np.save('{}/{}_log.npy'.format(log_folder,datetime.now()),epoch_losses)'''
