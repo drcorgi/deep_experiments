@@ -224,7 +224,7 @@ if __name__=='__main__':
 
     loss_fn = torch.nn.MSELoss()
     epoch_losses = []
-    #epoch = num_epochs-1
+    epoch = num_epochs-1
     for i in range(epoch,num_epochs):
         model.train()
         losses = []

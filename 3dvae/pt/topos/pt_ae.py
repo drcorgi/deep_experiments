@@ -92,6 +92,18 @@ class VanillaAutoencoder(nn.Module):
         x = self.deconv3(x)
         return x
 
+class OdomNorm2d(nn.Module):
+    ''' x shape: B x L x O
+    '''
+    def __init__(self):
+        super().__init__()
+
+    def forward(self,x):
+        x[:,:,[1,4,6,7,9]] = torch.zeros(x.size(0),x.size(1),5).cuda()
+        x[:,0,[3,11]] = torch.tensor(0.0).cuda()
+        x[:,:,5] = torch.tensor(1.0).cuda()
+        return x
+
 class DirectOdometry(nn.Module):
     ''' Encoder + Odometry into same module
         Input: (B x L) x C x H x W, in_shape: C x H x W
@@ -113,6 +125,7 @@ class DirectOdometry(nn.Module):
         self.drop1 = nn.Dropout(0.5)
         self.conv4 = nn.Conv1d(self.n_hidden,self.n_hidden,3,1,padding=1)
         self.conv5 = nn.Conv1d(self.n_hidden,out_shape[0],3,1,padding=1)
+        self.odom_norm = OdomNorm2d()
 
     def forward(self,x):
         size = x.size()
@@ -129,6 +142,8 @@ class DirectOdometry(nn.Module):
         x = F.relu(self.conv4(x))
         #print(x.size())
         x = self.conv5(x).transpose(1,2)
+        #print(x.size())
+        x = self.odom_norm(x)
         #print(x.size())
         return x
 

@@ -10,12 +10,12 @@ from mpl_toolkits.mplot3d import Axes3D
 from multiprocessing import Pool
 
 def c3dto2d(p):
-    '''p[[1,4,6,7,9]] = np.zeros(5,dtype=np.float32)
+    p[[1,4,6,7,9]] = np.zeros(5,dtype=np.float32)
     p[5] = 1.0
     det = np.linalg.det([p[[0,2]],p[[8,10]]])
     if det < 5e-1:
         print('small det',p)
-    p[[0,2,8,10]] = p[[0,2,8,10]]/(det+1e-7)'''
+    p[[0,2,8,10]] = p[[0,2,8,10]]/(det+1e-7)
     return p
 
 def plot_abs(gt,rec,out_fn):
@@ -86,6 +86,7 @@ def relative2abs(rel_poses,wsize):
     abs_poses = poses[:wsize]
     for i in range(wsize,len(poses),wsize):
         in_p = abs_poses[-1]
+        print(in_p)
         abs_poses += [np.matmul(in_p,poses[j]) for j in range(i,i+wsize)]
     abs_poses = [flat_homogen(p) for p in abs_poses]
     return abs_poses
@@ -160,12 +161,12 @@ def plot_eval(model,test_loader,seq_len,device='cuda:0'):
         y_ = model(x)
         data_y += abs
         rel_poses += y_.cpu().detach().numpy().reshape(-1,12).tolist()
-
     rel_poses = np.array(rel_poses)
     gt = np.array(data_y[::seq_len]) #.transpose(0,2,1)
     print(gt.shape)
     #abs_ = np.array(relative2abs(gt,seq_len))
     pts_ = np.array(relative2abs(rel_poses,seq_len))
+    #print(pts_[-16:-12])
     print(pts_.shape)
 
     pts = np.array([[p[3],p[7],p[11]] for p in gt]) #get_3d_points_t2(rel_poses,seq_len,abs_)
