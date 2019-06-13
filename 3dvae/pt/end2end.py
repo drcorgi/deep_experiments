@@ -229,6 +229,7 @@ if __name__=='__main__':
         model.train()
         losses = []
         for j,xy in enumerate(test_loader):
+            if j == 0: continue
             x,y = xy[0].to(device), xy[1].to(device)
             optimizer.zero_grad()
             y_ = model(x)
@@ -239,7 +240,8 @@ if __name__=='__main__':
             print('Batch {}\tloss: {}'.format(j,loss.item()))
         model.eval()
         v_losses = []
-        for xy in test_loader:
+        for k,xy in enumerate(test_loader):
+            if k == 0: continue
             x,y = xy[0].to(device), xy[1].to(device)
             y_ = model(x)
             loss = loss_fn(y_,y)
