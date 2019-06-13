@@ -15,7 +15,7 @@ def c3dto2d(p):
     det = np.linalg.det([p[[0,2]],p[[8,10]]])
     if det < 5e-1:
         print('small det',p)
-    p[[0,2,8,10]] = p[[0,2,8,10]]/(det+1e-7)
+    p[[0,2,8,10]] = p[[0,2,8,10]]/det
     return p
 
 def plot_abs(gt,rec,out_fn):
@@ -86,7 +86,7 @@ def relative2abs(rel_poses,wsize):
     abs_poses = poses[:wsize]
     for i in range(wsize,len(poses),wsize):
         in_p = abs_poses[-1]
-        print(in_p)
+        #print(in_p,np.linalg.det(in_p[:3,:3]))
         abs_poses += [np.matmul(in_p,poses[j]) for j in range(i,i+wsize)]
     abs_poses = [flat_homogen(p) for p in abs_poses]
     return abs_poses

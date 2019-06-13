@@ -95,14 +95,30 @@ class VanillaAutoencoder(nn.Module):
 class OdomNorm2d(nn.Module):
     ''' x shape: B x L x O
     '''
-    def __init__(self):
+    def __init__(self,in_channels,out_channels):
         super().__init__()
+        self.out_channels = out_channels
+        self.fc1 = nn.Linear(in_channels,in_channels)
+        self.fc2 = nn.Linear(in_channels,3)
 
     def forward(self,x):
-        x[:,:,[1,4,6,7,9]] = torch.zeros(x.size(0),x.size(1),5).cuda()
-        x[:,0,[3,11]] = torch.tensor(0.0).cuda()
-        x[:,:,5] = torch.tensor(1.0).cuda()
-        return x
+        ''' (B x L) x C -> (B x L) x 3 (theta,x,y) -> B x L x O
+        '''
+        b,l,c = x.size()
+        x = x.contiguous().view(-1,c)
+        x = F.relu(self.fc1(x))
+        x = F.relu(self.fc2(x))
+        x = x.view(b,l,3)
+        x_ = torch.zeros(b,l,self.out_channels).cuda()
+        x_[:,:,0] = torch.cos(x[:,:,0])
+        x_[:,:,2] = -torch.sin(x[:,:,0])
+        x_[:,:,8] = torch.sin(x[:,:,0])
+        x_[:,:,10] = torch.cos(x[:,:,0])
+        x_[:,:,3] = x[:,:,1]
+        x_[:,:,11] = x[:,:,2]
+        x_[:,:,[1,4,6,7,9]] = torch.tensor(0.0).cuda()
+        x_[:,:,5] = torch.tensor(1.0).cuda()
+        return x_
 
 class DirectOdometry(nn.Module):
     ''' Encoder + Odometry into same module
@@ -124,8 +140,8 @@ class DirectOdometry(nn.Module):
         self.fc1 = nn.Linear(self.flat_dim,self.n_hidden)
         self.drop1 = nn.Dropout(0.5)
         self.conv4 = nn.Conv1d(self.n_hidden,self.n_hidden,3,1,padding=1)
-        self.conv5 = nn.Conv1d(self.n_hidden,out_shape[0],3,1,padding=1)
-        self.odom_norm = OdomNorm2d()
+        self.conv5 = nn.Conv1d(self.n_hidden,self.n_hidden,3,1,padding=1)
+        self.odom_norm = OdomNorm2d(self.n_hidden,12)
 
     def forward(self,x):
         size = x.size()
