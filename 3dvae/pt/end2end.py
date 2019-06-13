@@ -143,9 +143,11 @@ class H5SeqDataset(Dataset):
     def __getitem__(self, index):
         i,j = index//self.chunk_size, index%self.chunk_size
         index = max(2,index)
+        #print(self.sid_len[i][j][0],self.sid_len[i][j][1])
         if self.sid_len[i][j][0] + self.seq_len >= self.sid_len[i][j][1]\
            or index + self.seq_len >= self.__len__():
             index = index - self.seq_len - 1
+        #print(index)
         try:
             x = []
             for i in range(index,index+self.seq_len):
@@ -163,6 +165,8 @@ class H5SeqDataset(Dataset):
             y = abs2relative(y,self.seq_len,1)[0]
             y = torch.from_numpy(y).float()
             return x, y, abs
+        except RuntimeError as re:
+            print(re)
         except Exception as e:
             print(e)
 
@@ -195,7 +199,7 @@ if __name__=='__main__':
     ##valid_dataset = FluxH5Dataset(valid_dir,10,transf)
     ##test_dataset = FluxH5Dataset(test_dir,10,transf)
 
-    train_loader = DataLoader(train_dataset,batch_size=batch_size,shuffle=True,num_workers=0,collate_fn=my_collate)
+    train_loader = DataLoader(train_dataset,batch_size=batch_size,shuffle=False,num_workers=0,collate_fn=my_collate)
     valid_loader = DataLoader(valid_dataset,batch_size=batch_size//2,shuffle=False,num_workers=0,collate_fn=my_collate)
     test_loader = DataLoader(test_dataset,batch_size=batch_size//2,shuffle=False,num_workers=0,collate_fn=my_collate)
 
@@ -228,8 +232,8 @@ if __name__=='__main__':
     for i in range(epoch,num_epochs):
         model.train()
         losses = []
-        for j,xy in enumerate(test_loader):
-            if j == 0: continue
+        for j,xy in enumerate(train_loader):
+            #if j == 0: continue
             x,y = xy[0].to(device), xy[1].to(device)
             optimizer.zero_grad()
             y_ = model(x)
@@ -240,8 +244,8 @@ if __name__=='__main__':
             print('Batch {}\tloss: {}'.format(j,loss.item()))
         model.eval()
         v_losses = []
-        for k,xy in enumerate(test_loader):
-            if k == 0: continue
+        for k,xy in enumerate(train_loader):
+            #if k == 0: continue
             x,y = xy[0].to(device), xy[1].to(device)
             y_ = model(x)
             loss = loss_fn(y_,y)
