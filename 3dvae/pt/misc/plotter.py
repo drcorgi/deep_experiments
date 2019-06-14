@@ -161,7 +161,7 @@ def plot_eval(model,test_loader,seq_len,device='cuda:0'):
         y_ = model(x)
         data_y += abs
         rel_poses += y_.cpu().detach().numpy().reshape(-1,12).tolist()
-    rel_poses = np.array(rel_poses[::seq_len])
+    rel_poses = np.array(rel_poses)
     gt = np.array(data_y[::seq_len]) #.transpose(0,2,1)
     print(gt.shape)
     #abs_ = np.array(relative2abs(gt,seq_len))
