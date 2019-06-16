@@ -20,6 +20,7 @@ from datetime import datetime
 from plotter import c3dto2d, abs2relative, plot_eval
 from odom_loader import load_kitti_odom
 from tensorboardX import SummaryWriter
+from time import time
 
 def my_collate(batch):
     batch_x = []
@@ -122,7 +123,7 @@ if __name__=='__main__':
     valid_dataset = SeqDataset(valid_dir[0],valid_dir[1],seq_len,transf)
     test_dataset = SeqDataset(test_dir[0],test_dir[1],seq_len,transf)
 
-    train_loader = DataLoader(train_dataset,batch_size=batch_size,shuffle=False,num_workers=4,collate_fn=my_collate)
+    train_loader = DataLoader(train_dataset,batch_size=batch_size,shuffle=True,num_workers=4,collate_fn=my_collate)
     valid_loader = DataLoader(valid_dataset,batch_size=batch_size,shuffle=False,num_workers=4,collate_fn=my_collate)
     test_loader = DataLoader(test_dataset,batch_size=batch_size,shuffle=False,num_workers=4,collate_fn=my_collate)
 
@@ -138,7 +139,8 @@ if __name__=='__main__':
     optimizer = optim.Adam(params,lr=3e-4)
     min_loss = 1e15
     epoch = 0
-    writer = SummaryWriter('/home/ubuntu/log/exp1')
+    writer = SummaryWriter('/home/ubuntu/log/exp_{}_{}x{}_{}'\
+                           .format(h_dim,new_dim[0],new_dim[1],time()))
 
     if os.path.isfile(model_fn):
         print('Loading existing model')
@@ -152,6 +154,7 @@ if __name__=='__main__':
 
     loss_fn = torch.nn.MSELoss()
     epoch_losses = []
+    k = 0
     #epoch = num_epochs-1
     for i in range(epoch,num_epochs):
         model.train()
@@ -163,20 +166,26 @@ if __name__=='__main__':
             loss = loss_fn(y_,y)
             loss.backward()
             optimizer.step()
-            writer.add_scalar('train_cost',loss.item(),j)
-            writer.add_embedding(z,tag='img_emb',global_step=1)
+            writer.add_scalar('train_cost',loss.item(),k)
             losses.append(loss.item())
+            k += 1
             print('Batch {}\tloss: {}'.format(j,loss.item()))
+        x_ = x[0].view(-1,x.size(-1)).unsqueeze(0)
+        print(x_.size())
+        writer.add_image('_img_seq_{}'.format(i),x_)
+        writer.add_image('_img_emb_{}'.format(i),\
+                         z[:seq_len].unsqueeze(0))
         model.eval()
         v_losses = []
-        for k,xy in enumerate(test_loader):
+        for j,xy in enumerate(test_loader):
             x,y = xy[0].to(device), xy[1].to(device)
             y_,*_ = model(x)
             loss = loss_fn(y_,y)
             v_losses.append(loss.item())
         mean_train, mean_valid = np.mean(losses),np.mean(v_losses)
         epoch_losses.append([i,mean_train,mean_valid])
-        print('Epoch {}\tloss\t{:.3f}\tValid loss\t{:.3f}'.format(i,mean_train,mean_valid)) # Mean train loss, mean validation loss
+        print('Epoch {}\tloss\t{:.3f}\tValid loss\t{:.3f}'\
+              .format(i,mean_train,mean_valid))
         if mean_valid < min_loss:
             min_loss = mean_valid
             torch.save({'model_state': model.state_dict(),
