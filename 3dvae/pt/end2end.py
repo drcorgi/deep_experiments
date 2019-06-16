@@ -15,7 +15,7 @@ sys.path.append(os.path.dirname(os.path.realpath(__file__))+'/sample')
 from glob import glob
 from torch.utils.data import Dataset, DataLoader
 from torchvision import transforms, utils
-from pt_ae import DirectOdometry, VanillaAutoencoder, MLPAutoencoder
+from pt_ae import DirectOdometry, FastDirectOdometry, VanillaAutoencoder, MLPAutoencoder
 from datetime import datetime
 from plotter import c3dto2d, abs2relative, plot_eval
 from odom_loader import load_kitti_odom
@@ -178,24 +178,23 @@ if __name__=='__main__':
 
     model_fn = sys.argv[1]
     h_dim = int(sys.argv[2])
-    log_folder = sys.argv[3]
-    new_dim = (int(sys.argv[4]),int(sys.argv[5]))
+    new_dim = (int(sys.argv[3]),int(sys.argv[4]))
+    seq_len = int(sys.argv[5])
     batch_size = int(sys.argv[6])
     num_epochs = int(sys.argv[7])
-    seq_len = 16
     #transf = transforms.Compose([Rescale(new_dim),ToTensor()])
     #transf = [Rescale(new_dim),ToTensor()]
     transf = ToTensor()
 
-    train_dir,valid_dir,test_dir = list_split_kitti_flux(new_dim[0],new_dim[1])
+    train_dir,valid_dir,test_dir = list_split_kitti_(new_dim[0],new_dim[1])
 
-    train_dataset = FluxSeqDataset(train_dir[0],train_dir[1],seq_len,transf)
-    valid_dataset = FluxSeqDataset(valid_dir[0],valid_dir[1],seq_len,transf)
-    test_dataset = FluxSeqDataset(test_dir[0],test_dir[1],seq_len,transf)
+    train_dataset = SeqDataset(train_dir[0],train_dir[1],seq_len,transf)
+    valid_dataset = SeqDataset(valid_dir[0],valid_dir[1],seq_len,transf)
+    test_dataset = SeqDataset(test_dir[0],test_dir[1],seq_len,transf)
 
     train_loader = DataLoader(train_dataset,batch_size=batch_size,shuffle=True,num_workers=4,collate_fn=my_collate)
     valid_loader = DataLoader(valid_dataset,batch_size=batch_size,shuffle=False,num_workers=4,collate_fn=my_collate)
-    test_loader = DataLoader(test_dataset,batch_size=batch_size,shuffle=False,num_workers=4,collate_fn=my_collate)
+    test_loader = DataLoader(test_dataset,batch_size=batch_size,shuffle=True,num_workers=4,collate_fn=my_collate)
 
     # CUDA for PyTorch
     use_cuda = torch.cuda.is_available()
@@ -204,13 +203,14 @@ if __name__=='__main__':
     ##model = VanillaAutoencoder((1,)+new_dim).to(device)
     #model = VanillaAutoencoder((2,)+new_dim,h_dim).to(device)
     #model = MLPAutoencoder((2,)+new_dim,h_dim).to(device)
-    model = DirectOdometry((2,)+new_dim,(12,),h_dim).to(device)
+    #model = DirectOdometry((1,)+new_dim,(12,),h_dim).to(device)
+    model = FastDirectOdometry((1,)+new_dim,(12,)).to(device)
     params = model.parameters()
     optimizer = optim.Adam(params,lr=1e-3)
     min_loss = 1e15
     epoch = 0
-    writer = SummaryWriter('/home/ubuntu/log/exp_{}_{}x{}_{}'\
-                           .format(h_dim,new_dim[0],new_dim[1],time()))
+    writer = SummaryWriter('/home/ubuntu/log/exp_h{}_l{}_{}x{}_{}'\
+                           .format(h_dim,seq_len,new_dim[0],new_dim[1],time()))
 
     if os.path.isfile(model_fn):
         print('Loading existing model')

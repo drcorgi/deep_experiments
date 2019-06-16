@@ -163,6 +163,50 @@ class DirectOdometry(nn.Module):
         #print(x.size())
         return x,z
 
+class FastDirectOdometry(nn.Module):
+    ''' Encoder + Odometry into same module
+        Input: (B x L) x C x H x W, in_shape: C x H x W
+        Output: B x L x O, out_shape: O
+    '''
+    def __init__(self,in_shape,out_shape):
+        super().__init__()
+        self.n_hidden = in_shape[-1] + in_shape[-2]
+        ''' self.filters = 32
+        # Batch dim trick
+        self.conv1 = nn.Conv2d(in_shape[0],self.filters,(5,5),(2,2))
+        self.conv2 = nn.Conv2d(self.filters,self.filters,(3,3),(1,1))
+        self.conv3 = nn.Conv2d(self.filters,self.filters,(3,3),(1,1))
+        self.new_h = (((((in_shape[1]-4)//2-2)//1)-2)//1)
+        self.new_w = (((((in_shape[2]-4)//2-2)//1)-2)//1)
+        self.flat_dim = self.new_h*self.new_w*self.filter
+        print('Flat dim',self.flat_dim)'''
+        self.fc1 = nn.Linear(self.n_hidden,2*self.n_hidden)
+        self.drop1 = nn.Dropout(0.5)
+        self.conv4 = nn.Conv1d(2*self.n_hidden,2*self.n_hidden,3,1,padding=1)
+        self.conv5 = nn.Conv1d(2*self.n_hidden,2*self.n_hidden,3,1,padding=1)
+        self.odom_norm = OdomNorm2d(2*self.n_hidden,12)
+
+    def forward(self,x):
+        size = x.size()
+        mh = torch.mean(x,dim=3)
+        mw = torch.mean(x,dim=4)
+        #print(size,mh.size(),mw.size())
+        x = torch.cat((mh,mw),dim=-1)
+        x = x.view(-1,self.n_hidden)
+        #print(x.size())
+        '''x = x.view(-1,size[2],size[3],size[4])
+        x = F.relu(self.conv1(x))
+        x = F.relu(self.conv2(x))
+        x = F.relu(self.conv3(x))
+        x = x.view(-1,self.flat_dim)'''
+        x = F.relu(self.fc1(x))
+        z = self.drop1(x)
+        x = z.view(-1,size[1],2*self.n_hidden).transpose(1,2)
+        x = F.relu(self.conv4(x))
+        x = self.conv5(x).transpose(1,2)
+        x = self.odom_norm(x)
+        return x,z
+
 class MLPAutoencoder(nn.Module):
     def __init__(self,in_shape,h_dim):
         super().__init__()

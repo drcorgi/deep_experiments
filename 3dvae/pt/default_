@@ -1,1 +1,1 @@
-python3 end2end.py '/home/ubuntu/models/2026.pth' 32 '/home/ubuntu/log' 16 16 256 1
+python3 end2end.py '/home/ubuntu/models/1604.pth' 128 32 32 24 128 100
