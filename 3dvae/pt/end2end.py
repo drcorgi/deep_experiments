@@ -18,6 +18,8 @@ from torchvision import transforms, utils
 from pt_ae import DirectOdometry, VanillaAutoencoder, MLPAutoencoder
 from datetime import datetime
 from plotter import c3dto2d, abs2relative, plot_eval
+from odom_loader import load_kitti_odom
+from tensorboardX import SummaryWriter
 
 def my_collate(batch):
     batch_x = []
@@ -36,172 +38,93 @@ class Rescale(object):
         self.output_size = output_size
 
     def __call__(self, image):
-        h, w = image.shape[:2]
-        if isinstance(self.output_size, int):
-            if h > w:
-                new_h, new_w = self.output_size*h/w, self.output_size
-            else:
-                new_h, new_w = self.output_size, self.output_size*w/h
-        else:
-            new_h, new_w = self.output_size
-        new_h, new_w = int(new_h),int(new_w)
-        image = cv2.resize(image,(new_h,new_w))
+        image = cv2.resize(image,self.output_size)
         return image
-
-class FluxRescale(object):
-    def __init__(self, output_size):
-        assert isinstance(output_size, (int, tuple))
-        self.output_size = output_size
-
-    def __call__(self, image):
-        h, w = image.shape[1:]
-        if isinstance(self.output_size, int):
-            if h > w:
-                new_h, new_w = self.output_size*h/w, self.output_size
-            else:
-                new_h, new_w = self.output_size, self.output_size*w/h
-        else:
-            new_h, new_w = self.output_size
-        new_h, new_w = int(new_h),int(new_w)
-        image0 = cv2.resize(image[0],(new_h,new_w))
-        image1 = cv2.resize(image[1],(new_h,new_w))
-        image = np.stack([image0,image1],axis=0)
-        return image
-
-class FluxToTensor(object):
-    def __call__(self,flux):
-        return torch.from_numpy(flux).float()
 
 class ToTensor(object):
-    def __call__(self,image):
-        return torch.from_numpy(image).unsqueeze(0).float()
+    def __call__(self,x):
+        return torch.from_numpy(x).float()
 
-class Edges(object):
-    def __call__(self,image):
-        return cv2.Canny(image,100,200)
+def list_split_kitti():
+    base = '/home/ubuntu/kitti/dataset/'
+    all_seqs = [sorted(glob(base+'sequences/{:02d}/image_0/*.png'\
+                .format(i))) for i in range(11)]
+    all_poses = [base+'poses/{:02d}.txt'.format(i) for i in range(11)]
+    train_seqs, train_poses = all_seqs[2:], all_poses[2:]
+    valid_seqs, valid_poses = all_seqs[0:1], all_poses[0:1]
+    test_seqs, test_poses = all_seqs[1:2], all_poses[1:2]
+    return (train_seqs,train_poses), (valid_seqs,valid_poses), (test_seqs,test_poses)
 
-class H5SeqFluxDataset(Dataset):
-    def __init__(self, file_path, seq_len, chunk_size, transform=None):
+class SeqDataset(Dataset):
+    def __init__(self, fnames, pfnames, seq_len, transform=None):
+        ''' fnames is a list of lists of file names
+            pfames is a list of file names (one for each entire sequence)
+        '''
         super().__init__()
-        h5_file = h5py.File(file_path)
-        self.frames = h5_file.get('frames')
-        self.poses = h5_file.get('poses')
-        self.sid_len = h5_file.get('sid_len')
+        self.fnames = fnames
+        self.pfnames = pfnames
+        self.len = sum([max(0,len(fns)-seq_len+1) for fns in fnames])
+        self.sids = []
+        for i,fns in enumerate(fnames):
+            for j in range(len(fns)-seq_len+1):
+                self.sids.append(i)
+        self.fsids = []
+        for fns in fnames:
+            for i in range(len(fns)-seq_len+1):
+                self.fsids.append(i)
         self.seq_len = seq_len
-        self.transform = transform
-        self.chunk_size = chunk_size
+        self.transform = transform # Transform at the frame level
 
     def __getitem__(self, index):
-        i,j = index//self.chunk_size, index%self.chunk_size
-        index = max(2,index)
-        if self.sid_len[i][j][0] + self.seq_len >= self.sid_len[i][j][1]\
-           or index + self.seq_len >= self.__len__():
-            index = index - self.seq_len - 1
         try:
-            x = []
-            for i in range(index,index+self.seq_len):
-                next = min(index+1,index+self.seq_len-1)
-                frame = self.frames[i//self.chunk_size][i%self.chunk_size]
-                next_frame = self.frames[next//self.chunk_size][next%self.chunk_size]
-                if self.transform:
-                    frame = self.transform[0](frame)
-                    next_frame = self.transform[0](next_frame)
-                    flux = cv2.calcOpticalFlowFarneback(frame,next_frame,None,0.5,3,15,3,5,1.2,0)
-                    flux = flux.transpose(2,0,1)
-                    flux = self.transform[1](flux)
-                else:
-                    flux = cv2.calcOpticalFlowFarneback(frame,next_frame,None,0.5,3,15,3,5,1.2,0)
-                    flux = flux.transpose(2,0,1)
-                x.append(flux.unsqueeze(0))
-            x = torch.cat(x,dim=0)
-            y, abs = [], []
-            for i in range(index,index+self.seq_len):
-                p = self.poses[i//self.chunk_size][i%self.chunk_size]
-                p = c3dto2d(p)
-                y.append(p)
-                abs.append(p)
-            y = abs2relative(y,self.seq_len,1)[0]
-            y = torch.from_numpy(y).float()
-            return x, y, abs
-        except Exception as e:
-            print(e)
-
-    def __len__(self):
-        return self.chunk_size*self.frames.shape[0]
-
-class H5SeqDataset(Dataset):
-    def __init__(self, file_path, seq_len, chunk_size, transform=None):
-        super().__init__()
-        h5_file = h5py.File(file_path)
-        self.frames = h5_file.get('frames')
-        self.poses = h5_file.get('poses')
-        self.sid_len = h5_file.get('sid_len')
-        self.seq_len = seq_len
-        self.transform = transform
-        self.chunk_size = chunk_size
-
-    def __getitem__(self, index):
-        i,j = index//self.chunk_size, index%self.chunk_size
-        index = max(2,index)
-        #print(self.sid_len[i][j][0],self.sid_len[i][j][1])
-        if self.sid_len[i][j][0] + self.seq_len >= self.sid_len[i][j][1]\
-           or index + self.seq_len >= self.__len__():
-            index = index - self.seq_len - 1
-        #print(index)
-        try:
-            x = []
-            for i in range(index,index+self.seq_len):
-                frame = self.frames[i//self.chunk_size][i%self.chunk_size]
-                if self.transform:
-                    frame = self.transform(frame)
-                x.append(frame)
+            s,id = self.sids[index], self.fsids[index]
+            x = [cv2.imread(fn,0) for fn in self.fnames[s][id:id+self.seq_len]]
+            if self.transform:
+                x = [self.transform(img) for img in x]
+            x = [img.unsqueeze(0) for img in x]
             x = torch.cat(x,dim=0).unsqueeze(1)
-            y, abs = [], []
-            for i in range(index,index+self.seq_len):
-                p = self.poses[i//self.chunk_size][i%self.chunk_size]
+            abs = load_kitti_odom(self.pfnames[s])[id:id+self.seq_len]
+            y = []
+            for p in abs:
                 p = c3dto2d(p)
                 y.append(p)
-                abs.append(p)
             y = abs2relative(y,self.seq_len,1)[0]
             y = torch.from_numpy(y).float()
-            return x, y, abs
+            #print('seq loading',x.size(),y.size(),abs.shape)
+            return x,y,abs
         except RuntimeError as re:
             print(re)
         except Exception as e:
             print(e)
 
     def __len__(self):
-        return self.chunk_size*self.frames.shape[0]
+        return self.len
 
 if __name__=='__main__':
-    train_dir = sys.argv[1] #'/home/ronnypetson/Documents/deep_odometry/kitti/joint_frames_odom_train.h5'
-    valid_dir = sys.argv[2] #'/home/ronnypetson/Documents/deep_odometry/kitti/joint_frames_odom_valid.h5'
-    test_dir = sys.argv[3] #'/home/ronnypetson/Documents/deep_odometry/kitti/joint_frames_odom_test.h5'
+    '''train_dir = sys.argv[1] #'/home/ubuntu/kitti/dataset'
+    valid_dir = sys.argv[2] #'/home/ubuntu/kitti/dataset'
+    test_dir = sys.argv[3] #'/home/ubuntu/kitti/'
+    '''
 
-    '''train_dir = sorted([fn for fn in glob(train_dir) if os.path.isfile(fn)])
-    valid_dir = sorted([fn for fn in glob(valid_dir) if os.path.isfile(fn)])
-    test_dir = sorted([fn for fn in glob(test_dir) if os.path.isfile(fn)])'''
-
-    model_fn = sys.argv[4]
-    h_dim = int(sys.argv[5])
-    log_folder = sys.argv[6]
-    new_dim = (int(sys.argv[7]),int(sys.argv[8]))
-    batch_size = int(sys.argv[9])
-    num_epochs = int(sys.argv[10])
+    model_fn = sys.argv[1]
+    h_dim = int(sys.argv[2])
+    log_folder = sys.argv[3]
+    new_dim = (int(sys.argv[4]),int(sys.argv[5]))
+    batch_size = int(sys.argv[6])
+    num_epochs = int(sys.argv[7])
     seq_len = 16
     transf = transforms.Compose([Rescale(new_dim),ToTensor()])
-    #transf = [Rescale(new_dim),FluxToTensor()] #,FluxToTensor()]
+    #transf = [Rescale(new_dim),ToTensor()]
 
-    train_dataset = H5SeqDataset(train_dir,seq_len,10,transf)
-    valid_dataset = H5SeqDataset(valid_dir,seq_len,10,transf)
-    test_dataset = H5SeqDataset(test_dir,seq_len,10,transf)
-    ##train_dataset = FluxH5Dataset(train_dir,10,transf)
-    ##valid_dataset = FluxH5Dataset(valid_dir,10,transf)
-    ##test_dataset = FluxH5Dataset(test_dir,10,transf)
+    train_dir,valid_dir,test_dir = list_split_kitti()
 
-    train_loader = DataLoader(train_dataset,batch_size=batch_size,shuffle=False,num_workers=0,collate_fn=my_collate)
-    valid_loader = DataLoader(valid_dataset,batch_size=batch_size//2,shuffle=False,num_workers=0,collate_fn=my_collate)
-    test_loader = DataLoader(test_dataset,batch_size=batch_size//2,shuffle=False,num_workers=0,collate_fn=my_collate)
+    train_dataset = SeqDataset(train_dir[0],train_dir[1],seq_len,transf)
+    valid_dataset = SeqDataset(valid_dir[0],valid_dir[1],seq_len,transf)
+    test_dataset = SeqDataset(test_dir[0],test_dir[1],seq_len,transf)
+
+    train_loader = DataLoader(train_dataset,batch_size=batch_size,shuffle=False,num_workers=4,collate_fn=my_collate)
+    valid_loader = DataLoader(valid_dataset,batch_size=batch_size,shuffle=False,num_workers=4,collate_fn=my_collate)
+    test_loader = DataLoader(test_dataset,batch_size=batch_size,shuffle=False,num_workers=4,collate_fn=my_collate)
 
     # CUDA for PyTorch
     use_cuda = torch.cuda.is_available()
@@ -215,6 +138,7 @@ if __name__=='__main__':
     optimizer = optim.Adam(params,lr=3e-4)
     min_loss = 1e15
     epoch = 0
+    writer = SummaryWriter('/home/ubuntu/log/exp1')
 
     if os.path.isfile(model_fn):
         print('Loading existing model')
@@ -228,26 +152,26 @@ if __name__=='__main__':
 
     loss_fn = torch.nn.MSELoss()
     epoch_losses = []
-    epoch = num_epochs-1
+    #epoch = num_epochs-1
     for i in range(epoch,num_epochs):
         model.train()
         losses = []
-        for j,xy in enumerate(train_loader):
-            #if j == 0: continue
+        for j,xy in enumerate(test_loader):
             x,y = xy[0].to(device), xy[1].to(device)
             optimizer.zero_grad()
-            y_ = model(x)
+            y_,z = model(x)
             loss = loss_fn(y_,y)
             loss.backward()
             optimizer.step()
+            writer.add_scalar('train_cost',loss.item(),j)
+            writer.add_embedding(z,tag='img_emb',global_step=1)
             losses.append(loss.item())
             print('Batch {}\tloss: {}'.format(j,loss.item()))
         model.eval()
         v_losses = []
-        for k,xy in enumerate(train_loader):
-            #if k == 0: continue
+        for k,xy in enumerate(test_loader):
             x,y = xy[0].to(device), xy[1].to(device)
-            y_ = model(x)
+            y_,*_ = model(x)
             loss = loss_fn(y_,y)
             v_losses.append(loss.item())
         mean_train, mean_valid = np.mean(losses),np.mean(v_losses)
@@ -261,7 +185,8 @@ if __name__=='__main__':
                         'epoch': i+1}, model_fn)
     model.eval()
     print('Start of plot_eval')
-    plot_eval(model,train_loader,seq_len,device)
+    plot_eval(model,test_loader,seq_len,device,logger=writer)
+    writer.close()
     print('End of plot_eval')
     '''t_losses = []
     for xy in test_loader:

@@ -1,7 +1,0 @@
-Data to save:
-    KITTI FRAMES -> Optical flows -> Level 0 encodings
-    download, run gen_flows_dataset.py, run ae0_train.py
-
-Models to train:
-    Level 0 encoder -> Mapper (sequence of lvl0 to sequence of odometry)
-    run ae0_train.py, run mapper_train.py

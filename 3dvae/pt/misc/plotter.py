@@ -1,5 +1,4 @@
 import numpy as np
-import gym
 import cv2
 import os
 import re
@@ -18,7 +17,7 @@ def c3dto2d(p):
     p[[0,2,8,10]] = p[[0,2,8,10]]/det
     return p
 
-def plot_abs(gt,rec,out_fn):
+def plot_abs(gt,rec,out_fn,logger=None):
     fig = plt.figure()
     ax = fig.add_subplot(111,projection='3d')
     gt = np.array([[p[3],p[7],p[11]] for p in gt])
@@ -28,7 +27,7 @@ def plot_abs(gt,rec,out_fn):
     plt.savefig(out_fn)
     plt.close(fig)
 
-def plot_3d_points_(gt,est,out_fn,wlen):
+def plot_3d_points_(gt,est,out_fn,wlen,logger=None):
     fig = plt.figure()
     ax = fig.add_subplot(131)
     ax.plot(gt[:,0],gt[:,1],'g.')
@@ -47,6 +46,9 @@ def plot_3d_points_(gt,est,out_fn,wlen):
     ax.plot(est[:,0],est[:,1],'b.')'''
     plt.savefig(out_fn)
     plt.close(fig)
+    if logger is not None:
+        img = cv2.imread(out_fn)
+        logger.add_image('pts',img,dataformats='HWC')
 
 def plot_2d_points_(gt,est,ign=1,ddir='/home/ronnypetson/models'):
     fig = plt.figure()
@@ -86,7 +88,7 @@ def relative2abs(rel_poses,wsize):
     abs_poses = poses[:wsize]
     for i in range(wsize,len(poses),wsize):
         in_p = abs_poses[-1]
-        print(in_p,np.linalg.det(in_p[:3,:3]))
+        #print(in_p,np.linalg.det(in_p[:3,:3]))
         abs_poses += [np.matmul(in_p,poses[j]) for j in range(i,i+wsize)]
     abs_poses = [flat_homogen(p) for p in abs_poses]
     return abs_poses
@@ -153,12 +155,12 @@ def get_3d_points_t2(rposes,wlen,gt_poses):
         aposes += [np.matmul(in_p,rposes[i][j]) for j in range(wlen)]
     return np.array([[p[0,3],p[1,3],p[2,3]] for p in aposes])
 
-def plot_eval(model,test_loader,seq_len,device='cuda:0'):
+def plot_eval(model,test_loader,seq_len,device='cuda:0',logger=None):
     rel_poses = []
     data_y = []
     for x,y,abs in test_loader:
         x,y,abs = x.to(device), y.to(device), np.array(abs).reshape(-1,12).tolist()
-        y_ = model(x)
+        y_,*_ = model(x)
         data_y += abs
         rel_poses += y_.cpu().detach().numpy().reshape(-1,12).tolist()
     rel_poses = np.array(rel_poses)
@@ -176,5 +178,7 @@ def plot_eval(model,test_loader,seq_len,device='cuda:0'):
     if not os.path.isdir('tmp'):
         os.mkdir('tmp')
     t = time.time()
-    plot_3d_points_(pts,pts_,'tmp/{}_projections_xyz.png'.format(t),wlen=seq_len) #gt
+    #logger.add_embedding(pts,tag='source',global_step=1)
+    plot_3d_points_(pts,pts_,'tmp/{}_projections_xyz.png'.format(t),\
+                    wlen=seq_len,logger=logger) #gt
     #plot_abs(abs_,pts_,'tmp/{}_absolute_gt_3d.png'.format(t))
