@@ -56,6 +56,73 @@ def list_split_kitti():
     test_seqs, test_poses = all_seqs[1:2], all_poses[1:2]
     return (train_seqs,train_poses), (valid_seqs,valid_poses), (test_seqs,test_poses)
 
+def list_split_kitti_(h,w):
+    base = '/home/ubuntu/kitti/{}x{}/'.format(h,w)
+    pbase = '/home/ubuntu/kitti/dataset/'
+    all_seqs = [sorted(glob(base+'{:02d}/*.png'\
+                .format(i))) for i in range(11)]
+    all_poses = [pbase+'poses/{:02d}.txt'.format(i) for i in range(11)]
+    train_seqs, train_poses = all_seqs[2:], all_poses[2:]
+    valid_seqs, valid_poses = all_seqs[0:1], all_poses[0:1]
+    test_seqs, test_poses = all_seqs[1:2], all_poses[1:2]
+    return (train_seqs,train_poses), (valid_seqs,valid_poses), (test_seqs,test_poses)
+
+def list_split_kitti_flux(h,w):
+    base = '/home/ubuntu/kitti/flux/{}x{}/'.format(h,w)
+    pbase = '/home/ubuntu/kitti/dataset/'
+    all_seqs = [sorted(glob(base+'{:02d}/*.npy'\
+                .format(i))) for i in range(11)]
+    all_poses = [pbase+'poses/{:02d}.txt'.format(i) for i in range(11)]
+    train_seqs, train_poses = all_seqs[2:], all_poses[2:]
+    valid_seqs, valid_poses = all_seqs[0:1], all_poses[0:1]
+    test_seqs, test_poses = all_seqs[1:2], all_poses[1:2]
+    return (train_seqs,train_poses), (valid_seqs,valid_poses), (test_seqs,test_poses)
+
+class FluxSeqDataset(Dataset):
+    def __init__(self, fnames, pfnames, seq_len, transform=None):
+        ''' fnames is a list of lists of file names
+            pfames is a list of file names (one for each entire sequence)
+        '''
+        super().__init__()
+        self.fnames = fnames
+        self.pfnames = pfnames
+        self.len = sum([max(0,len(fns)-seq_len+1) for fns in fnames])
+        self.sids = []
+        for i,fns in enumerate(fnames):
+            for j in range(len(fns)-seq_len+1):
+                self.sids.append(i)
+        self.fsids = []
+        for fns in fnames:
+            for i in range(len(fns)-seq_len+1):
+                self.fsids.append(i)
+        self.seq_len = seq_len
+        self.transform = transform # Transform at the frame level
+
+    def __getitem__(self, index):
+        try:
+            s,id = self.sids[index], self.fsids[index]
+            x = [np.load(fn) for fn in self.fnames[s][id:id+self.seq_len]]
+            if self.transform:
+                x = [self.transform(img) for img in x]
+            x = [img.transpose(0,-1).unsqueeze(0) for img in x]
+            x = torch.cat(x,dim=0)
+            abs = load_kitti_odom(self.pfnames[s])[id:id+self.seq_len]
+            y = []
+            for p in abs:
+                p = c3dto2d(p)
+                y.append(p)
+            y = abs2relative(y,self.seq_len,1)[0]
+            y = torch.from_numpy(y).float()
+            #print('seq loading',x.size(),y.size(),abs.shape)
+            return x,y,abs
+        except RuntimeError as re:
+            print(re)
+        except Exception as e:
+            print(e)
+
+    def __len__(self):
+        return self.len
+
 class SeqDataset(Dataset):
     def __init__(self, fnames, pfnames, seq_len, transform=None):
         ''' fnames is a list of lists of file names
@@ -79,9 +146,11 @@ class SeqDataset(Dataset):
     def __getitem__(self, index):
         try:
             s,id = self.sids[index], self.fsids[index]
+            #t = time()
             x = [cv2.imread(fn,0) for fn in self.fnames[s][id:id+self.seq_len]]
             if self.transform:
                 x = [self.transform(img) for img in x]
+            #print('batch transf',256*(time()-t))
             x = [img.unsqueeze(0) for img in x]
             x = torch.cat(x,dim=0).unsqueeze(1)
             abs = load_kitti_odom(self.pfnames[s])[id:id+self.seq_len]
@@ -114,14 +183,15 @@ if __name__=='__main__':
     batch_size = int(sys.argv[6])
     num_epochs = int(sys.argv[7])
     seq_len = 16
-    transf = transforms.Compose([Rescale(new_dim),ToTensor()])
+    #transf = transforms.Compose([Rescale(new_dim),ToTensor()])
     #transf = [Rescale(new_dim),ToTensor()]
+    transf = ToTensor()
 
-    train_dir,valid_dir,test_dir = list_split_kitti()
+    train_dir,valid_dir,test_dir = list_split_kitti_flux(new_dim[0],new_dim[1])
 
-    train_dataset = SeqDataset(train_dir[0],train_dir[1],seq_len,transf)
-    valid_dataset = SeqDataset(valid_dir[0],valid_dir[1],seq_len,transf)
-    test_dataset = SeqDataset(test_dir[0],test_dir[1],seq_len,transf)
+    train_dataset = FluxSeqDataset(train_dir[0],train_dir[1],seq_len,transf)
+    valid_dataset = FluxSeqDataset(valid_dir[0],valid_dir[1],seq_len,transf)
+    test_dataset = FluxSeqDataset(test_dir[0],test_dir[1],seq_len,transf)
 
     train_loader = DataLoader(train_dataset,batch_size=batch_size,shuffle=True,num_workers=4,collate_fn=my_collate)
     valid_loader = DataLoader(valid_dataset,batch_size=batch_size,shuffle=False,num_workers=4,collate_fn=my_collate)
@@ -134,9 +204,9 @@ if __name__=='__main__':
     ##model = VanillaAutoencoder((1,)+new_dim).to(device)
     #model = VanillaAutoencoder((2,)+new_dim,h_dim).to(device)
     #model = MLPAutoencoder((2,)+new_dim,h_dim).to(device)
-    model = DirectOdometry((1,)+new_dim,(12,),h_dim).to(device)
+    model = DirectOdometry((2,)+new_dim,(12,),h_dim).to(device)
     params = model.parameters()
-    optimizer = optim.Adam(params,lr=3e-4)
+    optimizer = optim.Adam(params,lr=1e-3)
     min_loss = 1e15
     epoch = 0
     writer = SummaryWriter('/home/ubuntu/log/exp_{}_{}x{}_{}'\
@@ -160,6 +230,7 @@ if __name__=='__main__':
         model.train()
         losses = []
         for j,xy in enumerate(test_loader):
+            #t = time()
             x,y = xy[0].to(device), xy[1].to(device)
             optimizer.zero_grad()
             y_,z = model(x)
@@ -170,8 +241,9 @@ if __name__=='__main__':
             losses.append(loss.item())
             k += 1
             print('Batch {}\tloss: {}'.format(j,loss.item()))
+            #print('inference',time()-t)
         x_ = x[0].view(-1,x.size(-1)).unsqueeze(0)
-        print(x_.size())
+        #print(x_.size())
         writer.add_image('_img_seq_{}'.format(i),x_)
         writer.add_image('_img_emb_{}'.format(i),\
                          z[:seq_len].unsqueeze(0))
