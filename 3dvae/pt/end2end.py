@@ -186,11 +186,11 @@ if __name__=='__main__':
     #transf = [Rescale(new_dim),ToTensor()]
     transf = ToTensor()
 
-    train_dir,valid_dir,test_dir = list_split_kitti_(new_dim[0],new_dim[1])
+    train_dir,valid_dir,test_dir = list_split_kitti_flux(new_dim[0],new_dim[1])
 
-    train_dataset = SeqDataset(train_dir[0],train_dir[1],seq_len,transf)
-    valid_dataset = SeqDataset(valid_dir[0],valid_dir[1],seq_len,transf)
-    test_dataset = SeqDataset(test_dir[0],test_dir[1],seq_len,transf)
+    train_dataset = FluxSeqDataset(train_dir[0],train_dir[1],seq_len,transf)
+    valid_dataset = FluxSeqDataset(valid_dir[0],valid_dir[1],seq_len,transf)
+    test_dataset = FluxSeqDataset(test_dir[0],test_dir[1],seq_len,transf)
 
     train_loader = DataLoader(train_dataset,batch_size=batch_size,shuffle=True,num_workers=4,collate_fn=my_collate)
     valid_loader = DataLoader(valid_dataset,batch_size=batch_size,shuffle=False,num_workers=4,collate_fn=my_collate)
@@ -204,7 +204,7 @@ if __name__=='__main__':
     #model = VanillaAutoencoder((2,)+new_dim,h_dim).to(device)
     #model = MLPAutoencoder((2,)+new_dim,h_dim).to(device)
     #model = DirectOdometry((1,)+new_dim,(12,),h_dim).to(device)
-    model = FastDirectOdometry((1,)+new_dim,(12,)).to(device)
+    model = FastDirectOdometry((2,)+new_dim,(12,)).to(device)
     params = model.parameters()
     optimizer = optim.Adam(params,lr=1e-3)
     min_loss = 1e15
