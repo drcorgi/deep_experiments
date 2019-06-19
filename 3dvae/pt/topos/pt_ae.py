@@ -15,7 +15,8 @@ def seq_pose_loss(p,p_):
     #print('dtheta',torch.max(theta))
     ltheta = torch.exp(torch.tensor(10.0)*dtheta)
     ltheta = torch.mean(ltheta)
-    lxy = torch.mean((p[:,:,[1,2]]-p_[:,:,[1,2]])**2.0)
+    lxy = torch.mean((p[:,:,[3,11]]-p_[:,:,[3,11]])**2.0)
+    print('losses',ltheta,lxy)
     return ltheta + lxy
 
 class DepthWiseConv2d(nn.Module):
