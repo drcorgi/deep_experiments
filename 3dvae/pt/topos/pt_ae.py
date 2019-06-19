@@ -4,6 +4,20 @@ import torch.nn.functional as F
 import torch.optim as optim
 import numpy as np
 
+def seq_pose_loss(p,p_):
+    ''' B x L x P
+    '''
+    theta = torch.acos(torch.clamp(p[:,:,0],min=-1+1e-7,max=1-1e-7))
+    theta_ = torch.acos(torch.clamp(p_[:,:,0],min=-1+1e-7,max=1-1e-7))
+    dtheta1 = torch.abs(theta-theta_)
+    dtheta2 = torch.abs(torch.tensor(6.2830)-theta-theta_)
+    dtheta = torch.min(dtheta1,dtheta2)
+    #print('dtheta',torch.max(theta))
+    ltheta = torch.exp(torch.tensor(10.0)*dtheta)
+    ltheta = torch.mean(ltheta)
+    lxy = torch.mean((p[:,:,[1,2]]-p_[:,:,[1,2]])**2.0)
+    return ltheta + lxy
+
 class DepthWiseConv2d(nn.Module):
     def __init__(self,in_filters,out_filters,kernel_size,stride,padding):
         super().__init__()
@@ -110,6 +124,7 @@ class OdomNorm2d(nn.Module):
         x = F.relu(self.fc2(x))
         x = x.view(b,l,3)
         x_ = torch.zeros(b,l,self.out_channels).cuda()
+        #print(x[0,-1,0])
         x_[:,:,0] = torch.cos(x[:,:,0])
         x_[:,:,2] = -torch.sin(x[:,:,0])
         x_[:,:,8] = torch.sin(x[:,:,0])

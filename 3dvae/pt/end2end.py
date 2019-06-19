@@ -15,7 +15,8 @@ sys.path.append(os.path.dirname(os.path.realpath(__file__))+'/sample')
 from glob import glob
 from torch.utils.data import Dataset, DataLoader
 from torchvision import transforms, utils
-from pt_ae import DirectOdometry, FastDirectOdometry, VanillaAutoencoder, MLPAutoencoder
+from pt_ae import DirectOdometry, FastDirectOdometry,\
+VanillaAutoencoder, MLPAutoencoder, seq_pose_loss
 from datetime import datetime
 from plotter import c3dto2d, abs2relative, plot_eval
 from odom_loader import load_kitti_odom
@@ -194,7 +195,7 @@ if __name__=='__main__':
 
     train_loader = DataLoader(train_dataset,batch_size=batch_size,shuffle=True,num_workers=4,collate_fn=my_collate)
     valid_loader = DataLoader(valid_dataset,batch_size=batch_size,shuffle=False,num_workers=4,collate_fn=my_collate)
-    test_loader = DataLoader(test_dataset,batch_size=batch_size,shuffle=True,num_workers=4,collate_fn=my_collate)
+    test_loader = DataLoader(test_dataset,batch_size=batch_size,shuffle=False,num_workers=4,collate_fn=my_collate)
 
     # CUDA for PyTorch
     use_cuda = torch.cuda.is_available()
@@ -209,8 +210,8 @@ if __name__=='__main__':
     optimizer = optim.Adam(params,lr=1e-3)
     min_loss = 1e15
     epoch = 0
-    writer = SummaryWriter('/home/ubuntu/log/exp_h{}_l{}_{}x{}_{}'\
-                           .format(h_dim,seq_len,new_dim[0],new_dim[1],time()))
+    writer = SummaryWriter('/home/ubuntu/log/exp_{}_h{}_l{}_{}x{}'\
+                           .format(time,h_dim,seq_len,new_dim[0],new_dim[1]))
 
     if os.path.isfile(model_fn):
         print('Loading existing model')
@@ -229,12 +230,12 @@ if __name__=='__main__':
     for i in range(epoch,num_epochs):
         model.train()
         losses = []
-        for j,xy in enumerate(test_loader):
+        for j,xy in enumerate(valid_loader):
             #t = time()
             x,y = xy[0].to(device), xy[1].to(device)
             optimizer.zero_grad()
             y_,z = model(x)
-            loss = loss_fn(y_,y)
+            loss = seq_pose_loss(y_,y) #loss_fn(y_,y)
             loss.backward()
             optimizer.step()
             writer.add_scalar('train_cost',loss.item(),k)
@@ -247,9 +248,9 @@ if __name__=='__main__':
         writer.add_image('_img_seq_{}'.format(i),x_)
         writer.add_image('_img_emb_{}'.format(i),\
                          z[:seq_len].unsqueeze(0))
-        model.eval()
+        '''model.eval()
         v_losses = []
-        for j,xy in enumerate(test_loader):
+        for j,xy in enumerate(valid_loader):
             x,y = xy[0].to(device), xy[1].to(device)
             y_,*_ = model(x)
             loss = loss_fn(y_,y)
@@ -263,10 +264,10 @@ if __name__=='__main__':
             torch.save({'model_state': model.state_dict(),
                         'optimizer_state': optimizer.state_dict(),
                         'min_loss': min_loss,
-                        'epoch': i+1}, model_fn)
+                        'epoch': i+1}, model_fn)'''
     model.eval()
     print('Start of plot_eval')
-    plot_eval(model,test_loader,seq_len,device,logger=writer)
+    plot_eval(model,valid_loader,seq_len,device,logger=writer)
     writer.close()
     print('End of plot_eval')
     '''t_losses = []
