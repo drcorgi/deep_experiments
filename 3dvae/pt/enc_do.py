@@ -177,12 +177,13 @@ if __name__=='__main__':
     test_dir = sys.argv[3] #'/home/ubuntu/kitti/'
     '''
 
-    model_fn = sys.argv[1]
-    h_dim = int(sys.argv[2])
-    new_dim = (int(sys.argv[3]),int(sys.argv[4]))
-    seq_len = int(sys.argv[5])
-    batch_size = int(sys.argv[6])
-    num_epochs = int(sys.argv[7])
+    enc_fn = sys.argv[1]
+    model_fn = sys.argv[2]
+    h_dim = int(sys.argv[3])
+    new_dim = (int(sys.argv[4]),int(sys.argv[5]))
+    seq_len = int(sys.argv[6])
+    batch_size = int(sys.argv[7])
+    num_epochs = int(sys.argv[8])
     #transf = transforms.Compose([Rescale(new_dim),ToTensor()])
     #transf = [Rescale(new_dim),ToTensor()]
     transf = ToTensor()
@@ -201,10 +202,17 @@ if __name__=='__main__':
     use_cuda = torch.cuda.is_available()
     device = torch.device("cuda:0" if use_cuda else "cpu")
     print(device)
+
+    model = VanAE((1,)+new_dim).to(device)
+    model = torch.load(enc_fn)
+    vo = Conv1dMapper((1,)+new_dim,(12,),h_dim).to(device)
+    model.dec = vo
+    for param in model.enc.parameters():
+        param.requires_grad = False
+
     ##model = VanillaAutoencoder((1,)+new_dim).to(device)
     #model = VanillaAutoencoder((2,)+new_dim,h_dim).to(device)
     #model = MLPAutoencoder((2,)+new_dim,h_dim).to(device)
-    model = DirectOdometry((1,)+new_dim,(12,),h_dim).to(device)
     #model = FastDirectOdometry((1,)+new_dim,(12,)).to(device)
     params = model.parameters()
     optimizer = optim.Adam(params,lr=1e-3)

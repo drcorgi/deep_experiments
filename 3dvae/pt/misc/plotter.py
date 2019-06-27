@@ -33,10 +33,10 @@ def plot_3d_points_(gt,est,out_fn,wlen,logger=None):
     ax.plot(gt[:,0],gt[:,1],'g.')
     ax.plot(est[:,0],est[:,1],'b.')
     ax = fig.add_subplot(132)
-    ax.plot(gt[:,0],gt[:,2],'g.')
-    #ax.plot(est[:,0],est[:,2],'b')
+    ax.plot(gt[:,0],gt[:,2],'g-')
+    ax.plot(est[:,0],est[:,2],'b.')
 
-    ax.plot(est[:,0],est[:,2],'r.')
+    ax.plot(est[::wlen,0],est[::wlen,2],'r.')
 
     ax = fig.add_subplot(133)
     ax.plot(gt[:,1],gt[:,2],'g.')

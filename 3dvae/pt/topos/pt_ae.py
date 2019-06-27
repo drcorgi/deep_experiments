@@ -46,6 +46,74 @@ class DepthWiseConvTranspose2d(nn.Module):
         x = self.pointwise(x)
         return x
 
+class Identity(nn.Module):
+    def __init__(self):
+        super(Identity, self).__init__()
+
+    def forward(self, x):
+        return x
+
+class VanillaEncoder(nn.Module):
+    def __init__(self,in_shape,h_dim):
+        super().__init__()
+        self.in_shape = in_shape # C,H,W
+        self.filters = 32
+        self.h_dim = h_dim #256
+        self.conv1 = nn.Conv2d(in_shape[0],self.filters,(5,5),(2,2))
+        self.conv2 = nn.Conv2d(self.filters,self.filters,(3,3),(1,1))
+        self.conv3 = nn.Conv2d(self.filters,self.filters,(3,3),(1,1))
+        self.new_h = (((((in_shape[1]-4)//2-2)//1)-2)//1)
+        self.new_w = (((((in_shape[2]-4)//2-2)//1)-2)//1)
+        self.flat_dim = self.new_h*self.new_w*self.filters
+        print(self.new_h,self.new_w)
+        self.fc1 = nn.Linear(self.flat_dim,self.h_dim)
+        self.fc1_drop = nn.Dropout(0.5)
+
+    def forward(self,x):
+        x = F.relu(self.conv1(x))
+        x = F.relu(self.conv2(x))
+        x = F.relu(self.conv3(x))
+        x = x.view(-1,self.flat_dim)
+        x = F.relu(self.fc1(x))
+        x = self.fc1_drop(x)
+        return x
+
+class VanillaDecoder(nn.Module):
+    def __init__(self,in_shape,h_dim):
+        super().__init__()
+        self.in_shape = in_shape # C,H,W
+        self.filters = 32
+        self.h_dim = h_dim
+        self.new_h = (((((in_shape[1]-4)//2-2)//1)-2)//1)
+        self.new_w = (((((in_shape[2]-4)//2-2)//1)-2)//1)
+        self.flat_dim = self.new_h*self.new_w*self.filters
+        print(self.new_h,self.new_w)
+        self.fc2 = nn.Linear(self.h_dim,self.flat_dim)
+        self.deconv1 = nn.ConvTranspose2d(self.filters,self.filters,(3,3),(1,1),padding=0)
+        self.deconv2 = nn.ConvTranspose2d(self.filters,self.filters,(3,3),(1,1),padding=0) # ,output_padd$
+        self.deconv3 = nn.ConvTranspose2d(self.filters,in_shape[0],(5,5),(2,2),padding=0,output_padding=1)
+        self.fc2_drop = nn.Dropout(0.5)
+
+    def forward(self,x):
+        x = F.relu(self.fc2(x))
+        x = self.fc2_drop(x)
+        x = x.view(-1,self.filters,self.new_h,self.new_w)
+        x = F.relu(self.deconv1(x))
+        x = F.relu(self.deconv2(x))
+        x = self.deconv3(x)
+        return x
+
+class VanAE(nn.Module):
+    def __init__(self,in_shape,h_dim):
+        super().__init__()
+        self.enc = VanillaEncoder(in_shape,h_dim)
+        self.dec = VanillaDecoder(in_shape,h_dim)
+
+    def forward(self,x):
+        x = self.enc(x)
+        x = self.dec(x)
+        return x
+
 class VanillaAutoencoder(nn.Module):
     def __init__(self,in_shape,h_dim):
         super().__init__()
@@ -122,7 +190,7 @@ class OdomNorm2d(nn.Module):
         b,l,c = x.size()
         x = x.contiguous().view(-1,c)
         x = F.relu(self.fc1(x))
-        x = F.relu(self.fc2(x))
+        x = self.fc2(x)
         x = x.view(b,l,3)
         x_ = torch.zeros(b,l,self.out_channels).cuda()
         #print(x[0,-1,0])
@@ -157,7 +225,10 @@ class DirectOdometry(nn.Module):
         self.drop1 = nn.Dropout(0.5)
         self.conv4 = nn.Conv1d(self.n_hidden,self.n_hidden,3,1,padding=1)
         self.conv5 = nn.Conv1d(self.n_hidden,self.n_hidden,3,1,padding=1)
+        self.conv6 = nn.Conv1d(self.n_hidden,self.n_hidden,3,1,padding=1)
         self.odom_norm = OdomNorm2d(self.n_hidden,12)
+        #self.fc2 = nn.Linear(n_hidden,n_hidden)
+        #self.fc3 = nn.Linear(n_hidden,12)
 
     def forward(self,x):
         size = x.size()
@@ -173,9 +244,12 @@ class DirectOdometry(nn.Module):
         #print(x.size())
         x = F.relu(self.conv4(x))
         #print(x.size())
-        x = self.conv5(x).transpose(1,2)
+        x = F.relu(self.conv5(x)) #.transpose(1,2)
+        x = F.relu(self.conv6(x)).transpose(1,2)
         #print(x.size())
         x = self.odom_norm(x)
+        #x = F.relu(self.fc2(x))
+        #x = self.fc3(x)
         #print(x.size())
         return x,z
 
@@ -314,9 +388,9 @@ class Conv1dMapper(nn.Module):
         self.dropout4 = nn.Dropout(p=0.5)
         self.dropout5 = nn.Dropout(p=0.5)
 
-        self.control_dist = in_shape[1] # in_shape[1] % 3 == 1
+        '''self.control_dist = in_shape[1] # in_shape[1] % 3 == 1
         self.control_pts = [0,-1]
-        self.regular_pts = [p for p in range(1,in_shape[1]-1)]
+        self.regular_pts = [p for p in range(1,in_shape[1]-1)]'''
 
     def forward(self,x):
         x = self.bn1(F.relu(self.conv1(x)))
