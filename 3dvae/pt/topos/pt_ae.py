@@ -55,6 +55,8 @@ class Identity(nn.Module):
 
 class VanillaEncoder(nn.Module):
     def __init__(self,in_shape,h_dim):
+        ''' (B x L) x C x H x W
+        '''
         super().__init__()
         self.in_shape = in_shape # C,H,W
         self.filters = 32
@@ -70,12 +72,15 @@ class VanillaEncoder(nn.Module):
         self.fc1_drop = nn.Dropout(0.5)
 
     def forward(self,x):
+        shape = x.size()
+        x = x.view(shape[0]*shape[1],shape[2],shape[3],shape[4])
         x = F.relu(self.conv1(x))
         x = F.relu(self.conv2(x))
         x = F.relu(self.conv3(x))
         x = x.view(-1,self.flat_dim)
         x = F.relu(self.fc1(x))
         x = self.fc1_drop(x)
+        x = x.view(shape[0],self.h_dim,shape[1])
         return x
 
 class VanillaDecoder(nn.Module):
@@ -95,6 +100,9 @@ class VanillaDecoder(nn.Module):
         self.fc2_drop = nn.Dropout(0.5)
 
     def forward(self,x):
+        x = x.transpose(2,1)
+        shape = x.size()
+        x = x.view(shape[0]*shape[1],shape[2])
         x = F.relu(self.fc2(x))
         x = self.fc2_drop(x)
         x = x.view(-1,self.filters,self.new_h,self.new_w)
@@ -393,21 +401,32 @@ class Conv1dMapper(nn.Module):
         self.regular_pts = [p for p in range(1,in_shape[1]-1)]'''
 
     def forward(self,x):
+        print(x.size())
         x = self.bn1(F.relu(self.conv1(x)))
         x = self.dropout1(x)
+        print(x.size())
         x = self.bn2(F.relu(self.conv2(x)))
         x = self.dropout2(x)
+        print(x.size())
         x = self.bn3(F.relu(self.conv3(x)))
         x = self.dropout3(x)
+        print(x.size())
         x = x.view(-1,self.h_shape*self.filters)
+        print(x.size())
         x = self.dropout4(self.bn4(F.relu(self.fc1(x))))
+        print(x.size())
         x = self.dropout5(self.bn5(F.relu(self.fc2(x))))
+        print(x.size())
         x = self.fc3(x)
+        print(x.size())
         x = x.view((-1,)+self.out_shape)
+        print(x.size())
 
-        x[:,[1,4,6,7,9],:] = torch.zeros((x.size(0),5,self.out_shape[-1])).cuda()
-        x[:,[3,11],0] = torch.tensor(0.0).cuda()
-        x[:,5,:] = torch.tensor(1.0).cuda()
+        x[:,:,[1,4,6,7,9]] = torch.zeros((x.size(0),x.size(1),5)).cuda()
+        x[:,:,[3,11]] = torch.tensor(0.0).cuda()
+        x[:,:,5] = torch.tensor(1.0).cuda()
+
+        print('-',x.size())
 
         return x
 

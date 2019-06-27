@@ -16,7 +16,7 @@ from glob import glob
 from torch.utils.data import Dataset, DataLoader
 from torchvision import transforms, utils
 from pt_ae import DirectOdometry, FastDirectOdometry,\
-VanillaAutoencoder, MLPAutoencoder, seq_pose_loss
+VanillaAutoencoder, MLPAutoencoder, VanAE, Conv1dMapper, seq_pose_loss
 from datetime import datetime
 from plotter import c3dto2d, abs2relative, plot_eval
 from odom_loader import load_kitti_odom
@@ -203,12 +203,12 @@ if __name__=='__main__':
     device = torch.device("cuda:0" if use_cuda else "cpu")
     print(device)
 
-    model = VanAE((1,)+new_dim).to(device)
-    model = torch.load(enc_fn)
-    vo = Conv1dMapper((1,)+new_dim,(12,),h_dim).to(device)
+    model = VanAE((1,)+new_dim,h_dim).to(device)
+    #model = torch.load(enc_fn)
+    vo = Conv1dMapper((h_dim,seq_len),(seq_len,12)).to(device)
     model.dec = vo
-    for param in model.enc.parameters():
-        param.requires_grad = False
+    #for param in model.enc.parameters():
+    #    param.requires_grad = False
 
     ##model = VanillaAutoencoder((1,)+new_dim).to(device)
     #model = VanillaAutoencoder((2,)+new_dim,h_dim).to(device)
@@ -242,7 +242,7 @@ if __name__=='__main__':
             #t = time()
             x,y = xy[0].to(device), xy[1].to(device)
             optimizer.zero_grad()
-            y_,z = model(x)
+            y_ = model(x)
             print(y.size(),y_.size())
             loss = loss_fn(y,y_) #loss_fn(y_,y)
             loss.backward()
