@@ -255,8 +255,8 @@ if __name__=='__main__':
         x_ = x[0].view(-1,x.size(-1)).unsqueeze(0)
         #print(x_.size())
         writer.add_image('_img_seq_{}'.format(i),x_)
-        writer.add_image('_img_emb_{}'.format(i),\
-                         z[:seq_len].unsqueeze(0))
+        #writer.add_image('_img_emb_{}'.format(i),\
+        #                 z[:seq_len].unsqueeze(0))
 
         torch.save({'model_state': model.state_dict(),
                             'optimizer_state': optimizer.state_dict(),
