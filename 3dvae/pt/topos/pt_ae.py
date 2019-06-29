@@ -423,9 +423,9 @@ class Conv1dMapper(nn.Module):
         x = self.fc3(x)
         x = x.view((-1,)+self.out_shape)
 
-        x[:,:,[1,4,6,7,9]] = torch.zeros((x.size(0),x.size(1),5)).cuda()
+        '''x[:,:,[1,4,6,7,9]] = torch.zeros((x.size(0),x.size(1),5)).cuda()
         x[:,:,[3,11]] = torch.tensor(0.0).cuda()
-        x[:,:,5] = torch.tensor(1.0).cuda()
+        x[:,:,5] = torch.tensor(1.0).cuda()'''
 
         return x
 

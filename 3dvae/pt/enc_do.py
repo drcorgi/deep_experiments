@@ -98,19 +98,30 @@ class FluxSeqDataset(Dataset):
                 self.fsids.append(i)
         self.seq_len = seq_len
         self.transform = transform # Transform at the frame level
+        self.buffer = {}
+        self.aposes = [load_kitti_odom(fn) for fn in self.pfnames]
 
     def __getitem__(self, index):
         try:
             s,id = self.sids[index], self.fsids[index]
-            x = [np.load(fn) for fn in self.fnames[s][id:id+self.seq_len]]
+            x = []
+            for i in range(id,id+self.seq_len):
+                if (s,i) in self.buffer:
+                    x.append(self.buffer[(s,i)])
+                else:
+                    img = np.load(self.fnames[s][i])
+                    x.append(img)
+                    self.buffer[(s,i)] = img
+            #x = [np.load(fn) for fn in self.fnames[s][id:id+self.seq_len]]
+            x = [img.transpose(2,0,1) for img in x]
             if self.transform:
                 x = [self.transform(img) for img in x]
-            x = [img.transpose(0,-1).unsqueeze(0) for img in x]
+            x = [img.unsqueeze(0) for img in x]
             x = torch.cat(x,dim=0)
-            abs = load_kitti_odom(self.pfnames[s])[id:id+self.seq_len]
+            abs = self.aposes[s][id:id+self.seq_len]
             y = []
             for p in abs:
-                p = c3dto2d(p)
+                #p = c3dto2d(p)
                 y.append(p)
             y = abs2relative(y,self.seq_len,1)[0]
             y = torch.from_numpy(y).float()
@@ -189,7 +200,6 @@ if __name__=='__main__':
     #transf = [Rescale(new_dim),ToTensor()]
     transf = ToTensor()
 
-
     if tipo == 'flux':
         frshape = (2,) + new_dim
         train_dir,valid_dir,test_dir = list_split_kitti_flux(new_dim[0],new_dim[1])
@@ -203,9 +213,9 @@ if __name__=='__main__':
     valid_dataset = FrSeqDataset(valid_dir[0],valid_dir[1],seq_len,transf)
     test_dataset = FrSeqDataset(test_dir[0],test_dir[1],seq_len,transf)
 
-    train_loader = DataLoader(train_dataset,batch_size=batch_size,shuffle=True,num_workers=4,collate_fn=my_collate)
-    valid_loader = DataLoader(valid_dataset,batch_size=batch_size,shuffle=False,num_workers=4,collate_fn=my_collate)
-    test_loader = DataLoader(test_dataset,batch_size=batch_size,shuffle=False,num_workers=4,collate_fn=my_collate)
+    train_loader = DataLoader(train_dataset,batch_size=batch_size,shuffle=True,num_workers=1,collate_fn=my_collate)
+    valid_loader = DataLoader(valid_dataset,batch_size=batch_size,shuffle=False,num_workers=1,collate_fn=my_collate)
+    test_loader = DataLoader(test_dataset,batch_size=batch_size,shuffle=False,num_workers=1,collate_fn=my_collate)
 
     # CUDA for PyTorch
     use_cuda = torch.cuda.is_available()
