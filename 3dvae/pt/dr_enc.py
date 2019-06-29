@@ -179,8 +179,9 @@ if __name__=='__main__':
             k += 1
             #print('Batch {}\tloss: {:.3f}'.format(j,loss.item()))
             #print('inference',time()-t)
-        writer.add_image('_frames_true_{}'.format(i),x[0])
-        writer.add_image('_frames_dec_{}'.format(i),x_[0])
+        xx_ = torch.cat([x[0][0],x_[0][0]],dim=1).unsqueeze(0)
+        writer.add_image('_frames_true_dec{}'.format(i),xx_)
+        #writer.add_image('_frames_dec_{}'.format(i),x_[0])
         #writer.add_image('_img_emb_{}'.format(i),\
         #                 z[:seq_len].unsqueeze(0))
         model.eval()
@@ -195,8 +196,8 @@ if __name__=='__main__':
         mean_train, mean_valid = np.mean(losses),np.mean(v_losses)
         print('Epoch {} loss\t{:.3f}\tValid loss\t{:.3f}'\
               .format(i,mean_train,mean_valid))
-        writer.add_image('_frames_true_valid_{}'.format(i),x[0])
-        writer.add_image('_frames_dec_valid_{}'.format(i),x_[0])
+        xx_ = torch.cat([x[0][0],x_[0][0]],dim=1).unsqueeze(0)
+        writer.add_image('_frames_true_dec_valid{}'.format(i),xx_)
         if mean_valid < min_loss:
             print('Saving model')
             min_loss = mean_valid
