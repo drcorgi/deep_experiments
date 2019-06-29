@@ -73,7 +73,9 @@ class VanillaEncoder(nn.Module):
 
     def forward(self,x):
         shape = x.size()
-        x = x.view(shape[0]*shape[1],shape[2],shape[3],shape[4])
+        if len(shape) == 5:
+            x = x.view(shape[0]*shape[1],shape[2],shape[3],shape[4])
+        #print(shape)
         x = F.relu(self.conv1(x))
         x = F.relu(self.conv2(x))
         x = F.relu(self.conv3(x))
@@ -102,7 +104,7 @@ class VanillaDecoder(nn.Module):
     def forward(self,x):
         x = x.transpose(2,1)
         shape = x.size()
-        x = x.view(shape[0]*shape[1],shape[2])
+        x = x.contiguous().view(shape[0]*shape[1],shape[2])
         x = F.relu(self.fc2(x))
         x = self.fc2_drop(x)
         x = x.view(-1,self.filters,self.new_h,self.new_w)
