@@ -207,8 +207,8 @@ if __name__=='__main__':
     #model = torch.load(enc_fn)
     vo = Conv1dMapper((h_dim,seq_len),(seq_len,12)).to(device)
     model.dec = vo
-    #for param in model.enc.parameters():
-    #    param.requires_grad = False
+    for param in model.enc.parameters():
+        param.requires_grad = False
 
     ##model = VanillaAutoencoder((1,)+new_dim).to(device)
     #model = VanillaAutoencoder((2,)+new_dim,h_dim).to(device)
@@ -218,8 +218,8 @@ if __name__=='__main__':
     optimizer = optim.Adam(params,lr=1e-3)
     min_loss = 1e15
     epoch = 0
-    writer = SummaryWriter('/home/ubuntu/log/exp_{}_h{}_l{}_{}x{}'\
-                           .format(time,h_dim,seq_len,new_dim[0],new_dim[1]))
+    writer = SummaryWriter('/home/ubuntu/log/exp_h{}_l{}_{}x{}'\
+                           .format(h_dim,seq_len,new_dim[0],new_dim[1]))
 
     if os.path.isfile(model_fn):
         print('Loading existing model')
@@ -243,14 +243,14 @@ if __name__=='__main__':
             x,y = xy[0].to(device), xy[1].to(device)
             optimizer.zero_grad()
             y_ = model(x)
-            print(y.size(),y_.size())
+            #print(y.size(),y_.size())
             loss = loss_fn(y,y_) #loss_fn(y_,y)
             loss.backward()
             optimizer.step()
             writer.add_scalar('train_cost',loss.item(),k)
             losses.append(loss.item())
             k += 1
-            print('Batch {}\tloss: {}'.format(j,loss.item()))
+            print('Batch {} loss: {:.4f}'.format(j,loss.item()))
             #print('inference',time()-t)
         x_ = x[0].view(-1,x.size(-1)).unsqueeze(0)
         #print(x_.size())
@@ -259,9 +259,9 @@ if __name__=='__main__':
         #                 z[:seq_len].unsqueeze(0))
 
         torch.save({'model_state': model.state_dict(),
-                            'optimizer_state': optimizer.state_dict(),
-                            'min_loss': min_loss,
-                            'epoch': i}, model_fn)
+                    'optimizer_state': optimizer.state_dict(),
+                    'min_loss': min_loss,
+                    'epoch': i}, model_fn)
         '''model.eval()
         v_losses = []
         for j,xy in enumerate(valid_loader):

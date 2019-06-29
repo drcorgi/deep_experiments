@@ -210,8 +210,8 @@ if __name__=='__main__':
     optimizer = optim.Adam(params,lr=1e-3)
     min_loss = 1e15
     epoch = 0
-    writer = SummaryWriter('/home/ubuntu/log/exp_{}_h{}_l{}_{}x{}'\
-                           .format(time,h_dim,seq_len,new_dim[0],new_dim[1]))
+    writer = SummaryWriter('/home/ubuntu/log/exp_h{}_l{}_{}x{}'\
+                           .format(h_dim,seq_len,new_dim[0],new_dim[1]))
 
     if os.path.isfile(model_fn):
         print('Loading existing model')
@@ -242,7 +242,7 @@ if __name__=='__main__':
             writer.add_scalar('train_cost',loss.item(),k)
             losses.append(loss.item())
             k += 1
-            print('Batch {}\tloss: {}'.format(j,loss.item()))
+            print('Batch {} loss: {:.3f}'.format(j,loss.item()))
             #print('inference',time()-t)
         x_ = x[0].view(-1,x.size(-1)).unsqueeze(0)
         #print(x_.size())
@@ -251,9 +251,9 @@ if __name__=='__main__':
                          z[:seq_len].unsqueeze(0))
 
         torch.save({'model_state': model.state_dict(),
-                            'optimizer_state': optimizer.state_dict(),
-                            'min_loss': min_loss,
-                            'epoch': i}, model_fn)
+                    'optimizer_state': optimizer.state_dict(),
+                    'min_loss': min_loss,
+                    'epoch': i}, model_fn)
         '''model.eval()
         v_losses = []
         for j,xy in enumerate(valid_loader):
