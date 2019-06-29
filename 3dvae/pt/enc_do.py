@@ -204,11 +204,17 @@ if __name__=='__main__':
     print(device)
 
     model = VanAE((1,)+new_dim,h_dim).to(device)
-    #model = torch.load(enc_fn)
+    if os.path.isfile(enc_fn):
+        print('Encoder found')
+        checkpoint = torch.load(enc_fn)
+        model.load_state_dict(checkpoint['model_state'])
+        for param in model.enc.parameters():
+            param.requires_grad = False
+    else:
+        print('Encoder not found. Creating new one')
+
     vo = Conv1dMapper((h_dim,seq_len),(seq_len,12)).to(device)
     model.dec = vo
-    for param in model.enc.parameters():
-        param.requires_grad = False
 
     ##model = VanillaAutoencoder((1,)+new_dim).to(device)
     #model = VanillaAutoencoder((2,)+new_dim,h_dim).to(device)

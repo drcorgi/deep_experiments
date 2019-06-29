@@ -374,6 +374,8 @@ class MLPMapper(nn.Module):
         return x
 
 class Conv1dMapper(nn.Module):
+    ''' B x D x L -> B x L x O
+    '''
     def __init__(self,in_shape,out_shape):
         super().__init__()
         self.in_shape = in_shape
@@ -403,6 +405,7 @@ class Conv1dMapper(nn.Module):
         self.regular_pts = [p for p in range(1,in_shape[1]-1)]'''
 
     def forward(self,x):
+        #print(x.size())
         x = self.bn1(F.relu(self.conv1(x)))
         x = self.dropout1(x)
         x = self.bn2(F.relu(self.conv2(x)))
