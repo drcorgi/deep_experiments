@@ -48,20 +48,11 @@ class ToTensor(object):
     def __call__(self,x):
         return torch.from_numpy(x).float()
 
-def list_split_kitti():
-    base = '/home/ubuntu/kitti/dataset/'
-    all_seqs = [sorted(glob(base+'sequences/{:02d}/image_0/*.png'\
-                .format(i))) for i in range(11)]
-    all_poses = [base+'poses/{:02d}.txt'.format(i) for i in range(11)]
-    train_seqs, train_poses = all_seqs[2:], all_poses[2:]
-    valid_seqs, valid_poses = all_seqs[0:1], all_poses[0:1]
-    test_seqs, test_poses = all_seqs[1:2], all_poses[1:2]
-    return (train_seqs,train_poses), (valid_seqs,valid_poses), (test_seqs,test_poses)
-
-def list_split_kitti_frames(h,w):
-    base = '/home/ubuntu/kitti/{}x{}/'.format(h,w)
+def list_split_kitti_frames(h,w,tipo=''):
+    base = '/home/ubuntu/kitti/{}/{}x{}/'.format(tipo,h,w)
+    assert os.path.isdir(base)
     pbase = '/home/ubuntu/kitti/dataset/'
-    all_seqs = [sorted(glob(base+'{:02d}/*.png'\
+    all_seqs = [sorted(glob(base+'{:02d}/*.npy'\
                 .format(i))) for i in range(11)]
     train_seqs = all_seqs[2:]
     valid_seqs = all_seqs[0:1]
@@ -70,17 +61,6 @@ def list_split_kitti_frames(h,w):
     valid_seqs = list(itertools.chain.from_iterable(valid_seqs))
     test_seqs = list(itertools.chain.from_iterable(test_seqs))
     return train_seqs, valid_seqs, test_seqs
-
-def list_split_kitti_(h,w):
-    base = '/home/ubuntu/kitti/{}x{}/'.format(h,w)
-    pbase = '/home/ubuntu/kitti/dataset/'
-    all_seqs = [sorted(glob(base+'{:02d}/*.png'\
-                .format(i))) for i in range(11)]
-    all_poses = [pbase+'poses/{:02d}.txt'.format(i) for i in range(11)]
-    train_seqs, train_poses = all_seqs[2:], all_poses[2:]
-    valid_seqs, valid_poses = all_seqs[0:1], all_poses[0:1]
-    test_seqs, test_poses = all_seqs[1:2], all_poses[1:2]
-    return (train_seqs,train_poses), (valid_seqs,valid_poses), (test_seqs,test_poses)
 
 def list_split_kitti_flux(h,w):
     base = '/home/ubuntu/kitti/flux/{}x{}/'.format(h,w)
@@ -92,6 +72,25 @@ def list_split_kitti_flux(h,w):
     valid_seqs, valid_poses = all_seqs[0:1], all_poses[0:1]
     test_seqs, test_poses = all_seqs[1:2], all_poses[1:2]
     return (train_seqs,train_poses), (valid_seqs,valid_poses), (test_seqs,test_poses)
+
+class FluxDataset(Dataset):
+    def __init__(self, fnames, transform=None):
+        self.fnames = fnames #sorted([fn for fn in glob(re_dir) if os.path.isfile(fn)])
+        self.len = len(self.fnames)
+        self.transform = transform
+
+    def __len__(self):
+        return self.len
+
+    def __getitem__(self, idx):
+        try:
+            frame = np.load(self.fnames[idx])
+            if frame is not None and self.transform:
+                frame = frame.transpose(2,0,1)
+                frame = self.transform(frame)
+            return frame
+        except Exception as e:
+            print(e)
 
 class FramesDataset(Dataset):
     def __init__(self, fnames, transform=None):
@@ -118,13 +117,19 @@ if __name__=='__main__':
     new_dim = (int(sys.argv[3]),int(sys.argv[4]))
     batch_size = int(sys.argv[5])
     num_epochs = int(sys.argv[6])
+    tipo = 'flux'
     transf = ToTensor()
 
-    train_dir,valid_dir,test_dir = list_split_kitti_frames(new_dim[0],new_dim[1])
+    train_dir,valid_dir,test_dir = list_split_kitti_frames(new_dim[0],new_dim[1],tipo=tipo)
 
-    train_dataset = FramesDataset(train_dir,transf)
-    valid_dataset = FramesDataset(valid_dir,transf)
-    test_dataset = FramesDataset(test_dir,transf)
+    if tipo == 'flux':
+        FrDataset = FluxDataset
+    else:
+        FrDataset = FramesDataset
+
+    train_dataset = FrDataset(train_dir,transf)
+    valid_dataset = FrDataset(valid_dir,transf)
+    test_dataset = FrDataset(test_dir,transf)
 
     train_loader = DataLoader(train_dataset,batch_size=batch_size,shuffle=True,num_workers=4)
     valid_loader = DataLoader(valid_dataset,batch_size=batch_size,shuffle=False,num_workers=4)
@@ -135,7 +140,8 @@ if __name__=='__main__':
     device = torch.device("cuda:0" if use_cuda else "cpu")
     print(device)
 
-    model = VanAE((1,)+new_dim,h_dim).to(device)
+    frshape = (1,)+new_dim if tipo != 'flux' else (2,)+new_dim
+    model = VanAE(frshape,h_dim).to(device)
     params = model.parameters()
     optimizer = optim.Adam(params,lr=1e-3)
     min_loss = 1e15
@@ -173,8 +179,8 @@ if __name__=='__main__':
             k += 1
             #print('Batch {}\tloss: {:.3f}'.format(j,loss.item()))
             #print('inference',time()-t)
-        x_ = x_.view(-1,x.size(-1)).unsqueeze(0)
-        writer.add_image('_frames_dec_{}'.format(i),x_)
+        writer.add_image('_frames_true_{}'.format(i),x[0])
+        writer.add_image('_frames_dec_{}'.format(i),x_[0])
         #writer.add_image('_img_emb_{}'.format(i),\
         #                 z[:seq_len].unsqueeze(0))
         model.eval()
@@ -187,11 +193,12 @@ if __name__=='__main__':
             v_losses.append(loss.item())
             kv += 1
         mean_train, mean_valid = np.mean(losses),np.mean(v_losses)
-        print('Epoch {}\tloss\t{:.3f}\tValid loss\t{:.3f}'\
+        print('Epoch {} loss\t{:.3f}\tValid loss\t{:.3f}'\
               .format(i,mean_train,mean_valid))
-        x_ = x_.view(-1,x.size(-1)).unsqueeze(0)
-        writer.add_image('_frames_dec_valid_{}'.format(i),x_)
+        writer.add_image('_frames_true_valid_{}'.format(i),x[0])
+        writer.add_image('_frames_dec_valid_{}'.format(i),x_[0])
         if mean_valid < min_loss:
+            print('Saving model')
             min_loss = mean_valid
             torch.save({'model_state': model.state_dict(),
                         'optimizer_state': optimizer.state_dict(),
