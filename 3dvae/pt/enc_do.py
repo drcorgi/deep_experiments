@@ -184,15 +184,24 @@ if __name__=='__main__':
     seq_len = int(sys.argv[6])
     batch_size = int(sys.argv[7])
     num_epochs = int(sys.argv[8])
+    tipo = 'flux'
     #transf = transforms.Compose([Rescale(new_dim),ToTensor()])
     #transf = [Rescale(new_dim),ToTensor()]
     transf = ToTensor()
 
-    train_dir,valid_dir,test_dir = list_split_kitti_(new_dim[0],new_dim[1])
 
-    train_dataset = SeqDataset(train_dir[0],train_dir[1],seq_len,transf)
-    valid_dataset = SeqDataset(valid_dir[0],valid_dir[1],seq_len,transf)
-    test_dataset = SeqDataset(test_dir[0],test_dir[1],seq_len,transf)
+    if tipo == 'flux':
+        frshape = (2,) + new_dim
+        train_dir,valid_dir,test_dir = list_split_kitti_flux(new_dim[0],new_dim[1])
+        FrSeqDataset = FluxSeqDataset
+    else:
+        frshape = (1,) + new_dim
+        train_dir,valid_dir,test_dir = list_split_kitti_(new_dim[0],new_dim[1])
+        FrSeqDataset = SeqDataset
+
+    train_dataset = FrSeqDataset(train_dir[0],train_dir[1],seq_len,transf)
+    valid_dataset = FrSeqDataset(valid_dir[0],valid_dir[1],seq_len,transf)
+    test_dataset = FrSeqDataset(test_dir[0],test_dir[1],seq_len,transf)
 
     train_loader = DataLoader(train_dataset,batch_size=batch_size,shuffle=True,num_workers=4,collate_fn=my_collate)
     valid_loader = DataLoader(valid_dataset,batch_size=batch_size,shuffle=False,num_workers=4,collate_fn=my_collate)
@@ -203,7 +212,7 @@ if __name__=='__main__':
     device = torch.device("cuda:0" if use_cuda else "cpu")
     print(device)
 
-    model = VanAE((1,)+new_dim,h_dim).to(device)
+    model = VanAE(frshape,h_dim).to(device)
     if os.path.isfile(enc_fn):
         print('Encoder found')
         checkpoint = torch.load(enc_fn)
@@ -258,16 +267,16 @@ if __name__=='__main__':
             k += 1
             print('Batch {} loss: {:.4f}'.format(j,loss.item()))
             #print('inference',time()-t)
-        x_ = x[0].view(-1,x.size(-1)).unsqueeze(0)
+        #x_ = x[0].view(-1,x.size(-1)).unsqueeze(0)
         #print(x_.size())
-        writer.add_image('_img_seq_{}'.format(i),x_)
+        #writer.add_image('_img_seq_{}'.format(i),x_)
         #writer.add_image('_img_emb_{}'.format(i),\
         #                 z[:seq_len].unsqueeze(0))
 
-        torch.save({'model_state': model.state_dict(),
+        '''torch.save({'model_state': model.state_dict(),
                     'optimizer_state': optimizer.state_dict(),
                     'min_loss': min_loss,
-                    'epoch': i}, model_fn)
+                    'epoch': i}, model_fn)'''
         '''model.eval()
         v_losses = []
         for j,xy in enumerate(valid_loader):

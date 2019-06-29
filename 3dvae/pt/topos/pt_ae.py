@@ -408,7 +408,9 @@ class Conv1dMapper(nn.Module):
         self.regular_pts = [p for p in range(1,in_shape[1]-1)]'''
 
     def forward(self,x):
-        #print(x.size())
+        shape = x.size()
+        if len(shape) == 2:
+            x = x.view(-1,self.in_shape[-1],x.size(-1)).transpose(2,1)
         x = self.bn1(F.relu(self.conv1(x)))
         x = self.dropout1(x)
         x = self.bn2(F.relu(self.conv2(x)))
