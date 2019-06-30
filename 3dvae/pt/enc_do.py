@@ -257,13 +257,13 @@ if __name__=='__main__':
         print('Creating new model')
 
     loss_fn = torch.nn.MSELoss()
-    epoch_losses = []
-    k = 0
+    k,kv = 0,0
     #epoch = num_epochs-1
     for i in range(epoch,num_epochs):
+        print('Epoch',i)
         model.train()
         losses = []
-        for j,xy in enumerate(valid_loader):
+        for j,xy in enumerate(train_loader):
             #t = time()
             x,y = xy[0].to(device), xy[1].to(device)
             optimizer.zero_grad()
@@ -272,38 +272,34 @@ if __name__=='__main__':
             loss = loss_fn(y,y_) #loss_fn(y_,y)
             loss.backward()
             optimizer.step()
-            writer.add_scalar('train_cost',loss.item(),k)
+            writer.add_scalar('train_cost_{}'.format(time()),loss.item(),k)
             losses.append(loss.item())
             k += 1
-            print('Batch {} loss: {:.4f}'.format(j,loss.item()))
+            #print('Batch {} loss: {:.4f}'.format(j,loss.item()))
             #print('inference',time()-t)
         #x_ = x[0].view(-1,x.size(-1)).unsqueeze(0)
         #print(x_.size())
         #writer.add_image('_img_seq_{}'.format(i),x_)
         #writer.add_image('_img_emb_{}'.format(i),\
         #                 z[:seq_len].unsqueeze(0))
-
-        '''torch.save({'model_state': model.state_dict(),
-                    'optimizer_state': optimizer.state_dict(),
-                    'min_loss': min_loss,
-                    'epoch': i}, model_fn)'''
-        '''model.eval()
+        model.eval()
         v_losses = []
         for j,xy in enumerate(valid_loader):
             x,y = xy[0].to(device), xy[1].to(device)
-            y_,*_ = model(x)
+            y_ = model(x)
             loss = loss_fn(y_,y)
             v_losses.append(loss.item())
+            writer.add_scalar('valid_cost_{}'.format(time()),loss.item(),kv)
+            kv += 1
         mean_train, mean_valid = np.mean(losses),np.mean(v_losses)
-        epoch_losses.append([i,mean_train,mean_valid])
-        print('Epoch {}\tloss\t{:.3f}\tValid loss\t{:.3f}'\
+        print('Epoch {} loss\t{:.4f}\tValid loss\t{:.4f}'\
               .format(i,mean_train,mean_valid))
         if mean_valid < min_loss:
             min_loss = mean_valid
             torch.save({'model_state': model.state_dict(),
                         'optimizer_state': optimizer.state_dict(),
                         'min_loss': min_loss,
-                        'epoch': i+1}, model_fn)'''
+                        'epoch': i+1}, model_fn)
     model.eval()
     print('Start of plot_eval')
     plot_eval(model,valid_loader,seq_len,device,logger=writer)
