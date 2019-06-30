@@ -239,9 +239,9 @@ class DirectOdometry(nn.Module):
         self.conv4 = nn.Conv1d(self.n_hidden,self.n_hidden,3,1,padding=1)
         self.conv5 = nn.Conv1d(self.n_hidden,self.n_hidden,3,1,padding=1)
         self.conv6 = nn.Conv1d(self.n_hidden,self.n_hidden,3,1,padding=1)
-        self.odom_norm = OdomNorm2d(self.n_hidden,12)
-        #self.fc2 = nn.Linear(n_hidden,n_hidden)
-        #self.fc3 = nn.Linear(n_hidden,12)
+        #self.odom_norm = OdomNorm2d(self.n_hidden,12)
+        self.fc2 = nn.Linear(n_hidden,n_hidden)
+        self.fc3 = nn.Linear(n_hidden,12)
 
     def forward(self,x):
         size = x.size()
@@ -260,11 +260,28 @@ class DirectOdometry(nn.Module):
         x = F.relu(self.conv5(x)) #.transpose(1,2)
         x = F.relu(self.conv6(x)).transpose(1,2)
         #print(x.size())
-        x = self.odom_norm(x)
-        #x = F.relu(self.fc2(x))
-        #x = self.fc3(x)
+        #x = self.odom_norm(x)
+        x = F.relu(self.fc2(x))
+        x = self.fc3(x)
         #print(x.size())
-        return x,z
+        return x #,z
+
+class MeanEncoder(nn.Module):
+    ''' Encoder + Odometry into same module
+        Input: (B x L) x C x H x W, in_shape: C x H x W
+        Output: B x L x O, out_shape: O
+    '''
+    def __init__(self,in_shape):
+        super().__init__()
+        self.n_hidden = in_shape[-1] + in_shape[-2]
+
+    def forward(self,x):
+        mh = torch.mean(x,dim=3)
+        mw = torch.mean(x,dim=4)
+        x = torch.cat((mh,mw),dim=-1)
+        x = torch.mean(x,dim=2)
+        x = x.view(-1,self.n_hidden)
+        return x
 
 class FastDirectOdometry(nn.Module):
     ''' Encoder + Odometry into same module
@@ -278,6 +295,7 @@ class FastDirectOdometry(nn.Module):
         self.drop1 = nn.Dropout(0.5)
         self.conv4 = nn.Conv1d(2*self.n_hidden,2*self.n_hidden,3,1,padding=1)
         self.conv5 = nn.Conv1d(2*self.n_hidden,2*self.n_hidden,3,1,padding=1)
+        self.conv6 = nn.Conv1d(2*self.n_hidden,2*self.n_hidden,3,1,padding=1)
         self.odom_norm = OdomNorm2d(2*self.n_hidden,12)
 
     def forward(self,x):
@@ -291,9 +309,10 @@ class FastDirectOdometry(nn.Module):
         z = self.drop1(x)
         x = z.view(-1,size[1],2*self.n_hidden).transpose(1,2)
         x = F.relu(self.conv4(x))
-        x = self.conv5(x).transpose(1,2)
+        x = F.relu(self.conv5(x))
+        x = F.relu(self.conv6(x)).transpose(1,2)
         x = self.odom_norm(x)
-        return x,z
+        return x #,z
 
 class MLPAutoencoder(nn.Module):
     def __init__(self,in_shape,h_dim):

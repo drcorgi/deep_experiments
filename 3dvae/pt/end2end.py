@@ -22,6 +22,7 @@ from plotter import c3dto2d, abs2relative, plot_eval
 from odom_loader import load_kitti_odom
 from tensorboardX import SummaryWriter
 from time import time
+from enc_do import FluxSeqDataset
 
 def my_collate(batch):
     batch_x = []
@@ -79,7 +80,7 @@ def list_split_kitti_flux(h,w):
     test_seqs, test_poses = all_seqs[1:2], all_poses[1:2]
     return (train_seqs,train_poses), (valid_seqs,valid_poses), (test_seqs,test_poses)
 
-class FluxSeqDataset(Dataset):
+class FluxSeqDataset_(Dataset):
     def __init__(self, fnames, pfnames, seq_len, transform=None):
         ''' fnames is a list of lists of file names
             pfames is a list of file names (one for each entire sequence)
@@ -187,11 +188,11 @@ if __name__=='__main__':
     #transf = [Rescale(new_dim),ToTensor()]
     transf = ToTensor()
 
-    train_dir,valid_dir,test_dir = list_split_kitti_(new_dim[0],new_dim[1])
+    train_dir,valid_dir,test_dir = list_split_kitti_flux(new_dim[0],new_dim[1])
 
-    train_dataset = SeqDataset(train_dir[0],train_dir[1],seq_len,transf)
-    valid_dataset = SeqDataset(valid_dir[0],valid_dir[1],seq_len,transf)
-    test_dataset = SeqDataset(test_dir[0],test_dir[1],seq_len,transf)
+    train_dataset = FluxSeqDataset(train_dir[0],train_dir[1],seq_len,transf)
+    valid_dataset = FluxSeqDataset(valid_dir[0],valid_dir[1],seq_len,transf)
+    test_dataset = FluxSeqDataset(test_dir[0],test_dir[1],seq_len,transf)
 
     train_loader = DataLoader(train_dataset,batch_size=batch_size,shuffle=True,num_workers=4,collate_fn=my_collate)
     valid_loader = DataLoader(valid_dataset,batch_size=batch_size,shuffle=False,num_workers=4,collate_fn=my_collate)
@@ -204,7 +205,7 @@ if __name__=='__main__':
     ##model = VanillaAutoencoder((1,)+new_dim).to(device)
     #model = VanillaAutoencoder((2,)+new_dim,h_dim).to(device)
     #model = MLPAutoencoder((2,)+new_dim,h_dim).to(device)
-    model = DirectOdometry((1,)+new_dim,(12,),h_dim).to(device)
+    model = DirectOdometry((2,)+new_dim,(12,),h_dim).to(device)
     #model = FastDirectOdometry((1,)+new_dim,(12,)).to(device)
     params = model.parameters()
     optimizer = optim.Adam(params,lr=1e-3)
@@ -250,10 +251,10 @@ if __name__=='__main__':
         writer.add_image('_img_emb_{}'.format(i),\
                          z[:seq_len].unsqueeze(0))
 
-        torch.save({'model_state': model.state_dict(),
+        '''torch.save({'model_state': model.state_dict(),
                     'optimizer_state': optimizer.state_dict(),
                     'min_loss': min_loss,
-                    'epoch': i}, model_fn)
+                    'epoch': i}, model_fn)'''
         '''model.eval()
         v_losses = []
         for j,xy in enumerate(valid_loader):

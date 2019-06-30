@@ -121,7 +121,7 @@ class FluxSeqDataset(Dataset):
             abs = self.aposes[s][id:id+self.seq_len]
             y = []
             for p in abs:
-                #p = c3dto2d(p)
+                p = c3dto2d(p)
                 y.append(p)
             y = abs2relative(y,self.seq_len,1)[0]
             y = torch.from_numpy(y).float()
@@ -222,8 +222,8 @@ if __name__=='__main__':
     device = torch.device("cuda:0" if use_cuda else "cpu")
     print(device)
 
-    model = VanAE(frshape,h_dim).to(device)
-    if os.path.isfile(enc_fn):
+    model = DirectOdometry(frshape,(seq_len,12),h_dim).to(device)
+    '''if os.path.isfile(enc_fn):
         print('Encoder found')
         checkpoint = torch.load(enc_fn)
         model.load_state_dict(checkpoint['model_state'])
@@ -233,7 +233,7 @@ if __name__=='__main__':
         print('Encoder not found. Creating new one')
 
     vo = Conv1dMapper((h_dim,seq_len),(seq_len,12)).to(device)
-    model.dec = vo
+    model.dec = vo'''
 
     ##model = VanillaAutoencoder((1,)+new_dim).to(device)
     #model = VanillaAutoencoder((2,)+new_dim,h_dim).to(device)
@@ -263,7 +263,7 @@ if __name__=='__main__':
         print('Epoch',i)
         model.train()
         losses = []
-        for j,xy in enumerate(valid_loader):
+        for j,xy in enumerate(train_loader):
             #t = time()
             x,y = xy[0].to(device), xy[1].to(device)
             optimizer.zero_grad()

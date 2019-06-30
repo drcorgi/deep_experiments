@@ -160,7 +160,7 @@ def plot_eval(model,test_loader,seq_len,device='cuda:0',logger=None):
     data_y = []
     for x,y,abs in test_loader:
         x,y,abs = x.to(device), y.to(device), np.array(abs).reshape(-1,12).tolist()
-        y_,*_ = model(x)
+        y_ = model(x)
         data_y += abs
         rel_poses += y_.cpu().detach().numpy().reshape(-1,12).tolist()
     rel_poses = np.array(rel_poses)
