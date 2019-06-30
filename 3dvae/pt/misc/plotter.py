@@ -12,7 +12,7 @@ def c3dto2d(p):
     p[[1,4,6,7,9]] = np.zeros(5,dtype=np.float32)
     p[5] = 1.0
     det = np.linalg.det([p[[0,2]],p[[8,10]]])
-    if abs(1.0-det) > 1e-1:
+    if abs(1.0-det) > 1e5:
         raise RuntimeError('Rotation determinant too far from 1.0')
     p[[0,2,8,10]] = p[[0,2,8,10]]/det
     return p
@@ -163,7 +163,7 @@ def plot_eval(model,test_loader,seq_len,device='cuda:0',logger=None):
         y_ = model(x)
         data_y += abs
         rel_poses += y_.cpu().detach().numpy().reshape(-1,12).tolist()
-    rel_poses = np.array([c3dto2d(p) for p in rel_poses])
+    rel_poses = np.array([c3dto2d(np.array(p)) for p in rel_poses])
     gt = np.array(data_y[::seq_len]) #.transpose(0,2,1)
     print(gt.shape)
     #abs_ = np.array(relative2abs(gt,seq_len))
