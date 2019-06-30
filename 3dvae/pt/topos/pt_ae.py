@@ -107,7 +107,7 @@ class VanillaDecoder(nn.Module):
         #shape = x.size()
         #x = x.contiguous().view(shape[0]*shape[1],shape[2])
         #print('d',x.size())
-        x = self.fc1_drop(F.relu(x))
+        #x = self.fc1_drop(F.relu(x))
         x = F.relu(self.fc2(x))
         x = self.fc2_drop(x)
         x = x.view(-1,self.filters,self.new_h,self.new_w)

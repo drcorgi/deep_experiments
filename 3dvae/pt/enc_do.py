@@ -79,6 +79,59 @@ def list_split_kitti_flux(h,w):
     test_seqs, test_poses = all_seqs[1:2], all_poses[1:2]
     return (train_seqs,train_poses), (valid_seqs,valid_poses), (test_seqs,test_poses)
 
+class FastFluxSeqDataset(Dataset):
+    def __init__(self, fnames, pfnames, seq_len, transform=None):
+        ''' fnames is a list of lists of file names
+            pfames is a list of file names (one for each entire sequence)
+        '''
+        super().__init__()
+        self.fnames = fnames
+        self.pfnames = pfnames
+        self.len = sum([max(0,len(fns)-seq_len+1) for fns in fnames])
+        self.sids = []
+        for i,fns in enumerate(fnames):
+            for j in range(len(fns)-seq_len+1):
+                self.sids.append(i)
+        self.fsids = []
+        for fns in fnames:
+            for i in range(len(fns)-seq_len+1):
+                self.fsids.append(i)
+        self.seq_len = seq_len
+        self.transform = transform # Transform at the frame level
+        self.aposes = [load_kitti_odom(fn) for fn in self.pfnames]
+        self.data = []
+        self.load()
+
+    def load(self):
+        try:
+            for index in range(self.len):
+                s,id = self.sids[index], self.fsids[index]
+                x = [np.load(fn) for fn in self.fnames[s][id:id+self.seq_len]]
+                x = [img.transpose(2,0,1) for img in x]
+                if self.transform:
+                    x = [self.transform(img) for img in x]
+                x = [img.unsqueeze(0) for img in x]
+                x = torch.cat(x,dim=0)
+                abs = self.aposes[s][id:id+self.seq_len]
+                y = []
+                for p in abs:
+                    p = c3dto2d(p)
+                    y.append(p)
+                y = abs2relative(y,self.seq_len,1)[0]
+                y = torch.from_numpy(y).float()
+                #print('seq loading',x.size(),y.size(),abs.shape)
+                self.data.append((x,y,abs))
+        except RuntimeError as re:
+            print(re)
+        except Exception as e:
+            print(e)
+
+    def __getitem__(self,index):
+        return self.data[index]
+
+    def __len__(self):
+        return self.len
+
 class FluxSeqDataset(Dataset):
     def __init__(self, fnames, pfnames, seq_len, transform=None):
         ''' fnames is a list of lists of file names
@@ -203,7 +256,7 @@ if __name__=='__main__':
     if tipo == 'flux':
         frshape = (2,) + new_dim
         train_dir,valid_dir,test_dir = list_split_kitti_flux(new_dim[0],new_dim[1])
-        FrSeqDataset = FluxSeqDataset
+        FrSeqDataset = FastFluxSeqDataset
     else:
         frshape = (1,) + new_dim
         train_dir,valid_dir,test_dir = list_split_kitti_(new_dim[0],new_dim[1])
@@ -291,8 +344,8 @@ if __name__=='__main__':
             v_losses.append(loss.item())
             writer.add_scalar('valid_cost',loss.item(),kv)
             kv += 1
-        writer.add_embedding(y[0],tag='gt_pts_{}'.format(i),global_step=1)
-        writer.add_embedding(y_[0],tag='est_pts_{}'.format(i),global_step=1)
+        writer.add_embedding(y[0,:,[3,7,11]],tag='gt_pts_{}'.format(i),global_step=1)
+        writer.add_embedding(y_[0,:,[3,7,11]],tag='est_pts_{}'.format(i),global_step=1)
         mean_train, mean_valid = np.mean(losses),np.mean(v_losses)
         print('Epoch {} loss\t{:.4f}\tValid loss\t{:.4f}'\
               .format(i,mean_train,mean_valid))
