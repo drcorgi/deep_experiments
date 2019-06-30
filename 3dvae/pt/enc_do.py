@@ -121,7 +121,7 @@ class FluxSeqDataset(Dataset):
             abs = self.aposes[s][id:id+self.seq_len]
             y = []
             for p in abs:
-                #p = c3dto2d(p)
+                p = c3dto2d(p)
                 y.append(p)
             y = abs2relative(y,self.seq_len,1)[0]
             y = torch.from_numpy(y).float()
@@ -291,8 +291,8 @@ if __name__=='__main__':
             v_losses.append(loss.item())
             writer.add_scalar('valid_cost',loss.item(),kv)
             kv += 1
-        writer.add_embedding(y[0],tag='gt_pts_{}'.format(i))
-        writer.add_embedding(y_[0],tag='est_pts_{}'.format(i))
+        writer.add_embedding(y[0],tag='gt_pts_{}'.format(i),global_step=1)
+        writer.add_embedding(y_[0],tag='est_pts_{}'.format(i),global_step=1)
         mean_train, mean_valid = np.mean(losses),np.mean(v_losses)
         print('Epoch {} loss\t{:.4f}\tValid loss\t{:.4f}'\
               .format(i,mean_train,mean_valid))

@@ -422,10 +422,6 @@ class Conv1dMapper(nn.Module):
         self.dropout4 = nn.Dropout(p=0.5)
         self.dropout5 = nn.Dropout(p=0.5)
 
-        '''self.control_dist = in_shape[1] # in_shape[1] % 3 == 1
-        self.control_pts = [0,-1]
-        self.regular_pts = [p for p in range(1,in_shape[1]-1)]'''
-
     def forward(self,x):
         shape = x.size()
         if len(shape) == 2:
@@ -442,49 +438,21 @@ class Conv1dMapper(nn.Module):
         x = self.fc3(x)
         x = x.view((-1,)+self.out_shape)
 
+        '''x_ = x.clone()
+        det2 = x_[:,:,0]*x_[:,:,10]-x_[:,:,2]*x_[:,:,8]
+        print(det2[0,0])'''
+        '''det3 = x_[:,:,0]*x_[:,:,5]*x_[:,:,10]+x_[:,:,1]*x_[:,:,6]*x_[:,:,8]+\
+              x_[:,:,2]*x_[:,:,4]*x_[:,:,9]-x_[:,:,2]*x_[:,:,5]*x_[:,:,8]-\
+              x_[:,:,1]*x_[:,:,4]*x_[:,:,10]-x_[:,:,0]*x_[:,:,6]*x_[:,:,9]
+        print(det3[0,0])'''
+        '''det = det + torch.tensor(1e-7)
+        x[:,:,[0,1,2,4,5,6,8,9,10]] = x_[:,:,[0,1,2,4,5,6,8,9,10]]/det.unsqueeze(-1).repeat(1,1,9)'''
+
         '''x[:,:,[1,4,6,7,9]] = torch.zeros((x.size(0),x.size(1),5)).cuda()
         x[:,:,[3,11]] = torch.tensor(0.0).cuda()
         x[:,:,5] = torch.tensor(1.0).cuda()'''
 
         return x
-
-        '''x = x.view((-1,)+tuple(self.out_shape))
-
-        x[:,[1,4,6,7,9],:] = torch.zeros((x.size(0),5,self.out_shape[-1])).cuda()
-        x[:,[3,11],0] = torch.tensor(0.0).cuda()
-        x[:,5,:] = torch.tensor(1.0).cuda()
-
-        for i in self.regular_pts[1:]:
-            j = i//self.control_dist
-            l,r = self.control_pts[j], self.control_pts[j+1]
-            alpha = torch.tensor((i-l)/self.control_dist).cuda()
-            alpha_ = (torch.tensor(1.0) - alpha).cuda()
-            for k in [0,2,8,10,3,11]:
-                x[:,k,i] = alpha*x[:,k,l].clone() + alpha_*x[:,k,r].clone()
-
-        return x'''
-
-        '''x = x.view((-1,3,2))
-        x_ = torch.zeros((x.size(0),)+tuple(self.out_shape)).cuda()
-        x_[:,5,:] = torch.tensor(1.0).cuda()
-
-        x_[:,0,self.control_pts] = torch.cos(x[:,0,self.control_pts])
-        x_[:,2,self.control_pts] = -torch.sin(x[:,0,self.control_pts])
-        x_[:,8,self.control_pts] = -x_[:,2,self.control_pts]
-        x_[:,10,self.control_pts] = x_[:,0,self.control_pts]
-        x_[:,3,self.control_pts] = x[:,1,self.control_pts]
-        x_[:,11,self.control_pts] = x[:,2,self.control_pts]
-        x_[:,[3,11],0] = torch.tensor(0.0).cuda()
-
-        for i in self.regular_pts:
-            j = i//self.control_dist
-            l,r = self.control_pts[j],self.control_pts[j+1]
-            alpha = torch.tensor((i-l)/self.control_dist).cuda()
-            alpha_ = (torch.tensor(1.0) - alpha).cuda()
-            for k in [0,2,8,10,3,11]:
-                x_[:,k,i] = alpha*x_[:,k,l].clone() + alpha_*x_[:,k,r].clone()
-
-        return x_'''
 
 class Conv1dRecMapper(nn.Module):
     def __init__(self,in_shape,out_shape):

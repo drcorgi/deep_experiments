@@ -78,16 +78,20 @@ class FluxDataset(Dataset):
         self.fnames = fnames #sorted([fn for fn in glob(re_dir) if os.path.isfile(fn)])
         self.len = len(self.fnames)
         self.transform = transform
+        self.cache = {}
 
     def __len__(self):
         return self.len
 
     def __getitem__(self, idx):
         try:
+            if idx in self.cache:
+                return self.cache[idx]
             frame = np.load(self.fnames[idx])
             if frame is not None and self.transform:
                 frame = frame.transpose(2,0,1)
                 frame = self.transform(frame)
+            self.cache[idx] = frame
             return frame
         except Exception as e:
             print(e)
