@@ -115,7 +115,7 @@ class FastFluxSeqDataset(Dataset):
                 abs = self.aposes[s][id:id+self.seq_len]
                 y = []
                 for p in abs:
-                    p = c3dto2d(p)
+                    #p = c3dto2d(p)
                     y.append(p)
                 y = abs2relative(y,self.seq_len,1)[0]
                 y = torch.from_numpy(y).float()
@@ -174,7 +174,7 @@ class FluxSeqDataset(Dataset):
             abs = self.aposes[s][id:id+self.seq_len]
             y = []
             for p in abs:
-                p = c3dto2d(p)
+                #p = c3dto2d(p)
                 y.append(p)
             y = abs2relative(y,self.seq_len,1)[0]
             y = torch.from_numpy(y).float()
@@ -316,7 +316,7 @@ if __name__=='__main__':
         print('Epoch',i)
         model.train()
         losses = []
-        for j,xy in enumerate(valid_loader):
+        for j,xy in enumerate(train_loader):
             #t = time()
             x,y = xy[0].to(device), xy[1].to(device)
             optimizer.zero_grad()

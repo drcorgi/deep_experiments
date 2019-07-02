@@ -53,10 +53,10 @@ def list_split_kitti_frames(h,w,tipo=''):
     assert os.path.isdir(base)
     pbase = '/home/ubuntu/kitti/dataset/'
     all_seqs = [sorted(glob(base+'{:02d}/*.npy'\
-                .format(i))) for i in range(11)]
-    train_seqs = all_seqs[2:]
-    valid_seqs = all_seqs[0:1]
-    test_seqs = all_seqs[1:2]
+                .format(i))) for i in range(21)] # All frames for encoder
+    train_seqs = all_seqs[11:]
+    valid_seqs = all_seqs[0:8]
+    test_seqs = all_seqs[8:11]
     train_seqs = list(itertools.chain.from_iterable(train_seqs))
     valid_seqs = list(itertools.chain.from_iterable(valid_seqs))
     test_seqs = list(itertools.chain.from_iterable(test_seqs))
