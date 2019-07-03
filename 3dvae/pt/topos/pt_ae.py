@@ -59,17 +59,17 @@ class VanillaEncoder(nn.Module):
         '''
         super().__init__()
         self.in_shape = in_shape # C,H,W
-        self.filters = 32
+        self.filters = 64
         self.h_dim = h_dim #256
         self.conv1 = nn.Conv2d(in_shape[0],self.filters,(5,5),(2,2))
-        self.conv2 = nn.Conv2d(self.filters,self.filters,(3,3),(1,1))
-        self.conv3 = nn.Conv2d(self.filters,self.filters,(3,3),(1,1))
+        self.conv2 = nn.Conv2d(self.filters,2*self.filters,(3,3),(1,1))
+        self.conv3 = nn.Conv2d(2*self.filters,2*self.filters,(3,3),(1,1))
         self.new_h = (((((in_shape[1]-4)//2-2)//1)-2)//1)
         self.new_w = (((((in_shape[2]-4)//2-2)//1)-2)//1)
-        self.flat_dim = self.new_h*self.new_w*self.filters
+        self.flat_dim = self.new_h*self.new_w*2*self.filters
         print(self.new_h,self.new_w)
         self.fc1 = nn.Linear(self.flat_dim,self.h_dim)
-        #self.fc1_drop = nn.Dropout(0.5)
+        self.conv_drop = [nn.Dropout(0.1) for _ in range(3)]
 
     def forward(self,x):
         shape = x.size()
@@ -77,8 +77,11 @@ class VanillaEncoder(nn.Module):
             x = x.view(shape[0]*shape[1],shape[2],shape[3],shape[4])
         #print(shape)
         x = F.relu(self.conv1(x))
+        x = self.conv_drop[0](x)
         x = F.relu(self.conv2(x))
+        x = self.conv_drop[1](x)
         x = F.relu(self.conv3(x))
+        x = self.conv_drop[2](x)
         x = x.view(-1,self.flat_dim)
         x = self.fc1(x)
         #x = self.fc1_drop(F.relu(x))
@@ -89,15 +92,15 @@ class VanillaDecoder(nn.Module):
     def __init__(self,in_shape,h_dim):
         super().__init__()
         self.in_shape = in_shape # C,H,W
-        self.filters = 32
+        self.filters = 64
         self.h_dim = h_dim
         self.new_h = (((((in_shape[1]-4)//2-2)//1)-2)//1)
         self.new_w = (((((in_shape[2]-4)//2-2)//1)-2)//1)
-        self.flat_dim = self.new_h*self.new_w*self.filters
+        self.flat_dim = self.new_h*self.new_w*2*self.filters
         print(self.new_h,self.new_w)
         self.fc2 = nn.Linear(self.h_dim,self.flat_dim)
-        self.deconv1 = nn.ConvTranspose2d(self.filters,self.filters,(3,3),(1,1),padding=0)
-        self.deconv2 = nn.ConvTranspose2d(self.filters,self.filters,(3,3),(1,1),padding=0) # ,output_padd$
+        self.deconv1 = nn.ConvTranspose2d(2*self.filters,2*self.filters,(3,3),(1,1),padding=0)
+        self.deconv2 = nn.ConvTranspose2d(2*self.filters,self.filters,(3,3),(1,1),padding=0) # ,output_padd$
         self.deconv3 = nn.ConvTranspose2d(self.filters,in_shape[0],(5,5),(2,2),padding=0,output_padding=1)
         self.fc1_drop = nn.Dropout(0.5)
         self.fc2_drop = nn.Dropout(0.5)
@@ -110,7 +113,7 @@ class VanillaDecoder(nn.Module):
         #x = self.fc1_drop(F.relu(x))
         x = F.relu(self.fc2(x))
         x = self.fc2_drop(x)
-        x = x.view(-1,self.filters,self.new_h,self.new_w)
+        x = x.view(-1,2*self.filters,self.new_h,self.new_w)
         x = F.relu(self.deconv1(x))
         x = F.relu(self.deconv2(x))
         x = self.deconv3(x)

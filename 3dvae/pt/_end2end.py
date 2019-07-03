@@ -99,35 +99,43 @@ class FastFluxSeqDataset(Dataset):
         self.seq_len = seq_len
         self.transform = transform # Transform at the frame level
         self.aposes = [load_kitti_odom(fn) for fn in self.pfnames]
-        self.data = []
+        self.data = [[] for _ in fnames]
         self.load()
 
     def load(self):
         try:
-            for index in range(self.len):
-                s,id = self.sids[index], self.fsids[index]
-                x = [np.load(fn) for fn in self.fnames[s][id:id+self.seq_len]]
-                x = [img.transpose(2,0,1) for img in x]
-                if self.transform:
-                    x = [self.transform(img) for img in x]
-                x = [img.unsqueeze(0) for img in x]
-                x = torch.cat(x,dim=0)
-                abs = self.aposes[s][id:id+self.seq_len]
-                y = []
-                for p in abs:
-                    p = c3dto2d(p)
-                    y.append(p)
-                y = abs2relative(y,self.seq_len,1)[0]
-                y = torch.from_numpy(y).float()
-                #print('seq loading',x.size(),y.size(),abs.shape)
-                self.data.append((x,y,abs))
+            for s in range(len(self.fnames)):
+                for id in range(len(self.fnames[s])):
+                    fn = self.fnames[s][id]
+                    x = np.load(fn)
+                    x = x.transpose(2,0,1)
+                    if self.transform:
+                        x = self.transform(x)
+                    x = x.unsqueeze(0)
+                    abs = self.aposes[s][id]
+                    self.data[s].append((x,abs))
         except RuntimeError as re:
-            print(re)
+            print('---',re)
         except Exception as e:
-            print(e)
+            print('---',e)
 
     def __getitem__(self,index):
-        return self.data[index]
+        try:
+            s,id = self.sids[index], self.fsids[index]
+            seq = self.data[s][id:id+self.seq_len]
+            x,abs = [],[]
+            for xa in seq:
+                x.append(xa[0])
+                abs.append(xa[1])
+            abs = np.array(abs)
+            y = [c3dto2d(p) for p in abs]
+            y = abs2relative(y,self.seq_len,1)[0]
+            x = torch.cat(x,dim=0)
+            y = torch.from_numpy(y).float()
+            return x,y,abs
+        except Exception as e:
+            print(s,id,len(x),len(abs),len(self.data[s]),len(self.fnames[s]))
+            raise e
 
     def __len__(self):
         return self.len
@@ -207,6 +215,7 @@ class SeqDataset(Dataset):
                 self.fsids.append(i)
         self.seq_len = seq_len
         self.transform = transform # Transform at the frame level
+        self.aposes = [load_kitti_odom(fn) for fn in self.pfnames]
 
     def __getitem__(self, index):
         try:
@@ -218,7 +227,7 @@ class SeqDataset(Dataset):
             #print('batch transf',256*(time()-t))
             x = [img.unsqueeze(0) for img in x]
             x = torch.cat(x,dim=0).unsqueeze(1)
-            abs = load_kitti_odom(self.pfnames[s])[id:id+self.seq_len]
+            abs = self.aposes[s][id:id+self.seq_len]
             y = []
             for p in abs:
                 p = c3dto2d(p)
@@ -241,13 +250,12 @@ if __name__=='__main__':
     test_dir = sys.argv[3] #'/home/ubuntu/kitti/'
     '''
 
-    enc_fn = sys.argv[1]
-    model_fn = sys.argv[2]
-    h_dim = int(sys.argv[3])
-    new_dim = (int(sys.argv[4]),int(sys.argv[5]))
-    seq_len = int(sys.argv[6])
-    batch_size = int(sys.argv[7])
-    num_epochs = int(sys.argv[8])
+    model_fn = sys.argv[1]
+    h_dim = int(sys.argv[2])
+    new_dim = (int(sys.argv[3]),int(sys.argv[4]))
+    seq_len = int(sys.argv[5])
+    batch_size = int(sys.argv[6])
+    num_epochs = int(sys.argv[7])
     tipo = 'flux'
     #transf = transforms.Compose([Rescale(new_dim),ToTensor()])
     #transf = [Rescale(new_dim),ToTensor()]
@@ -275,23 +283,10 @@ if __name__=='__main__':
     device = torch.device("cuda:0" if use_cuda else "cpu")
     print(device)
 
-    model = VanAE(frshape,h_dim).to(device)
-    if os.path.isfile(enc_fn):
-        print('Encoder found')
-        checkpoint = torch.load(enc_fn)
-        model.load_state_dict(checkpoint['model_state'])
-        for param in model.enc.parameters():
-            param.requires_grad = False
-    else:
-        print('Encoder not found. Creating new one')
-
-    vo = Conv1dMapper((h_dim,seq_len),(seq_len,12)).to(device)
-    model.dec = vo
-
     ##model = VanillaAutoencoder((1,)+new_dim).to(device)
     #model = VanillaAutoencoder((2,)+new_dim,h_dim).to(device)
     #model = MLPAutoencoder((2,)+new_dim,h_dim).to(device)
-    #model = FastDirectOdometry((1,)+new_dim,(12,)).to(device)
+    model = DirectOdometry(frshape,(12,),h_dim).to(device)
     params = model.parameters()
     optimizer = optim.Adam(params,lr=1e-3)
     min_loss = 1e15
