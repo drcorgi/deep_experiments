@@ -76,7 +76,7 @@ def list_split_kitti_flux(h,w):
     all_poses = [pbase+'poses/{:02d}.txt'.format(i) for i in range(11)]
     train_seqs, train_poses = all_seqs[2:], all_poses[2:]
     valid_seqs, valid_poses = all_seqs[0:1], all_poses[0:1]
-    test_seqs, test_poses = all_seqs[2:3], all_poses[2:3] # 1:2
+    test_seqs, test_poses = all_seqs[1:2], all_poses[1:2] # 1:2
     return (train_seqs,train_poses), (valid_seqs,valid_poses), (test_seqs,test_poses)
 
 class FastFluxSeqDataset(Dataset):
@@ -286,7 +286,7 @@ if __name__=='__main__':
     else:
         print('Encoder not found. Creating new one')
 
-    vo = Conv1dMapper((h_dim,seq_len),(12,seq_len)).to(device)
+    vo = Conv1dMapper((h_dim,seq_len),(seq_len,12)).to(device)
     model.dec = vo
 
     ##model = VanillaAutoencoder((1,)+new_dim).to(device)

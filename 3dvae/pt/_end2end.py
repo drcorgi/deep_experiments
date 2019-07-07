@@ -288,7 +288,7 @@ if __name__=='__main__':
     #model = MLPAutoencoder((2,)+new_dim,h_dim).to(device)
     model = DirectOdometry(frshape,(12,),h_dim).to(device)
     params = model.parameters()
-    optimizer = optim.Adam(params,lr=1e-3)
+    optimizer = optim.Adam(params,lr=3e-4)
     min_loss = 1e15
     epoch = 0
     writer = SummaryWriter('/home/ubuntu/log/exp_h{}_l{}_{}x{}'\
@@ -306,30 +306,20 @@ if __name__=='__main__':
 
     loss_fn = torch.nn.MSELoss()
     k,kv = 0,0
-    #epoch = num_epochs-1
     for i in range(epoch,num_epochs):
         print('Epoch',i)
         model.train()
         losses = []
         for j,xy in enumerate(train_loader):
-            #t = time()
             x,y = xy[0].to(device), xy[1].to(device)
             optimizer.zero_grad()
             y_ = model(x)
-            #print(y.size(),y_.size())
-            loss = loss_fn(y,y_) #loss_fn(y_,y)
+            loss = loss_fn(y,y_)
             loss.backward()
             optimizer.step()
             writer.add_scalar('train_cost',loss.item(),k)
             losses.append(loss.item())
             k += 1
-            #print('Batch {} loss: {:.4f}'.format(j,loss.item()))
-            #print('inference',time()-t)
-        #x_ = x[0].view(-1,x.size(-1)).unsqueeze(0)
-        #print(x_.size())
-        #writer.add_image('_img_seq_{}'.format(i),x_)
-        #writer.add_image('_img_emb_{}'.format(i),\
-        #                 z[:seq_len].unsqueeze(0))
         model.eval()
         v_losses = []
         for j,xy in enumerate(valid_loader):
@@ -339,8 +329,6 @@ if __name__=='__main__':
             v_losses.append(loss.item())
             writer.add_scalar('valid_cost',loss.item(),kv)
             kv += 1
-        writer.add_embedding(y[0,:,[3,7,11]],tag='gt_pts_{}'.format(i),global_step=1)
-        writer.add_embedding(y_[0,:,[3,7,11]],tag='est_pts_{}'.format(i),global_step=1)
         mean_train, mean_valid = np.mean(losses),np.mean(v_losses)
         print('Epoch {} loss\t{:.4f}\tValid loss\t{:.4f}'\
               .format(i,mean_train,mean_valid))
@@ -355,15 +343,3 @@ if __name__=='__main__':
     plot_eval(model,test_loader,seq_len,device,logger=writer)
     writer.close()
     print('End of plot_eval')
-    '''t_losses = []
-    for xy in test_loader:
-        x,y = xy[0].to(device), xy[1].to(device)
-        #print(x.size(),y.size())
-        y_ = model(x)
-        loss = loss_fn(y_,y)
-        t_losses.append(loss.item())
-    mean_test = np.mean(t_losses)
-    epoch_losses.append([-1,0.0,mean_test])
-    print('Test loss:',np.mean(mean_test))
-    # Save training log
-    np.save('{}/{}_log.npy'.format(log_folder,datetime.now()),epoch_losses)'''
