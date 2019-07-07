@@ -466,25 +466,28 @@ class Conv1dRecMapper(nn.Module):
         super().__init__()
         self.in_shape = in_shape
         self.out_shape = out_shape
-        self.rec = nn.GRU(in_shape[0],2*in_shape[0],1,batch_first=True)
+        self.rec = nn.GRU(in_shape[0],2*in_shape[0],1)
         self.fc1 = nn.Linear(2*in_shape[0],2*in_shape[0])
-        self.fc2 = nn.Linear(2*in_shape[0],out_shape[0])
+        self.fc2 = nn.Linear(2*in_shape[0],out_shape[-1])
 
     def forward(self,x):
-        #print(x.size())
-        batch_len = x.size(0)
-        x = x.transpose(1,2)
-        #print(x.size())
-        h0 = torch.zeros(1,batch_len,2*self.in_shape[0]).cuda()
+        ''' (B x L) x D -> L x B x D
+        '''
+        shape = x.size()
+        #print('x size',shape)
+        if len(shape) == 2:
+             x = x.view(-1,self.in_shape[-1],shape[-1]).permute(1,0,2)
+        #print('x unpacked',x.size())
+        h0 = torch.zeros(1,x.size(1),2*self.in_shape[0]).cuda()
         x, hn = self.rec(x,h0)
-        x = x.transpose(1,2) ##
-        #print(x.size())
+        x = x.transpose(1,0) ##
+        #print('gru out',x.size())
         x = x.contiguous().view(-1,2*self.in_shape[0])
-        #print(x.size())
         x = F.relu(self.fc1(x))
-        x = F.relu(self.fc2(x))
+        x = self.fc2(x)
+        #print('fc2',x.size())
         x = x.view((-1,)+self.out_shape)
-        #print(x.size())
+        #print('view',x.size())
         return x
 
 if __name__=='__main__':
