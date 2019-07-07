@@ -77,12 +77,12 @@ class VanillaEncoder(nn.Module):
             x = x.view(shape[0]*shape[1],shape[2],shape[3],shape[4])
         #print(shape)
         x = F.relu(self.conv1(x))
-        x = self.conv_drop[0](x)
+        #x = self.conv_drop[0](x)
         x = F.relu(self.conv2(x))
-        x = self.conv_drop[1](x)
+        #x = self.conv_drop[1](x)
         x = F.relu(self.conv3(x))
-        x = self.conv_drop[2](x)
-        x = x.view(-1,self.flat_dim)
+        #x = self.conv_drop[2](x)
+        x = x.view(shape[0]*shape[1],self.flat_dim)
         x = self.fc1(x)
         #x = self.fc1_drop(F.relu(x))
         #x = x.view(shape[0],self.h_dim,shape[1])
@@ -112,7 +112,7 @@ class VanillaDecoder(nn.Module):
         #print('d',x.size())
         #x = self.fc1_drop(F.relu(x))
         x = F.relu(self.fc2(x))
-        x = self.fc2_drop(x)
+        #x = self.fc2_drop(x)
         x = x.view(-1,2*self.filters,self.new_h,self.new_w)
         x = F.relu(self.deconv1(x))
         x = F.relu(self.deconv2(x))
@@ -426,9 +426,11 @@ class Conv1dMapper(nn.Module):
         self.dropout5 = nn.Dropout(p=0.5)
 
     def forward(self,x):
+        ''' x may come as (B x L) x D
+        '''
         shape = x.size()
         if len(shape) == 2:
-            x = x.view(-1,self.in_shape[-1],x.size(-1)).transpose(2,1)
+            x = x.view(-1,self.in_shape[-1],shape[-1]).transpose(2,1)
         x = self.bn1(F.relu(self.conv1(x)))
         x = self.dropout1(x)
         x = self.bn2(F.relu(self.conv2(x)))
@@ -436,8 +438,10 @@ class Conv1dMapper(nn.Module):
         x = self.bn3(F.relu(self.conv3(x)))
         x = self.dropout3(x)
         x = x.view(-1,self.h_shape*self.filters)
-        x = self.dropout4(self.bn4(F.relu(self.fc1(x))))
-        x = self.dropout5(self.bn5(F.relu(self.fc2(x))))
+        x = self.bn4(F.relu(self.fc1(x)))
+        x = self.dropout4(x)
+        x = self.bn5(F.relu(self.fc2(x)))
+        x = self.dropout5(x)
         x = self.fc3(x)
         x = x.view((-1,)+self.out_shape)
 

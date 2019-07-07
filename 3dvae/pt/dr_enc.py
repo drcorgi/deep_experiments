@@ -54,7 +54,7 @@ def list_split_kitti_frames(h,w,tipo=''):
     pbase = '/home/ubuntu/kitti/dataset/'
     all_seqs = [sorted(glob(base+'{:02d}/*.npy'\
                 .format(i))) for i in range(21)] # All frames for encoder
-    train_seqs = all_seqs[11:]
+    train_seqs = all_seqs[:11] #[11:]
     valid_seqs = all_seqs[0:8]
     test_seqs = all_seqs[8:11]
     train_seqs = list(itertools.chain.from_iterable(train_seqs))
@@ -165,29 +165,21 @@ if __name__=='__main__':
 
     loss_fn = torch.nn.MSELoss()
     k,kv = 0,0
-    #epoch = num_epochs-1
     for i in range(epoch,num_epochs):
         model.train()
         losses = []
         for j,x in enumerate(train_loader):
-            #t = time()
             x = x.to(device)
             optimizer.zero_grad()
             x_ = model(x)
-            #print(x.size(),x_.size())
-            loss = loss_fn(x,x_) #loss_fn(y_,y)
+            loss = loss_fn(x,x_)
             loss.backward()
             optimizer.step()
             writer.add_scalar('train_cost',loss.item(),k)
             losses.append(loss.item())
             k += 1
-            #print('Batch {}\tloss: {:.3f}'.format(j,loss.item()))
-            #print('inference',time()-t)
         xx_ = torch.cat([x[0][0],x_[0][0]],dim=1).unsqueeze(0)
         writer.add_image('_frames_true_dec{}'.format(i),xx_)
-        #writer.add_image('_frames_dec_{}'.format(i),x_[0])
-        #writer.add_image('_img_emb_{}'.format(i),\
-        #                 z[:seq_len].unsqueeze(0))
         model.eval()
         v_losses = []
         for j,x in enumerate(valid_loader):

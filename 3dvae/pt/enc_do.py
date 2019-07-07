@@ -104,6 +104,7 @@ class FastFluxSeqDataset(Dataset):
 
     def load(self):
         try:
+            print('Cacheing dataset')
             for index in range(self.len):
                 s,id = self.sids[index], self.fsids[index]
                 x = [np.load(fn) for fn in self.fnames[s][id:id+self.seq_len]]
@@ -266,9 +267,9 @@ if __name__=='__main__':
     valid_dataset = FrSeqDataset(valid_dir[0],valid_dir[1],seq_len,transf)
     test_dataset = FrSeqDataset(test_dir[0],test_dir[1],seq_len,transf)
 
-    train_loader = DataLoader(train_dataset,batch_size=batch_size,shuffle=True,num_workers=4,collate_fn=my_collate)
-    valid_loader = DataLoader(valid_dataset,batch_size=batch_size,shuffle=False,num_workers=4,collate_fn=my_collate)
-    test_loader = DataLoader(test_dataset,batch_size=batch_size,shuffle=False,num_workers=4,collate_fn=my_collate)
+    train_loader = DataLoader(train_dataset,batch_size=batch_size,shuffle=True,num_workers=1,collate_fn=my_collate)
+    valid_loader = DataLoader(valid_dataset,batch_size=batch_size,shuffle=False,num_workers=1,collate_fn=my_collate)
+    test_loader = DataLoader(test_dataset,batch_size=batch_size,shuffle=False,num_workers=1,collate_fn=my_collate)
 
     # CUDA for PyTorch
     use_cuda = torch.cuda.is_available()
@@ -280,12 +281,12 @@ if __name__=='__main__':
         print('Encoder found')
         checkpoint = torch.load(enc_fn)
         model.load_state_dict(checkpoint['model_state'])
-        for param in model.enc.parameters():
-            param.requires_grad = False
+        '''for param in model.enc.parameters():
+            param.requires_grad = False'''
     else:
         print('Encoder not found. Creating new one')
 
-    vo = Conv1dMapper((h_dim,seq_len),(seq_len,12)).to(device)
+    vo = Conv1dMapper((h_dim,seq_len),(12,seq_len)).to(device)
     model.dec = vo
 
     ##model = VanillaAutoencoder((1,)+new_dim).to(device)
@@ -311,25 +312,21 @@ if __name__=='__main__':
 
     loss_fn = torch.nn.MSELoss()
     k,kv = 0,0
-    #epoch = num_epochs-1
     for i in range(epoch,num_epochs):
         print('Epoch',i)
         model.train()
         losses = []
         for j,xy in enumerate(train_loader):
-            #t = time()
             x,y = xy[0].to(device), xy[1].to(device)
             optimizer.zero_grad()
             y_ = model(x)
-            #print(y.size(),y_.size())
-            loss = loss_fn(y,y_) #loss_fn(y_,y)
+            loss = loss_fn(y,y_)
             loss.backward()
             optimizer.step()
             writer.add_scalar('train_cost',loss.item(),k)
             losses.append(loss.item())
             k += 1
-            #print('Batch {} loss: {:.4f}'.format(j,loss.item()))
-            #print('inference',time()-t)
+            #print('Epoch {} Batch {} loss: {:.4f}'.format(i,j,loss.item()))
         #x_ = x[0].view(-1,x.size(-1)).unsqueeze(0)
         #print(x_.size())
         #writer.add_image('_img_seq_{}'.format(i),x_)
@@ -344,8 +341,8 @@ if __name__=='__main__':
             v_losses.append(loss.item())
             writer.add_scalar('valid_cost',loss.item(),kv)
             kv += 1
-        writer.add_embedding(y[0,:,[3,7,11]],tag='gt_pts_{}'.format(i),global_step=1)
-        writer.add_embedding(y_[0,:,[3,7,11]],tag='est_pts_{}'.format(i),global_step=1)
+        #writer.add_embedding(y[0,:,[3,7,11]],tag='gt_pts_{}'.format(i),global_step=1)
+        #writer.add_embedding(y_[0,:,[3,7,11]],tag='est_pts_{}'.format(i),global_step=1)
         mean_train, mean_valid = np.mean(losses),np.mean(v_losses)
         print('Epoch {} loss\t{:.4f}\tValid loss\t{:.4f}'\
               .format(i,mean_train,mean_valid))
