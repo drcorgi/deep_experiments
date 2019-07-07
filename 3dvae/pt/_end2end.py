@@ -22,6 +22,7 @@ from plotter import c3dto2d, abs2relative, plot_eval
 from odom_loader import load_kitti_odom
 from tensorboardX import SummaryWriter
 from time import time
+from enc_do import FastFluxSeqDataset
 
 def my_collate(batch):
     batch_x = []
@@ -76,10 +77,10 @@ def list_split_kitti_flux(h,w):
     all_poses = [pbase+'poses/{:02d}.txt'.format(i) for i in range(11)]
     train_seqs, train_poses = all_seqs[2:], all_poses[2:]
     valid_seqs, valid_poses = all_seqs[0:1], all_poses[0:1]
-    test_seqs, test_poses = all_seqs[2:3], all_poses[2:3] # 1:2
+    test_seqs, test_poses = all_seqs[1:2], all_poses[1:2] # 1:2
     return (train_seqs,train_poses), (valid_seqs,valid_poses), (test_seqs,test_poses)
 
-class FastFluxSeqDataset(Dataset):
+class FastFluxSeqDataset_(Dataset):
     def __init__(self, fnames, pfnames, seq_len, transform=None):
         ''' fnames is a list of lists of file names
             pfames is a list of file names (one for each entire sequence)
