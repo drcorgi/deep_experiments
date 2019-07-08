@@ -74,9 +74,9 @@ def list_split_kitti_flux(h,w):
     all_seqs = [sorted(glob(base+'{:02d}/*.npy'\
                 .format(i))) for i in range(11)]
     all_poses = [pbase+'poses/{:02d}.txt'.format(i) for i in range(11)]
-    train_seqs, train_poses = all_seqs[2:], all_poses[2:]
-    valid_seqs, valid_poses = all_seqs[0:1], all_poses[0:1]
-    test_seqs, test_poses = all_seqs[3:4], all_poses[3:4] # 1:2
+    train_seqs, train_poses = all_seqs[:8], all_poses[:8] # 2:
+    valid_seqs, valid_poses = all_seqs[8:], all_poses[8:] # 0:1
+    test_seqs, test_poses = all_seqs[8:9], all_poses[8:9] # 1:2
     return (train_seqs,train_poses), (valid_seqs,valid_poses), (test_seqs,test_poses)
 
 class FastFluxSeqDataset(Dataset):
@@ -334,7 +334,7 @@ if __name__=='__main__':
         #                 z[:seq_len].unsqueeze(0))
         model.eval()
         v_losses = []
-        for j,xy in enumerate(test_loader):
+        for j,xy in enumerate(valid_loader):
             x,y = xy[0].to(device), xy[1].to(device)
             y_ = model(x)
             loss = loss_fn(y_,y)

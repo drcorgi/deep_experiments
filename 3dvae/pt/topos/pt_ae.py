@@ -69,7 +69,7 @@ class VanillaEncoder(nn.Module):
         self.flat_dim = self.new_h*self.new_w*2*self.filters
         print(self.new_h,self.new_w)
         self.fc1 = nn.Linear(self.flat_dim,self.h_dim)
-        self.conv_drop = [nn.Dropout(0.1) for _ in range(3)]
+        #self.conv_drop = [nn.Dropout(0.1) for _ in range(3)]
 
     def forward(self,x):
         shape = x.size()
@@ -77,11 +77,11 @@ class VanillaEncoder(nn.Module):
             x = x.view(shape[0]*shape[1],shape[2],shape[3],shape[4])
         #print(shape)
         x = F.relu(self.conv1(x))
-        x = self.conv_drop[0](x)
+        #x = self.conv_drop[0](x)
         x = F.relu(self.conv2(x))
-        x = self.conv_drop[1](x)
+        #x = self.conv_drop[1](x)
         x = F.relu(self.conv3(x))
-        x = self.conv_drop[2](x)
+        #x = self.conv_drop[2](x)
         x = x.view(-1,self.flat_dim)
         x = self.fc1(x)
         #x = self.fc1_drop(F.relu(x))
@@ -466,10 +466,12 @@ class Conv1dRecMapper(nn.Module):
         super().__init__()
         self.in_shape = in_shape
         self.out_shape = out_shape
-        self.rec = nn.GRU(in_shape[0],2*in_shape[0],2,dropout=0.5)
+        self.num_cells = 1
+        self.rec = nn.GRU(in_shape[0],2*in_shape[0],self.num_cells)
         self.fc1 = nn.Linear(2*in_shape[0],10*in_shape[0])
         self.fc2 = nn.Linear(10*in_shape[0],out_shape[-1])
-        self.drop1 = nn.Dropout(p=0.5)
+        #self.drop1 = nn.Dropout(p=0.5)
+        #self.odom_norm = OdomNorm2d(2*in_shape[0],12)
 
     def forward(self,x):
         ''' (B x L) x D -> L x B x D
@@ -479,17 +481,24 @@ class Conv1dRecMapper(nn.Module):
         if len(shape) == 2:
              x = x.view(-1,self.in_shape[-1],shape[-1]).permute(1,0,2)
         #print('x unpacked',x.size())
-        h0 = torch.zeros(2,x.size(1),2*self.in_shape[0]).cuda()
+        h0 = torch.zeros(self.num_cells,x.size(1),2*self.in_shape[0]).cuda()
         x, hn = self.rec(x,h0)
         x = x.transpose(1,0) ##
         #print('gru out',x.size())
+
         x = x.contiguous().view(-1,2*self.in_shape[0])
         x = F.relu(self.fc1(x))
-        x = self.drop1(x)
+        #x = self.drop1(x)
         x = self.fc2(x)
         #print('fc2',x.size())
         x = x.view((-1,)+self.out_shape)
         #print('view',x.size())
+
+        x[:,:,[1,4,6,7,9]] = torch.zeros((x.size(0),x.size(1),5)).cuda()
+        #x[:,:,[3,11]] = torch.tensor(0.0).cuda()
+        x[:,:,5] = torch.tensor(1.0).cuda()
+        #x = self.odom_norm(x)
+
         return x
 
 if __name__=='__main__':
