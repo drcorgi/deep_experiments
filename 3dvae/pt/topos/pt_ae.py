@@ -77,11 +77,11 @@ class VanillaEncoder(nn.Module):
             x = x.view(shape[0]*shape[1],shape[2],shape[3],shape[4])
         #print(shape)
         x = F.relu(self.conv1(x))
-        #x = self.conv_drop[0](x)
+        x = self.conv_drop[0](x)
         x = F.relu(self.conv2(x))
-        #x = self.conv_drop[1](x)
+        x = self.conv_drop[1](x)
         x = F.relu(self.conv3(x))
-        #x = self.conv_drop[2](x)
+        x = self.conv_drop[2](x)
         x = x.view(-1,self.flat_dim)
         x = self.fc1(x)
         #x = self.fc1_drop(F.relu(x))
@@ -231,20 +231,20 @@ class DirectOdometry(nn.Module):
         self.filters = 32
         # Batch dim trick
         self.conv1 = nn.Conv2d(in_shape[0],self.filters,(5,5),(2,2))
-        self.conv2 = nn.Conv2d(self.filters,self.filters,(3,3),(1,1))
-        self.conv3 = nn.Conv2d(self.filters,self.filters,(3,3),(1,1))
+        self.conv2 = nn.Conv2d(self.filters,2*self.filters,(3,3),(1,1))
+        self.conv3 = nn.Conv2d(2*self.filters,4*self.filters,(3,3),(1,1))
         self.new_h = (((((in_shape[1]-4)//2-2)//1)-2)//1)
         self.new_w = (((((in_shape[2]-4)//2-2)//1)-2)//1)
-        self.flat_dim = self.new_h*self.new_w*self.filters
+        self.flat_dim = self.new_h*self.new_w*4*self.filters
         print('Flat dim',self.flat_dim)
         self.fc1 = nn.Linear(self.flat_dim,self.n_hidden)
         self.drop1 = nn.Dropout(0.5)
-        self.conv4 = nn.Conv1d(self.n_hidden,self.n_hidden,3,1,padding=1)
-        self.conv5 = nn.Conv1d(self.n_hidden,self.n_hidden,3,1,padding=1)
-        self.conv6 = nn.Conv1d(self.n_hidden,self.n_hidden,3,1,padding=1)
+        self.conv4 = nn.Conv1d(self.n_hidden,2*self.n_hidden,3,1,padding=1)
+        self.conv5 = nn.Conv1d(2*self.n_hidden,4*self.n_hidden,3,1,padding=1)
+        self.conv6 = nn.Conv1d(4*self.n_hidden,4*self.n_hidden,3,1,padding=1)
         #self.odom_norm = OdomNorm2d(self.n_hidden,12)
-        self.fc2 = nn.Linear(n_hidden,n_hidden)
-        self.fc3 = nn.Linear(n_hidden,12)
+        self.fc2 = nn.Linear(4*n_hidden,100*n_hidden)
+        self.fc3 = nn.Linear(100*n_hidden,12)
 
     def forward(self,x):
         size = x.size()
@@ -466,9 +466,10 @@ class Conv1dRecMapper(nn.Module):
         super().__init__()
         self.in_shape = in_shape
         self.out_shape = out_shape
-        self.rec = nn.GRU(in_shape[0],2*in_shape[0],1)
-        self.fc1 = nn.Linear(2*in_shape[0],2*in_shape[0])
-        self.fc2 = nn.Linear(2*in_shape[0],out_shape[-1])
+        self.rec = nn.GRU(in_shape[0],2*in_shape[0],2,dropout=0.5)
+        self.fc1 = nn.Linear(2*in_shape[0],10*in_shape[0])
+        self.fc2 = nn.Linear(10*in_shape[0],out_shape[-1])
+        self.drop1 = nn.Dropout(p=0.5)
 
     def forward(self,x):
         ''' (B x L) x D -> L x B x D
@@ -478,12 +479,13 @@ class Conv1dRecMapper(nn.Module):
         if len(shape) == 2:
              x = x.view(-1,self.in_shape[-1],shape[-1]).permute(1,0,2)
         #print('x unpacked',x.size())
-        h0 = torch.zeros(1,x.size(1),2*self.in_shape[0]).cuda()
+        h0 = torch.zeros(2,x.size(1),2*self.in_shape[0]).cuda()
         x, hn = self.rec(x,h0)
         x = x.transpose(1,0) ##
         #print('gru out',x.size())
         x = x.contiguous().view(-1,2*self.in_shape[0])
         x = F.relu(self.fc1(x))
+        x = self.drop1(x)
         x = self.fc2(x)
         #print('fc2',x.size())
         x = x.view((-1,)+self.out_shape)

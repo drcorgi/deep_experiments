@@ -76,7 +76,7 @@ def list_split_kitti_flux(h,w):
     all_poses = [pbase+'poses/{:02d}.txt'.format(i) for i in range(11)]
     train_seqs, train_poses = all_seqs[2:], all_poses[2:]
     valid_seqs, valid_poses = all_seqs[0:1], all_poses[0:1]
-    test_seqs, test_poses = all_seqs[1:2], all_poses[1:2] # 1:2
+    test_seqs, test_poses = all_seqs[3:4], all_poses[3:4] # 1:2
     return (train_seqs,train_poses), (valid_seqs,valid_poses), (test_seqs,test_poses)
 
 class FastFluxSeqDataset(Dataset):
@@ -334,7 +334,7 @@ if __name__=='__main__':
         #                 z[:seq_len].unsqueeze(0))
         model.eval()
         v_losses = []
-        for j,xy in enumerate(valid_loader):
+        for j,xy in enumerate(test_loader):
             x,y = xy[0].to(device), xy[1].to(device)
             y_ = model(x)
             loss = loss_fn(y_,y)
@@ -354,18 +354,6 @@ if __name__=='__main__':
                         'epoch': i+1}, model_fn)
     model.eval()
     print('Start of plot_eval')
-    plot_eval(model,valid_loader,seq_len,device,logger=writer)
+    plot_eval(model,test_loader,seq_len,device,logger=writer)
     writer.close()
     print('End of plot_eval')
-    '''t_losses = []
-    for xy in test_loader:
-        x,y = xy[0].to(device), xy[1].to(device)
-        #print(x.size(),y.size())
-        y_ = model(x)
-        loss = loss_fn(y_,y)
-        t_losses.append(loss.item())
-    mean_test = np.mean(t_losses)
-    epoch_losses.append([-1,0.0,mean_test])
-    print('Test loss:',np.mean(mean_test))
-    # Save training log
-    np.save('{}/{}_log.npy'.format(log_folder,datetime.now()),epoch_losses)'''
