@@ -79,6 +79,60 @@ def list_split_kitti_flux(h,w):
     test_seqs, test_poses = all_seqs[8:9], all_poses[8:9] # 1:2
     return (train_seqs,train_poses), (valid_seqs,valid_poses), (test_seqs,test_poses)
 
+class FastSeqDataset(Dataset):
+    def __init__(self, fnames, pfnames, seq_len, transform=None):
+        ''' fnames is a list of lists of file names
+            pfames is a list of file names (one for each entire sequence)
+        '''
+        super().__init__()
+        self.fnames = fnames
+        self.pfnames = pfnames
+        self.len = sum([max(0,len(fns)-seq_len+1) for fns in fnames])
+        self.sids = []
+        for i,fns in enumerate(fnames):
+            for j in range(len(fns)-seq_len+1):
+                self.sids.append(i)
+        self.fsids = []
+        for fns in fnames:
+            for i in range(len(fns)-seq_len+1):
+                self.fsids.append(i)
+        self.seq_len = seq_len
+        self.transform = transform # Transform at the frame level
+        self.aposes = [load_kitti_odom(fn) for fn in self.pfnames]
+        self.data = []
+        self.load()
+
+    def load(self):
+        try:
+            print('Cacheing dataset')
+            for index in range(self.len):
+                s,id = self.sids[index], self.fsids[index]
+                x = [cv2.imread(fn,0) for fn in self.fnames[s][id:id+self.seq_len]]
+                x = [np.expand_dims(img,axis=0) for img in x]
+                if self.transform:
+                    x = [self.transform(img) for img in x]
+                x = [img.unsqueeze(0) for img in x]
+                x = torch.cat(x,dim=0)
+                abs = self.aposes[s][id:id+self.seq_len]
+                y = []
+                for p in abs:
+                    p = c3dto2d(p)
+                    y.append(p)
+                y = abs2relative(y,self.seq_len,1)[0]
+                y = torch.from_numpy(y).float()
+                #print('seq loading',x.size(),y.size(),abs.shape)
+                self.data.append((x,y,abs))
+        except RuntimeError as re:
+            print(re)
+        except Exception as e:
+            print(e)
+
+    def __getitem__(self,index):
+        return self.data[index]
+
+    def __len__(self):
+        return self.len
+
 class FastFluxSeqDataset(Dataset):
     def __init__(self, fnames, pfnames, seq_len, transform=None):
         ''' fnames is a list of lists of file names
@@ -249,7 +303,7 @@ if __name__=='__main__':
     seq_len = int(sys.argv[6])
     batch_size = int(sys.argv[7])
     num_epochs = int(sys.argv[8])
-    tipo = 'flux'
+    tipo = 'img' #'flux'
     #transf = transforms.Compose([Rescale(new_dim),ToTensor()])
     #transf = [Rescale(new_dim),ToTensor()]
     transf = ToTensor()
@@ -261,7 +315,7 @@ if __name__=='__main__':
     else:
         frshape = (1,) + new_dim
         train_dir,valid_dir,test_dir = list_split_kitti_(new_dim[0],new_dim[1])
-        FrSeqDataset = SeqDataset
+        FrSeqDataset = FastSeqDataset
 
     train_dataset = FrSeqDataset(train_dir[0],train_dir[1],seq_len,transf)
     valid_dataset = FrSeqDataset(valid_dir[0],valid_dir[1],seq_len,transf)
