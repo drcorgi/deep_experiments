@@ -59,7 +59,7 @@ class VanillaEncoder(nn.Module):
         '''
         super().__init__()
         self.in_shape = in_shape # C,H,W
-        self.filters = 64
+        self.filters = 32
         self.h_dim = h_dim #256
         self.conv1 = nn.Conv2d(in_shape[0],self.filters,(5,5),(2,2))
         self.conv2 = nn.Conv2d(self.filters,2*self.filters,(3,3),(1,1))
@@ -92,7 +92,7 @@ class VanillaDecoder(nn.Module):
     def __init__(self,in_shape,h_dim):
         super().__init__()
         self.in_shape = in_shape # C,H,W
-        self.filters = 64
+        self.filters = 32
         self.h_dim = h_dim
         self.new_h = (((((in_shape[1]-4)//2-2)//1)-2)//1)
         self.new_w = (((((in_shape[2]-4)//2-2)//1)-2)//1)
@@ -455,9 +455,9 @@ class Conv1dMapper(nn.Module):
         '''det = det + torch.tensor(1e-7)
         x[:,:,[0,1,2,4,5,6,8,9,10]] = x_[:,:,[0,1,2,4,5,6,8,9,10]]/det.unsqueeze(-1).repeat(1,1,9)'''
 
-        '''x[:,:,[1,4,6,7,9]] = torch.zeros((x.size(0),x.size(1),5)).cuda()
-        x[:,:,[3,11]] = torch.tensor(0.0).cuda()
-        x[:,:,5] = torch.tensor(1.0).cuda()'''
+        x[:,:,[1,4,6,7,9]] = torch.zeros((x.size(0),x.size(1),5)).cuda()
+        #x[:,:,[3,11]] = torch.tensor(0.0).cuda()
+        x[:,:,5] = torch.tensor(1.0).cuda()
 
         return x
 
@@ -468,8 +468,8 @@ class Conv1dRecMapper(nn.Module):
         self.out_shape = out_shape
         self.num_cells = 1
         self.rec = nn.GRU(in_shape[0],2*in_shape[0],self.num_cells)
-        self.fc1 = nn.Linear(2*in_shape[0],10*in_shape[0])
-        self.fc2 = nn.Linear(10*in_shape[0],out_shape[-1])
+        self.fc1 = nn.Linear(2*in_shape[0],2*in_shape[0])
+        self.fc2 = nn.Linear(2*in_shape[0],out_shape[-1])
         #self.drop1 = nn.Dropout(p=0.5)
         #self.odom_norm = OdomNorm2d(2*in_shape[0],12)
 

@@ -303,7 +303,7 @@ if __name__=='__main__':
     seq_len = int(sys.argv[6])
     batch_size = int(sys.argv[7])
     num_epochs = int(sys.argv[8])
-    tipo = 'img' #'flux'
+    tipo = 'flux' #'flux'
     #transf = transforms.Compose([Rescale(new_dim),ToTensor()])
     #transf = [Rescale(new_dim),ToTensor()]
     transf = ToTensor()
@@ -321,9 +321,9 @@ if __name__=='__main__':
     valid_dataset = FrSeqDataset(valid_dir[0],valid_dir[1],seq_len,transf)
     test_dataset = FrSeqDataset(test_dir[0],test_dir[1],seq_len,transf)
 
-    train_loader = DataLoader(train_dataset,batch_size=batch_size,shuffle=True,num_workers=1,collate_fn=my_collate)
-    valid_loader = DataLoader(valid_dataset,batch_size=batch_size,shuffle=False,num_workers=1,collate_fn=my_collate)
-    test_loader = DataLoader(test_dataset,batch_size=batch_size,shuffle=False,num_workers=1,collate_fn=my_collate)
+    train_loader = DataLoader(train_dataset,batch_size=batch_size,shuffle=True,num_workers=0,collate_fn=my_collate)
+    valid_loader = DataLoader(valid_dataset,batch_size=batch_size,shuffle=False,num_workers=0,collate_fn=my_collate)
+    test_loader = DataLoader(test_dataset,batch_size=batch_size,shuffle=False,num_workers=0,collate_fn=my_collate)
 
     # CUDA for PyTorch
     use_cuda = torch.cuda.is_available()
@@ -341,6 +341,7 @@ if __name__=='__main__':
         print('Encoder not found. Creating new one')
 
     vo = Conv1dRecMapper((h_dim,seq_len),(seq_len,12)).to(device)
+    #vo = Conv1dMapper((h_dim,seq_len),(seq_len,12)).to(device)
     model.dec = vo
 
     ##model = VanillaAutoencoder((1,)+new_dim).to(device)
@@ -348,7 +349,7 @@ if __name__=='__main__':
     #model = MLPAutoencoder((2,)+new_dim,h_dim).to(device)
     #model = FastDirectOdometry((1,)+new_dim,(12,)).to(device)
     params = model.parameters()
-    optimizer = optim.Adam(params,lr=1e-3)
+    optimizer = optim.Adam(params,lr=3e-4)
     min_loss = 1e15
     epoch = 0
     writer = SummaryWriter('/home/ubuntu/log/exp_h{}_l{}_{}x{}'\
