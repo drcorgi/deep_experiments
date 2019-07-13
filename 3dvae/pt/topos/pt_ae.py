@@ -62,11 +62,11 @@ class VanillaEncoder(nn.Module):
         self.filters = 32
         self.h_dim = h_dim #256
         self.conv1 = nn.Conv2d(in_shape[0],self.filters,(5,5),(2,2))
-        self.conv2 = nn.Conv2d(self.filters,2*self.filters,(3,3),(1,1))
-        self.conv3 = nn.Conv2d(2*self.filters,2*self.filters,(3,3),(1,1))
+        self.conv2 = nn.Conv2d(self.filters,self.filters,(3,3),(1,1))
+        self.conv3 = nn.Conv2d(self.filters,self.filters,(3,3),(1,1))
         self.new_h = (((((in_shape[1]-4)//2-2)//1)-2)//1)
         self.new_w = (((((in_shape[2]-4)//2-2)//1)-2)//1)
-        self.flat_dim = self.new_h*self.new_w*2*self.filters
+        self.flat_dim = self.new_h*self.new_w*self.filters
         print(self.new_h,self.new_w)
         self.fc1 = nn.Linear(self.flat_dim,self.h_dim)
         #self.conv_drop = [nn.Dropout(0.1) for _ in range(3)]
@@ -405,7 +405,7 @@ class Conv1dMapper(nn.Module):
         super().__init__()
         self.in_shape = in_shape
         self.out_shape = out_shape
-        self.filters = 64
+        self.filters = 32
         self.conv1 = nn.Conv1d(in_shape[0],self.filters,3,1,groups=1)
         self.bn1 = nn.BatchNorm1d(self.filters)
         self.conv2 = nn.Conv1d(self.filters,self.filters,3,1,groups=1)
@@ -414,11 +414,11 @@ class Conv1dMapper(nn.Module):
         self.bn3 = nn.BatchNorm1d(self.filters)
         self.h_shape = ((((in_shape[1]-2)//1-2)//1)-2)//1
         print(self.h_shape)
-        self.fc1 = nn.Linear(self.h_shape*self.filters,100*self.in_shape[1])
-        self.bn4 = nn.BatchNorm1d(100*self.in_shape[1])
-        self.fc2 = nn.Linear(100*self.in_shape[1],100*self.in_shape[1])
-        self.bn5 = nn.BatchNorm1d(100*self.in_shape[1])
-        self.fc3 = nn.Linear(100*self.in_shape[1],np.prod(out_shape)) # seq_len * x,y,theta
+        self.fc1 = nn.Linear(self.h_shape*self.filters,10*self.in_shape[1])
+        self.bn4 = nn.BatchNorm1d(10*self.in_shape[1])
+        self.fc2 = nn.Linear(10*self.in_shape[1],10*self.in_shape[1])
+        self.bn5 = nn.BatchNorm1d(10*self.in_shape[1])
+        self.fc3 = nn.Linear(10*self.in_shape[1],np.prod(out_shape)) # seq_len * x,y,theta
         self.dropout1 = nn.Dropout(p=0.1)
         self.dropout2 = nn.Dropout(p=0.1)
         self.dropout3 = nn.Dropout(p=0.1)
@@ -467,9 +467,9 @@ class Conv1dRecMapper(nn.Module):
         self.in_shape = in_shape
         self.out_shape = out_shape
         self.num_cells = 1
-        self.rec = nn.GRU(in_shape[0],2*in_shape[0],self.num_cells)
-        self.fc1 = nn.Linear(2*in_shape[0],2*in_shape[0])
-        self.fc2 = nn.Linear(2*in_shape[0],out_shape[-1])
+        self.rec = nn.GRU(in_shape[0],in_shape[0],self.num_cells)
+        self.fc1 = nn.Linear(in_shape[0],in_shape[0])
+        self.fc2 = nn.Linear(in_shape[0],out_shape[-1])
         #self.drop1 = nn.Dropout(p=0.5)
         #self.odom_norm = OdomNorm2d(2*in_shape[0],12)
 
@@ -481,12 +481,12 @@ class Conv1dRecMapper(nn.Module):
         if len(shape) == 2:
              x = x.view(-1,self.in_shape[-1],shape[-1]).permute(1,0,2)
         #print('x unpacked',x.size())
-        h0 = torch.zeros(self.num_cells,x.size(1),2*self.in_shape[0]).cuda()
+        h0 = torch.zeros(self.num_cells,x.size(1),self.in_shape[0]).cuda()
         x, hn = self.rec(x,h0)
         x = x.transpose(1,0) ##
         #print('gru out',x.size())
 
-        x = x.contiguous().view(-1,2*self.in_shape[0])
+        x = x.contiguous().view(-1,self.in_shape[0])
         x = F.relu(self.fc1(x))
         #x = self.drop1(x)
         x = self.fc2(x)

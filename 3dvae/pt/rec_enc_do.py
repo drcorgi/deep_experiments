@@ -22,280 +22,10 @@ from plotter import c3dto2d, abs2relative, plot_eval
 from odom_loader import load_kitti_odom
 from tensorboardX import SummaryWriter
 from time import time
-
-def my_collate(batch):
-    batch_x = []
-    batch_y = []
-    batch_abs = []
-    for b in batch:
-        if b is not None:
-            batch_x.append(b[0])
-            batch_y.append(b[1])
-            batch_abs.append(b[2])
-    return torch.stack(batch_x), torch.stack(batch_y), batch_abs
-
-class Rescale(object):
-    def __init__(self, output_size):
-        assert isinstance(output_size, (int, tuple))
-        self.output_size = output_size
-
-    def __call__(self, image):
-        image = cv2.resize(image,self.output_size)
-        return image
-
-class ToTensor(object):
-    def __call__(self,x):
-        return torch.from_numpy(x).float()
-
-def list_split_kitti():
-    base = '/home/ubuntu/kitti/dataset/'
-    all_seqs = [sorted(glob(base+'sequences/{:02d}/image_0/*.png'\
-                .format(i))) for i in range(11)]
-    all_poses = [base+'poses/{:02d}.txt'.format(i) for i in range(11)]
-    train_seqs, train_poses = all_seqs[2:], all_poses[2:]
-    valid_seqs, valid_poses = all_seqs[0:1], all_poses[0:1]
-    test_seqs, test_poses = all_seqs[1:2], all_poses[1:2]
-    return (train_seqs,train_poses), (valid_seqs,valid_poses), (test_seqs,test_poses)
-
-def list_split_kitti_(h,w):
-    base = '/home/ubuntu/kitti/{}x{}/'.format(h,w)
-    pbase = '/home/ubuntu/kitti/dataset/'
-    all_seqs = [sorted(glob(base+'{:02d}/*.png'\
-                .format(i))) for i in range(11)]
-    all_poses = [pbase+'poses/{:02d}.txt'.format(i) for i in range(11)]
-    train_seqs, train_poses = all_seqs[2:], all_poses[2:]
-    valid_seqs, valid_poses = all_seqs[0:1], all_poses[0:1]
-    test_seqs, test_poses = all_seqs[1:2], all_poses[1:2]
-    return (train_seqs,train_poses), (valid_seqs,valid_poses), (test_seqs,test_poses)
-
-def list_split_kitti_flux(h,w):
-    base = '/home/ubuntu/kitti/flux/{}x{}/'.format(h,w)
-    pbase = '/home/ubuntu/kitti/dataset/'
-    all_seqs = [sorted(glob(base+'{:02d}/*.npy'\
-                .format(i))) for i in range(11)]
-    all_poses = [pbase+'poses/{:02d}.txt'.format(i) for i in range(11)]
-    train_seqs, train_poses = all_seqs[:8], all_poses[:8] # 2:
-    valid_seqs, valid_poses = all_seqs[8:], all_poses[8:] # 0:1
-    test_seqs, test_poses = all_seqs[8:9], all_poses[8:9] # 1:2
-    return (train_seqs,train_poses), (valid_seqs,valid_poses), (test_seqs,test_poses)
-
-class FastSeqDataset(Dataset):
-    def __init__(self, fnames, pfnames, seq_len, transform=None):
-        ''' fnames is a list of lists of file names
-            pfames is a list of file names (one for each entire sequence)
-        '''
-        super().__init__()
-        self.fnames = fnames
-        self.pfnames = pfnames
-        self.len = sum([max(0,len(fns)-seq_len+1) for fns in fnames])
-        self.sids = []
-        for i,fns in enumerate(fnames):
-            for j in range(len(fns)-seq_len+1):
-                self.sids.append(i)
-        self.fsids = []
-        for fns in fnames:
-            for i in range(len(fns)-seq_len+1):
-                self.fsids.append(i)
-        self.seq_len = seq_len
-        self.transform = transform # Transform at the frame level
-        self.aposes = [load_kitti_odom(fn) for fn in self.pfnames]
-        self.data = []
-        self.load()
-
-    def load(self):
-        try:
-            print('Cacheing dataset')
-            for index in range(self.len):
-                s,id = self.sids[index], self.fsids[index]
-                x = [cv2.imread(fn,0) for fn in self.fnames[s][id:id+self.seq_len]]
-                x = [np.expand_dims(img,axis=0) for img in x]
-                if self.transform:
-                    x = [self.transform(img) for img in x]
-                x = [img.unsqueeze(0) for img in x]
-                x = torch.cat(x,dim=0)
-                abs = self.aposes[s][id:id+self.seq_len]
-                y = []
-                for p in abs:
-                    p = c3dto2d(p)
-                    y.append(p)
-                y = abs2relative(y,self.seq_len,1)[0]
-                y = torch.from_numpy(y).float()
-                #print('seq loading',x.size(),y.size(),abs.shape)
-                self.data.append((x,y,abs))
-        except RuntimeError as re:
-            print(re)
-        except Exception as e:
-            print(e)
-
-    def __getitem__(self,index):
-        return self.data[index]
-
-    def __len__(self):
-        return self.len
-
-class FastFluxSeqDataset(Dataset):
-    def __init__(self, fnames, pfnames, seq_len, transform=None):
-        ''' fnames is a list of lists of file names
-            pfames is a list of file names (one for each entire sequence)
-        '''
-        super().__init__()
-        self.fnames = fnames
-        self.pfnames = pfnames
-        self.len = sum([max(0,len(fns)-seq_len+1) for fns in fnames])
-        self.sids = []
-        for i,fns in enumerate(fnames):
-            for j in range(len(fns)-seq_len+1):
-                self.sids.append(i)
-        self.fsids = []
-        for fns in fnames:
-            for i in range(len(fns)-seq_len+1):
-                self.fsids.append(i)
-        self.seq_len = seq_len
-        self.transform = transform # Transform at the frame level
-        self.aposes = [load_kitti_odom(fn) for fn in self.pfnames]
-        self.data = []
-        self.load()
-
-    def load(self):
-        try:
-            print('Cacheing dataset')
-            for index in range(self.len):
-                s,id = self.sids[index], self.fsids[index]
-                x = [np.load(fn) for fn in self.fnames[s][id:id+self.seq_len]]
-                x = [img.transpose(2,0,1) for img in x]
-                if self.transform:
-                    x = [self.transform(img) for img in x]
-                x = [img.unsqueeze(0) for img in x]
-                x = torch.cat(x,dim=0)
-                abs = self.aposes[s][id:id+self.seq_len]
-                y = []
-                for p in abs:
-                    p = c3dto2d(p)
-                    y.append(p)
-                y = abs2relative(y,self.seq_len,1)[0]
-                y = torch.from_numpy(y).float()
-                #print('seq loading',x.size(),y.size(),abs.shape)
-                self.data.append((x,y,abs))
-        except RuntimeError as re:
-            print(re)
-        except Exception as e:
-            print(e)
-
-    def __getitem__(self,index):
-        return self.data[index]
-
-    def __len__(self):
-        return self.len
-
-class FluxSeqDataset(Dataset):
-    def __init__(self, fnames, pfnames, seq_len, transform=None):
-        ''' fnames is a list of lists of file names
-            pfames is a list of file names (one for each entire sequence)
-        '''
-        super().__init__()
-        self.fnames = fnames
-        self.pfnames = pfnames
-        self.len = sum([max(0,len(fns)-seq_len+1) for fns in fnames])
-        self.sids = []
-        for i,fns in enumerate(fnames):
-            for j in range(len(fns)-seq_len+1):
-                self.sids.append(i)
-        self.fsids = []
-        for fns in fnames:
-            for i in range(len(fns)-seq_len+1):
-                self.fsids.append(i)
-        self.seq_len = seq_len
-        self.transform = transform # Transform at the frame level
-        self.buffer = {}
-        self.aposes = [load_kitti_odom(fn) for fn in self.pfnames]
-
-    def __getitem__(self, index):
-        try:
-            s,id = self.sids[index], self.fsids[index]
-            x = []
-            for i in range(id,id+self.seq_len):
-                if (s,i) in self.buffer:
-                    x.append(self.buffer[(s,i)])
-                else:
-                    img = np.load(self.fnames[s][i])
-                    x.append(img)
-                    self.buffer[(s,i)] = img
-            #x = [np.load(fn) for fn in self.fnames[s][id:id+self.seq_len]]
-            x = [img.transpose(2,0,1) for img in x]
-            if self.transform:
-                x = [self.transform(img) for img in x]
-            x = [img.unsqueeze(0) for img in x]
-            x = torch.cat(x,dim=0)
-            abs = self.aposes[s][id:id+self.seq_len]
-            y = []
-            for p in abs:
-                #p = c3dto2d(p)
-                y.append(p)
-            y = abs2relative(y,self.seq_len,1)[0]
-            y = torch.from_numpy(y).float()
-            #print('seq loading',x.size(),y.size(),abs.shape)
-            return x,y,abs
-        except RuntimeError as re:
-            print(re)
-        except Exception as e:
-            print(e)
-
-    def __len__(self):
-        return self.len
-
-class SeqDataset(Dataset):
-    def __init__(self, fnames, pfnames, seq_len, transform=None):
-        ''' fnames is a list of lists of file names
-            pfames is a list of file names (one for each entire sequence)
-        '''
-        super().__init__()
-        self.fnames = fnames
-        self.pfnames = pfnames
-        self.len = sum([max(0,len(fns)-seq_len+1) for fns in fnames])
-        self.sids = []
-        for i,fns in enumerate(fnames):
-            for j in range(len(fns)-seq_len+1):
-                self.sids.append(i)
-        self.fsids = []
-        for fns in fnames:
-            for i in range(len(fns)-seq_len+1):
-                self.fsids.append(i)
-        self.seq_len = seq_len
-        self.transform = transform # Transform at the frame level
-
-    def __getitem__(self, index):
-        try:
-            s,id = self.sids[index], self.fsids[index]
-            #t = time()
-            x = [cv2.imread(fn,0) for fn in self.fnames[s][id:id+self.seq_len]]
-            if self.transform:
-                x = [self.transform(img) for img in x]
-            #print('batch transf',256*(time()-t))
-            x = [img.unsqueeze(0) for img in x]
-            x = torch.cat(x,dim=0).unsqueeze(1)
-            abs = load_kitti_odom(self.pfnames[s])[id:id+self.seq_len]
-            y = []
-            for p in abs:
-                p = c3dto2d(p)
-                y.append(p)
-            y = abs2relative(y,self.seq_len,1)[0]
-            y = torch.from_numpy(y).float()
-            #print('seq loading',x.size(),y.size(),abs.shape)
-            return x,y,abs
-        except RuntimeError as re:
-            print(re)
-        except Exception as e:
-            print(e)
-
-    def __len__(self):
-        return self.len
+from seq_datasets import FastFluxSeqDataset, FastSeqDataset, FluxSeqDataset,\
+list_split_kitti_flux, list_split_kitti_, my_collate, ToTensor
 
 if __name__=='__main__':
-    '''train_dir = sys.argv[1] #'/home/ubuntu/kitti/dataset'
-    valid_dir = sys.argv[2] #'/home/ubuntu/kitti/dataset'
-    test_dir = sys.argv[3] #'/home/ubuntu/kitti/'
-    '''
-
     enc_fn = sys.argv[1]
     model_fn = sys.argv[2]
     h_dim = int(sys.argv[3])
@@ -303,7 +33,8 @@ if __name__=='__main__':
     seq_len = int(sys.argv[6])
     batch_size = int(sys.argv[7])
     num_epochs = int(sys.argv[8])
-    tipo = 'flux' #'flux'
+    tipo = 'flux' #'flux' or 'img'
+    loading = 'lazy' #'cached' or 'lazy'
     #transf = transforms.Compose([Rescale(new_dim),ToTensor()])
     #transf = [Rescale(new_dim),ToTensor()]
     transf = ToTensor()
@@ -311,7 +42,10 @@ if __name__=='__main__':
     if tipo == 'flux':
         frshape = (2,) + new_dim
         train_dir,valid_dir,test_dir = list_split_kitti_flux(new_dim[0],new_dim[1])
-        FrSeqDataset = FastFluxSeqDataset
+        if loading == 'fast':
+            FrSeqDataset = FastFluxSeqDataset
+        else:
+            FrSeqDataset = FluxSeqDataset
     else:
         frshape = (1,) + new_dim
         train_dir,valid_dir,test_dir = list_split_kitti_(new_dim[0],new_dim[1])
@@ -325,7 +59,6 @@ if __name__=='__main__':
     valid_loader = DataLoader(valid_dataset,batch_size=batch_size,shuffle=False,num_workers=0,collate_fn=my_collate)
     test_loader = DataLoader(test_dataset,batch_size=batch_size,shuffle=False,num_workers=0,collate_fn=my_collate)
 
-    # CUDA for PyTorch
     use_cuda = torch.cuda.is_available()
     device = torch.device("cuda:0" if use_cuda else "cpu")
     print(device)
