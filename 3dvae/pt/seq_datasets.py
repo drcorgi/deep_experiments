@@ -134,7 +134,7 @@ class FastSeqDataset(Dataset):
         return self.len
 
 class FastFluxSeqDataset(Dataset):
-    def __init__(self, fnames, pfnames, seq_len, transform=None):
+    def __init__(self, fnames, pfnames, seq_len, transform=None, stride=1):
         ''' fnames is a list of lists of file names
             pfames is a list of file names (one for each entire sequence)
         '''
@@ -152,6 +152,9 @@ class FastFluxSeqDataset(Dataset):
                 self.fsids.append(i)
         self.seq_len = seq_len
         self.transform = transform # Transform at the frame level
+        self.stride = stride
+        assert seq_len%stride == 0
+        self.strided_seq_len = seq_len//stride
         self.aposes = [load_kitti_odom(fn) for fn in self.pfnames]
         self.data = []
         self.load()
@@ -161,18 +164,18 @@ class FastFluxSeqDataset(Dataset):
             print('Cacheing dataset')
             for index in range(self.len):
                 s,id = self.sids[index], self.fsids[index]
-                x = [np.load(fn) for fn in self.fnames[s][id:id+self.seq_len]]
+                x = [np.load(fn) for fn in self.fnames[s][id:id+self.seq_len:self.stride]]
                 x = [img.transpose(2,0,1) for img in x]
                 if self.transform:
                     x = [self.transform(img) for img in x]
                 x = [img.unsqueeze(0) for img in x]
                 x = torch.cat(x,dim=0)
-                abs = self.aposes[s][id:id+self.seq_len]
+                abs = self.aposes[s][id:id+self.seq_len:self.stride]
                 y = []
                 for p in abs:
                     p = c3dto2d(p)
                     y.append(p)
-                y = abs2relative(y,self.seq_len,1)[0]
+                y = abs2relative(y,self.strided_seq_len,1)[0]
                 y = torch.from_numpy(y).float()
                 #print('seq loading',x.size(),y.size(),abs.shape)
                 self.data.append((x,y,abs))

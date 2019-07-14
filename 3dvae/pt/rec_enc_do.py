@@ -33,8 +33,11 @@ if __name__=='__main__':
     seq_len = int(sys.argv[6])
     batch_size = int(sys.argv[7])
     num_epochs = int(sys.argv[8])
+    stride = 1
+    assert seq_len%stride == 0
+    strided_seq_len = seq_len//stride
     tipo = 'flux' #'flux' or 'img'
-    loading = 'lazy' #'cached' or 'lazy'
+    loading = 'cached' #'cached' or 'lazy'
     #transf = transforms.Compose([Rescale(new_dim),ToTensor()])
     #transf = [Rescale(new_dim),ToTensor()]
     transf = ToTensor()
@@ -42,7 +45,7 @@ if __name__=='__main__':
     if tipo == 'flux':
         frshape = (2,) + new_dim
         train_dir,valid_dir,test_dir = list_split_kitti_flux(new_dim[0],new_dim[1])
-        if loading == 'fast':
+        if loading == 'cached':
             FrSeqDataset = FastFluxSeqDataset
         else:
             FrSeqDataset = FluxSeqDataset
@@ -51,9 +54,9 @@ if __name__=='__main__':
         train_dir,valid_dir,test_dir = list_split_kitti_(new_dim[0],new_dim[1])
         FrSeqDataset = FastSeqDataset
 
-    train_dataset = FrSeqDataset(train_dir[0],train_dir[1],seq_len,transf)
-    valid_dataset = FrSeqDataset(valid_dir[0],valid_dir[1],seq_len,transf)
-    test_dataset = FrSeqDataset(test_dir[0],test_dir[1],seq_len,transf)
+    train_dataset = FrSeqDataset(train_dir[0],train_dir[1],seq_len,transf,stride=stride)
+    valid_dataset = FrSeqDataset(valid_dir[0],valid_dir[1],seq_len,transf,stride=stride)
+    test_dataset = FrSeqDataset(test_dir[0],test_dir[1],seq_len,transf,stride=stride)
 
     train_loader = DataLoader(train_dataset,batch_size=batch_size,shuffle=True,num_workers=0,collate_fn=my_collate)
     valid_loader = DataLoader(valid_dataset,batch_size=batch_size,shuffle=False,num_workers=0,collate_fn=my_collate)
@@ -73,8 +76,8 @@ if __name__=='__main__':
     else:
         print('Encoder not found. Creating new one')
 
-    vo = Conv1dRecMapper((h_dim,seq_len),(seq_len,12)).to(device)
-    #vo = Conv1dMapper((h_dim,seq_len),(seq_len,12)).to(device)
+    #vo = Conv1dRecMapper((h_dim,strided_seq_len),(strided_seq_len,12)).to(device)
+    vo = Conv1dMapper((h_dim,strided_seq_len),(strided_seq_len,12)).to(device)
     model.dec = vo
 
     ##model = VanillaAutoencoder((1,)+new_dim).to(device)
@@ -85,8 +88,8 @@ if __name__=='__main__':
     optimizer = optim.Adam(params,lr=3e-4)
     min_loss = 1e15
     epoch = 0
-    writer = SummaryWriter('/home/ubuntu/log/exp_h{}_l{}_{}x{}'\
-                           .format(h_dim,seq_len,new_dim[0],new_dim[1]))
+    writer = SummaryWriter('/home/ubuntu/log/exp_h{}_l{}_s{}_{}x{}'\
+                           .format(h_dim,seq_len,stride,new_dim[0],new_dim[1]))
 
     if os.path.isfile(model_fn):
         print('Loading existing model')
@@ -142,6 +145,6 @@ if __name__=='__main__':
                         'epoch': i+1}, model_fn)
     model.eval()
     print('Start of plot_eval')
-    plot_eval(model,test_loader,seq_len,device,logger=writer)
+    plot_eval(model,test_loader,strided_seq_len,device,logger=writer)
     writer.close()
     print('End of plot_eval')
