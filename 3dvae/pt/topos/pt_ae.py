@@ -7,17 +7,22 @@ import numpy as np
 def seq_pose_loss(p,p_):
     ''' B x L x P
     '''
-    theta = torch.acos(torch.clamp(p[:,:,0],min=-1+1e-7,max=1-1e-7))
+    '''theta = torch.acos(torch.clamp(p[:,:,0],min=-1+1e-7,max=1-1e-7))
     theta_ = torch.acos(torch.clamp(p_[:,:,0],min=-1+1e-7,max=1-1e-7))
     dtheta1 = torch.abs(theta-theta_)
-    dtheta2 = torch.abs(torch.tensor(6.2830)-theta-theta_)
+    dtheta2 = torch.abs(torch.tensor(6.2830)-dtheta1)
     dtheta = torch.min(dtheta1,dtheta2)
     #print('dtheta',torch.max(theta))
-    ltheta = torch.exp(torch.tensor(5.0)*dtheta)
+    ltheta = torch.exp(torch.tensor(0.0)*dtheta)
     ltheta = torch.mean(ltheta)
     lxy = torch.mean((p[:,:,[3,11]]-p_[:,:,[3,11]])**2.0)
-    print('losses',ltheta,lxy,torch.mean(dtheta))
-    return ltheta + lxy
+    #print('losses',ltheta,lxy,torch.mean(dtheta))
+    return ltheta + lxy'''
+    diff = p-p_
+    ltheta = torch.sum(diff[:,:,[0,1,2,4,5,6,7,8,9,10]]**4.0)
+    lxy = torch.sum(diff[:,:,[3,11]]**2.0)
+    b,l,p = diff.size()
+    return (ltheta+lxy)/(b*l*p)
 
 class DepthWiseConv2d(nn.Module):
     def __init__(self,in_filters,out_filters,kernel_size,stride,padding):
@@ -467,7 +472,7 @@ class Conv1dRecMapper(nn.Module):
         self.in_shape = in_shape
         self.out_shape = out_shape
         self.num_cells = 1
-        self.rec = nn.GRU(in_shape[0],in_shape[0],self.num_cells)
+        self.rec = nn.GRU(in_shape[0],in_shape[0],self.num_cells) # bidirectional=True
         self.fc1 = nn.Linear(in_shape[0],in_shape[0])
         self.fc2 = nn.Linear(in_shape[0],out_shape[-1])
         #self.drop1 = nn.Dropout(p=0.5)

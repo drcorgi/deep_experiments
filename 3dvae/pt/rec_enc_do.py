@@ -76,8 +76,8 @@ if __name__=='__main__':
     else:
         print('Encoder not found. Creating new one')
 
-    #vo = Conv1dRecMapper((h_dim,strided_seq_len),(strided_seq_len,12)).to(device)
-    vo = Conv1dMapper((h_dim,strided_seq_len),(strided_seq_len,12)).to(device)
+    vo = Conv1dRecMapper((h_dim,strided_seq_len),(strided_seq_len,12)).to(device)
+    #vo = Conv1dMapper((h_dim,strided_seq_len),(strided_seq_len,12)).to(device)
     model.dec = vo
 
     ##model = VanillaAutoencoder((1,)+new_dim).to(device)
@@ -101,7 +101,8 @@ if __name__=='__main__':
     else:
         print('Creating new model')
 
-    loss_fn = torch.nn.MSELoss()
+    #loss_fn = torch.nn.MSELoss()
+    loss_fn = seq_pose_loss
     k,kv = 0,0
     for i in range(epoch,num_epochs):
         print('Epoch',i)
