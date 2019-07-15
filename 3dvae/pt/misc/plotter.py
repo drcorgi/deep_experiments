@@ -184,3 +184,16 @@ def plot_eval(model,test_loader,seq_len,device='cuda:0',logger=None):
     plot_3d_points_(pts,pts_,'tmp/{}_projections_xyz.png'.format(t),\
                     wlen=seq_len,logger=logger) #gt
     #plot_abs(abs_,pts_,'tmp/{}_absolute_gt_3d.png'.format(t))
+
+def plot_yy(y,y_,device='cuda:0',logger=None):
+    ''' L x O
+    '''
+    y = y.cpu().detach().numpy().reshape(-1,12)
+    y_ = y_.cpu().detach().numpy().reshape(-1,12)
+    y = y[:,[3,7,11]]
+    y_ = y_[:,[3,7,11]]
+    if not os.path.isdir('tmp/jan/'):
+        os.mkdir('tmp/jan/')
+    t = time.time()
+    plot_3d_points_(y,y_,'tmp/jan/{}_projections_xyz.png'.format(t),\
+                    wlen=len(y),logger=logger)

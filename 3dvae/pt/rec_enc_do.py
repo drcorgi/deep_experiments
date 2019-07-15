@@ -18,7 +18,7 @@ from torchvision import transforms, utils
 from pt_ae import DirectOdometry, FastDirectOdometry, Conv1dRecMapper,\
 VanillaAutoencoder, MLPAutoencoder, VanAE, Conv1dMapper, seq_pose_loss
 from datetime import datetime
-from plotter import c3dto2d, abs2relative, plot_eval
+from plotter import c3dto2d, abs2relative, plot_eval, plot_yy
 from odom_loader import load_kitti_odom
 from tensorboardX import SummaryWriter
 from time import time
@@ -37,7 +37,7 @@ if __name__=='__main__':
     assert seq_len%stride == 0
     strided_seq_len = seq_len//stride
     tipo = 'flux' #'flux' or 'img'
-    loading = 'cached' #'cached' or 'lazy'
+    loading = 'lazy' #'cached' or 'lazy'
     #transf = transforms.Compose([Rescale(new_dim),ToTensor()])
     #transf = [Rescale(new_dim),ToTensor()]
     transf = ToTensor()
@@ -101,8 +101,8 @@ if __name__=='__main__':
     else:
         print('Creating new model')
 
-    #loss_fn = torch.nn.MSELoss()
-    loss_fn = seq_pose_loss
+    loss_fn = torch.nn.MSELoss()
+    #loss_fn = seq_pose_loss
     k,kv = 0,0
     for i in range(epoch,num_epochs):
         print('Epoch',i)
@@ -124,6 +124,7 @@ if __name__=='__main__':
         #writer.add_image('_img_seq_{}'.format(i),x_)
         #writer.add_image('_img_emb_{}'.format(i),\
         #                 z[:seq_len].unsqueeze(0))
+        plot_yy(y,y_,device,writer) ###
         model.eval()
         v_losses = []
         for j,xy in enumerate(valid_loader):

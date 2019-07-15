@@ -467,14 +467,17 @@ class Conv1dMapper(nn.Module):
         return x
 
 class Conv1dRecMapper(nn.Module):
-    def __init__(self,in_shape,out_shape):
+    def __init__(self,in_shape,out_shape,bidirectional=False):
         super().__init__()
         self.in_shape = in_shape
         self.out_shape = out_shape
         self.num_cells = 1
-        self.rec = nn.GRU(in_shape[0],in_shape[0],self.num_cells) # bidirectional=True
-        self.fc1 = nn.Linear(in_shape[0],in_shape[0])
-        self.fc2 = nn.Linear(in_shape[0],out_shape[-1])
+        self.num_dir = 1 if not bidirectional else 2
+        self.h = self.num_dir*in_shape[0]
+        self.rec = nn.GRU(in_shape[0],in_shape[0],\
+                          self.num_cells,bidirectional=bidirectional) # bidirectional=True
+        self.fc1 = nn.Linear(self.h,self.h)
+        self.fc2 = nn.Linear(self.h,out_shape[-1])
         #self.drop1 = nn.Dropout(p=0.5)
         #self.odom_norm = OdomNorm2d(2*in_shape[0],12)
 
@@ -486,12 +489,13 @@ class Conv1dRecMapper(nn.Module):
         if len(shape) == 2:
              x = x.view(-1,self.in_shape[-1],shape[-1]).permute(1,0,2)
         #print('x unpacked',x.size())
-        h0 = torch.zeros(self.num_cells,x.size(1),self.in_shape[0]).cuda()
+        h0 = torch.zeros(self.num_dir*self.num_cells,\
+                         x.size(1),self.in_shape[0]).cuda()
         x, hn = self.rec(x,h0)
         x = x.transpose(1,0) ##
         #print('gru out',x.size())
 
-        x = x.contiguous().view(-1,self.in_shape[0])
+        x = x.contiguous().view(-1,self.h)
         x = F.relu(self.fc1(x))
         #x = self.drop1(x)
         x = self.fc2(x)
