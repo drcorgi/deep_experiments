@@ -124,7 +124,7 @@ if __name__=='__main__':
         #writer.add_image('_img_seq_{}'.format(i),x_)
         #writer.add_image('_img_emb_{}'.format(i),\
         #                 z[:seq_len].unsqueeze(0))
-        plot_yy(y,y_,device,writer) ###
+        plot_yy(y[0],y_[0],device,writer) ###
         model.eval()
         v_losses = []
         for j,xy in enumerate(valid_loader):
