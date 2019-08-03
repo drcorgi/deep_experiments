@@ -11,19 +11,24 @@ sys.path.append(os.path.dirname(os.path.realpath(__file__))+'/topos')
 sys.path.append(os.path.dirname(os.path.realpath(__file__))+'/preprocess')
 sys.path.append(os.path.dirname(os.path.realpath(__file__))+'/misc')
 sys.path.append(os.path.dirname(os.path.realpath(__file__))+'/sample')
+sys.path.append('/home/ubuntu/flownet2-pytorch/')
+
+import models, losses, datasets
+from utils import flow_utils, tools
 
 from glob import glob
 from torch.utils.data import Dataset, DataLoader
 from torchvision import transforms, utils
-from pt_ae import DirectOdometry, FastDirectOdometry, Conv1dRecMapper,\
+from pt_ae import DirectOdometry, FastDirectOdometry, Conv1dRecMapper, ImgFlowOdom,\
 VanillaAutoencoder, MLPAutoencoder, VanAE, Conv1dMapper, seq_pose_loss
 from datetime import datetime
 from plotter import c3dto2d, abs2relative, plot_eval, plot_yy
 from odom_loader import load_kitti_odom
 from tensorboardX import SummaryWriter
 from time import time
-from seq_datasets import FastFluxSeqDataset, FastSeqDataset, FluxSeqDataset,\
+from seq_datasets import FastFluxSeqDataset, FastSeqDataset, FluxSeqDataset, SeqDataset,\
 list_split_kitti_flux, list_split_kitti_, my_collate, ToTensor
+from ronny_test import Arguments
 
 if __name__=='__main__':
     enc_fn = sys.argv[1]
@@ -33,10 +38,12 @@ if __name__=='__main__':
     seq_len = int(sys.argv[6])
     batch_size = int(sys.argv[7])
     num_epochs = int(sys.argv[8])
+    flow_fn = '/home/ubuntu/models/FlowNet2-S_checkpoint.pth'
+    fine_tune_flow = False
     stride = 1
     assert seq_len%stride == 0
     strided_seq_len = seq_len//stride
-    tipo = 'flux' #'flux' or 'img'
+    tipo = 'img' #'flux' or 'img'
     loading = 'lazy' #'cached' or 'lazy'
     #transf = transforms.Compose([Rescale(new_dim),ToTensor()])
     #transf = [Rescale(new_dim),ToTensor()]
@@ -50,9 +57,10 @@ if __name__=='__main__':
         else:
             FrSeqDataset = FluxSeqDataset
     else:
-        frshape = (1,) + new_dim
+        frshape = (3,) + new_dim
+        flshape = (2,) + new_dim
         train_dir,valid_dir,test_dir = list_split_kitti_(new_dim[0],new_dim[1])
-        FrSeqDataset = FastSeqDataset
+        FrSeqDataset = SeqDataset
 
     train_dataset = FrSeqDataset(train_dir[0],train_dir[1],seq_len,transf,stride=stride)
     valid_dataset = FrSeqDataset(valid_dir[0],valid_dir[1],seq_len,transf,stride=stride)
@@ -66,15 +74,21 @@ if __name__=='__main__':
     device = torch.device("cuda:0" if use_cuda else "cpu")
     print(device)
 
-    model = VanAE(frshape,h_dim).to(device)
-    if os.path.isfile(enc_fn):
-        print('Encoder found')
-        checkpoint = torch.load(enc_fn)
-        model.load_state_dict(checkpoint['model_state'])
-        '''for param in model.enc.parameters():
-            param.requires_grad = False'''
+    model = ImgFlowOdom(flshape,h_dim,device=device)
+    args = Arguments()
+    flow = models.FlowNet2S(args).to(device)
+    if os.path.isfile(flow_fn):
+        print('Loading existing flow model')
+        checkpoint = torch.load(flow_fn)
+        flow.load_state_dict(checkpoint['state_dict'])
+        if not fine_tune_flow:
+            flow.training = False
+            for param in flow.parameters():
+                param.requires_grad = False
     else:
-        print('Encoder not found. Creating new one')
+        print('Flow model checkpoint not found')
+        raise FileNotFoundError()
+    model.flow = flow
 
     vo = Conv1dRecMapper((h_dim,strided_seq_len),(strided_seq_len,12)).to(device)
     #vo = Conv1dMapper((h_dim,strided_seq_len),(strided_seq_len,12)).to(device)
@@ -88,7 +102,7 @@ if __name__=='__main__':
     optimizer = optim.Adam(params,lr=3e-4)
     min_loss = 1e15
     epoch = 0
-    writer = SummaryWriter('/home/ubuntu/log/exp_h{}_l{}_s{}_{}x{}'\
+    writer = SummaryWriter('/home/ubuntu/log/exp_flow_net_h{}_l{}_s{}_{}x{}'\
                            .format(h_dim,seq_len,stride,new_dim[0],new_dim[1]))
 
     if os.path.isfile(model_fn):
@@ -107,6 +121,8 @@ if __name__=='__main__':
     for i in range(epoch,num_epochs):
         print('Epoch',i)
         model.train()
+        flow.eval()
+        flow.training = False
         losses = []
         for j,xy in enumerate(train_loader):
             x,y = xy[0].to(device), xy[1].to(device)
@@ -124,7 +140,6 @@ if __name__=='__main__':
         #writer.add_image('_img_seq_{}'.format(i),x_)
         #writer.add_image('_img_emb_{}'.format(i),\
         #                 z[:seq_len].unsqueeze(0))
-        plot_yy(y[0],y_[0],device,writer) ###
         model.eval()
         v_losses = []
         for j,xy in enumerate(valid_loader):
@@ -136,6 +151,7 @@ if __name__=='__main__':
             kv += 1
         #writer.add_embedding(y[0,:,[3,7,11]],tag='gt_pts_{}'.format(i),global_step=1)
         #writer.add_embedding(y_[0,:,[3,7,11]],tag='est_pts_{}'.format(i),global_step=1)
+        plot_yy(y[0],y_[0],device,writer) ###
         mean_train, mean_valid = np.mean(losses),np.mean(v_losses)
         print('Epoch {} loss\t{:.4f}\tValid loss\t{:.4f}'\
               .format(i,mean_train,mean_valid))

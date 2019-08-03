@@ -18,11 +18,13 @@ def seq_pose_loss(p,p_):
     lxy = torch.mean((p[:,:,[3,11]]-p_[:,:,[3,11]])**2.0)
     #print('losses',ltheta,lxy,torch.mean(dtheta))
     return ltheta + lxy'''
-    diff = p-p_
-    ltheta = torch.sum(diff[:,:,[0,1,2,4,5,6,7,8,9,10]]**4.0)
+    diff = torch.sum((p-p_)**2.0,dim=-1)
+    diff = torch.max(diff,dim=-1)[0]
+    '''ltheta = torch.sum(diff[:,:,[0,1,2,4,5,6,7,8,9,10]]**4.0)
     lxy = torch.sum(diff[:,:,[3,11]]**2.0)
     b,l,p = diff.size()
-    return (ltheta+lxy)/(b*l*p)
+    return (ltheta+lxy)/(b*l*p)'''
+    return torch.mean(diff)
 
 class DepthWiseConv2d(nn.Module):
     def __init__(self,in_filters,out_filters,kernel_size,stride,padding):
@@ -69,8 +71,9 @@ class VanillaEncoder(nn.Module):
         self.conv1 = nn.Conv2d(in_shape[0],self.filters,(5,5),(2,2))
         self.conv2 = nn.Conv2d(self.filters,self.filters,(3,3),(1,1))
         self.conv3 = nn.Conv2d(self.filters,self.filters,(3,3),(1,1))
-        self.new_h = (((((in_shape[1]-4)//2-2)//1)-2)//1)
-        self.new_w = (((((in_shape[2]-4)//2-2)//1)-2)//1)
+        #self.conv4 = nn.Conv2d(self.filters,self.filters,(3,3),(1,1))
+        self.new_h = (((((in_shape[1]-4)//2-2)//1)-2)//1) #-2
+        self.new_w = (((((in_shape[2]-4)//2-2)//1)-2)//1) #-2
         self.flat_dim = self.new_h*self.new_w*self.filters
         print(self.new_h,self.new_w)
         self.fc1 = nn.Linear(self.flat_dim,self.h_dim)
@@ -87,6 +90,7 @@ class VanillaEncoder(nn.Module):
         #x = self.conv_drop[1](x)
         x = F.relu(self.conv3(x))
         #x = self.conv_drop[2](x)
+        #x = F.relu(self.conv4(x))
         x = x.view(-1,self.flat_dim)
         x = self.fc1(x)
         #x = self.fc1_drop(F.relu(x))
@@ -134,6 +138,29 @@ class VanAE(nn.Module):
         x = self.enc(x)
         x = self.dec(x)
         return x
+
+class ImgFlowOdom(nn.Module):
+    def __init__(self,in_shape,h_dim,device='cuda:0'):
+        super().__init__()
+        self.flow = None
+        self.device = device
+        self.enc = VanillaEncoder(in_shape,h_dim).to(device)
+        self.dec = VanillaDecoder(in_shape,h_dim).to(device)
+
+    def forward(self,x):
+        ''' B x L x C x H x W -> (B x L) x C x 2 x H x W
+        '''
+        sz = x.size()
+        assert len(sz) == 5
+        b,l,c,h,w = sz
+        x_ = torch.zeros(b,l,c,2,h,w).to(self.device)
+        for i in range(l):
+            x_[:,i] = x[:,max(0,i-1):i+1].transpose(1,2) # or min
+        x_ = x_.contiguous().view(b*l,c,2,h,w)
+        x_ = self.flow(x_)
+        x_ = self.enc(x_)
+        x_ = self.dec(x_)
+        return x_
 
 class VanillaAutoencoder(nn.Module):
     def __init__(self,in_shape,h_dim):
