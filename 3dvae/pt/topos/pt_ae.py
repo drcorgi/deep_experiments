@@ -69,11 +69,14 @@ class VanillaEncoder(nn.Module):
         self.filters = 32
         self.h_dim = h_dim #256
         self.conv1 = nn.Conv2d(in_shape[0],self.filters,(5,5),(2,2))
-        self.conv2 = nn.Conv2d(self.filters,self.filters,(3,3),(1,1))
+        self.bn1 = nn.BatchNorm2d(self.filters)
+        self.conv2 = nn.Conv2d(self.filters,self.filters,(3,3),(2,2))
+        self.bn2 = nn.BatchNorm2d(self.filters)
         self.conv3 = nn.Conv2d(self.filters,self.filters,(3,3),(1,1))
+        self.bn3 = nn.BatchNorm2d(self.filters)
         #self.conv4 = nn.Conv2d(self.filters,self.filters,(3,3),(1,1))
-        self.new_h = (((((in_shape[1]-4)//2-2)//1)-2)//1) #-2
-        self.new_w = (((((in_shape[2]-4)//2-2)//1)-2)//1) #-2
+        self.new_h = (((((in_shape[1]-4)//2-2)//2)-2)//1) #-2
+        self.new_w = (((((in_shape[2]-4)//2-2)//2)-2)//1) #-2
         self.flat_dim = self.new_h*self.new_w*self.filters
         print(self.new_h,self.new_w)
         self.fc1 = nn.Linear(self.flat_dim,self.h_dim)
@@ -85,11 +88,11 @@ class VanillaEncoder(nn.Module):
             x = x.view(shape[0]*shape[1],shape[2],shape[3],shape[4])
         #print(shape)
         x = F.relu(self.conv1(x))
-        #x = self.conv_drop[0](x)
+        x = self.bn1(x)
         x = F.relu(self.conv2(x))
-        #x = self.conv_drop[1](x)
+        x = self.bn2(x)
         x = F.relu(self.conv3(x))
-        #x = self.conv_drop[2](x)
+        x = self.bn3(x)
         #x = F.relu(self.conv4(x))
         x = x.view(-1,self.flat_dim)
         x = self.fc1(x)

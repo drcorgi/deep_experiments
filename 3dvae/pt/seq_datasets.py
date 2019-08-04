@@ -63,9 +63,9 @@ def list_split_kitti_(h,w):
     all_seqs = [sorted(glob(base+'{:02d}/*.png'\
                 .format(i))) for i in range(11)]
     all_poses = [pbase+'poses/{:02d}.txt'.format(i) for i in range(11)]
-    train_seqs, train_poses = all_seqs[7:8], all_poses[7:8]
-    valid_seqs, valid_poses = all_seqs[8:9], all_poses[8:9]
-    test_seqs, test_poses = all_seqs[1:2], all_poses[1:2]
+    train_seqs, train_poses = all_seqs[:8], all_poses[:8]
+    valid_seqs, valid_poses = all_seqs[8:], all_poses[8:]
+    test_seqs, test_poses = all_seqs[-1:], all_poses[-1:]
     return (train_seqs,train_poses), (valid_seqs,valid_poses), (test_seqs,test_poses)
 
 def list_split_kitti_flux(h,w):
