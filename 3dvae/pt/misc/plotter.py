@@ -156,12 +156,13 @@ def get_3d_points_t2(rposes,wlen,gt_poses):
         aposes += [np.matmul(in_p,rposes[i][j]) for j in range(wlen)]
     return np.array([[p[0,3],p[1,3],p[2,3]] for p in aposes])
 
-def plot_eval(model,test_loader,seq_len,device='cuda:0',logger=None):
+def plot_eval(flow,model,test_loader,seq_len,device='cuda:0',logger=None):
     rel_poses = []
     data_y = []
     for x,y,abs in test_loader:
         torch.cuda.empty_cache()
         x,y,abs = x.to(device), y.to(device), np.array(abs).reshape(-1,12).tolist()
+        x = flow(x)
         y_ = model(x)
         data_y += abs
         rel_poses += y_.cpu().detach().numpy().reshape(-1,12).tolist()

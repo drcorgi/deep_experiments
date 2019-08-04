@@ -195,6 +195,6 @@ if __name__=='__main__':
                         'epoch': i+1}, model_fn)
     model.eval()
     print('Start of plot_eval')
-    plot_eval(model,test_loader,strided_seq_len,device,logger=writer)
+    plot_eval(flow,model,test_loader,strided_seq_len,device,logger=writer)
     writer.close()
     print('End of plot_eval')
