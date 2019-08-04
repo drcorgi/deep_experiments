@@ -3,6 +3,7 @@ import cv2
 import os
 import re
 import time
+import torch
 from copy import deepcopy
 from matplotlib import pyplot as plt
 from mpl_toolkits.mplot3d import Axes3D
@@ -159,6 +160,7 @@ def plot_eval(model,test_loader,seq_len,device='cuda:0',logger=None):
     rel_poses = []
     data_y = []
     for x,y,abs in test_loader:
+        torch.cuda.empty_cache()
         x,y,abs = x.to(device), y.to(device), np.array(abs).reshape(-1,12).tolist()
         y_ = model(x)
         data_y += abs

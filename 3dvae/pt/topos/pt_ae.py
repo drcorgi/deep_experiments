@@ -494,10 +494,11 @@ class Conv1dMapper(nn.Module):
         return x
 
 class Conv1dRecMapper(nn.Module):
-    def __init__(self,in_shape,out_shape,bidirectional=False):
+    def __init__(self,in_shape,out_shape,bidirectional=False,device='cuda:0'):
         super().__init__()
         self.in_shape = in_shape
         self.out_shape = out_shape
+        self.device = device
         self.num_cells = 1
         self.num_dir = 1 if not bidirectional else 2
         self.h = self.num_dir*in_shape[0]
@@ -517,7 +518,7 @@ class Conv1dRecMapper(nn.Module):
              x = x.view(-1,self.in_shape[-1],shape[-1]).permute(1,0,2)
         #print('x unpacked',x.size())
         h0 = torch.zeros(self.num_dir*self.num_cells,\
-                         x.size(1),self.in_shape[0]).cuda()
+                         x.size(1),self.in_shape[0]).to(self.device)
         x, hn = self.rec(x,h0)
         x = x.transpose(1,0) ##
         #print('gru out',x.size())
@@ -530,9 +531,9 @@ class Conv1dRecMapper(nn.Module):
         x = x.view((-1,)+self.out_shape)
         #print('view',x.size())
 
-        x[:,:,[1,4,6,7,9]] = torch.zeros((x.size(0),x.size(1),5)).cuda()
+        x[:,:,[1,4,6,7,9]] = torch.zeros((x.size(0),x.size(1),5)).to(self.device)
         #x[:,:,[3,11]] = torch.tensor(0.0).cuda()
-        x[:,:,5] = torch.tensor(1.0).cuda()
+        x[:,:,5] = torch.tensor(1.0).to(self.device)
         #x = self.odom_norm(x)
 
         return x

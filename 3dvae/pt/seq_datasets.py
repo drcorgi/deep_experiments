@@ -45,7 +45,7 @@ class Rescale(object):
 
 class ToTensor(object):
     def __call__(self,x):
-        return torch.from_numpy(x).float()
+        return torch.from_numpy(x)
 
 def list_split_kitti():
     base = '/home/ubuntu/kitti/dataset/'

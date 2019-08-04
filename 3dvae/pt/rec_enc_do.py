@@ -5,6 +5,7 @@ import cv2
 import h5py
 import numpy as np
 import torch
+import torch.nn as nn
 import torch.optim as optim
 
 sys.path.append(os.path.dirname(os.path.realpath(__file__))+'/topos')
@@ -85,6 +86,9 @@ if __name__=='__main__':
             flow.training = False
             for param in flow.parameters():
                 param.requires_grad = False
+        for layer in flow.modules():
+            if isinstance(layer,nn.BatchNorm2d):
+                layer.float()
     else:
         print('Flow model checkpoint not found')
         raise FileNotFoundError()
@@ -125,6 +129,7 @@ if __name__=='__main__':
         flow.training = False
         losses = []
         for j,xy in enumerate(train_loader):
+            #torch.cuda.empty_cache()
             x,y = xy[0].to(device), xy[1].to(device)
             optimizer.zero_grad()
             y_ = model(x)
@@ -143,6 +148,7 @@ if __name__=='__main__':
         model.eval()
         v_losses = []
         for j,xy in enumerate(valid_loader):
+            #torch.cuda.empty_cache()
             x,y = xy[0].to(device), xy[1].to(device)
             y_ = model(x)
             loss = loss_fn(y_,y)
