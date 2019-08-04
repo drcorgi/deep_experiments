@@ -20,7 +20,7 @@ from utils import flow_utils, tools
 from glob import glob
 from torch.utils.data import Dataset, DataLoader
 from torchvision import transforms, utils
-from pt_ae import DirectOdometry, FastDirectOdometry, Conv1dRecMapper, ImgFlowOdom,\
+from pt_ae import DirectOdometry, FastDirectOdometry, Conv1dRecMapper, ImgFlowOdom, DummyFlow,\
 VanillaAutoencoder, MLPAutoencoder, VanAE, Conv1dMapper, seq_pose_loss
 from datetime import datetime
 from plotter import c3dto2d, abs2relative, plot_eval, plot_yy
@@ -28,7 +28,7 @@ from odom_loader import load_kitti_odom
 from tensorboardX import SummaryWriter
 from time import time
 from seq_datasets import FastFluxSeqDataset, FastSeqDataset, FluxSeqDataset, SeqDataset,\
-list_split_kitti_flux, list_split_kitti_, my_collate, ToTensor
+list_split_kitti_flux, list_split_kitti_, my_collate, ToTensor, SeqBuffer
 from ronny_test import Arguments
 
 if __name__=='__main__':
@@ -63,21 +63,38 @@ if __name__=='__main__':
         train_dir,valid_dir,test_dir = list_split_kitti_(new_dim[0],new_dim[1])
         FrSeqDataset = SeqDataset
 
-    train_dataset = FrSeqDataset(train_dir[0],train_dir[1],seq_len,transf,stride=stride)
-    valid_dataset = FrSeqDataset(valid_dir[0],valid_dir[1],seq_len,transf,stride=stride)
-    test_dataset = FrSeqDataset(test_dir[0],test_dir[1],seq_len,transf,stride=stride)
+    '''# Sequence buffers to avoid dataloader replication
+    train_buffer = SeqBuffer(train_dir[0],train_dir[1],seq_len,stride=stride)
+    valid_buffer = SeqBuffer(valid_dir[0],valid_dir[1],seq_len,stride=stride)
+    test_buffer = SeqBuffer(test_dir[0],test_dir[1],seq_len,stride=stride)
 
-    train_loader = DataLoader(train_dataset,batch_size=batch_size,shuffle=True,num_workers=0,collate_fn=my_collate)
-    valid_loader = DataLoader(valid_dataset,batch_size=batch_size,shuffle=False,num_workers=0,collate_fn=my_collate)
-    test_loader = DataLoader(test_dataset,batch_size=batch_size,shuffle=False,num_workers=0,collate_fn=my_collate)
+    # Buffered datasets
+    train_dataset = FrSeqDataset(train_dir[0],train_dir[1],seq_len,\
+                      seq_buffer=train_buffer,transform=transf,stride=stride)
+    valid_dataset = FrSeqDataset(valid_dir[0],valid_dir[1],seq_len,\
+                      seq_buffer=valid_buffer,transform=transf,stride=stride)
+    test_dataset = FrSeqDataset(test_dir[0],test_dir[1],seq_len,\
+                      seq_buffer=test_buffer,transform=transf,stride=stride)'''
+
+    # Datasets
+    train_dataset = FrSeqDataset(train_dir[0],train_dir[1],seq_len,transform=transf,stride=stride)
+    valid_dataset = FrSeqDataset(valid_dir[0],valid_dir[1],seq_len,transform=transf,stride=stride)
+    test_dataset = FrSeqDataset(test_dir[0],test_dir[1],seq_len,transform=transf,stride=stride)
+
+    # Data loaders
+    train_loader = DataLoader(train_dataset,batch_size=batch_size,shuffle=True,\
+                     num_workers=1,pin_memory=False,collate_fn=my_collate)
+    valid_loader = DataLoader(valid_dataset,batch_size=batch_size,shuffle=False,\
+                     num_workers=1,pin_memory=False,collate_fn=my_collate)
+    test_loader = DataLoader(test_dataset,batch_size=batch_size,shuffle=False,\
+                     num_workers=1,pin_memory=False,collate_fn=my_collate)
 
     use_cuda = torch.cuda.is_available()
     device = torch.device("cuda:0" if use_cuda else "cpu")
     print(device)
 
-    model = ImgFlowOdom(flshape,h_dim,device=device)
     args = Arguments()
-    flow = models.FlowNet2S(args).to(device)
+    flow = models.FlowNet2S(args)
     if os.path.isfile(flow_fn):
         print('Loading existing flow model')
         checkpoint = torch.load(flow_fn)
@@ -92,9 +109,11 @@ if __name__=='__main__':
     else:
         print('Flow model checkpoint not found')
         raise FileNotFoundError()
-    model.flow = flow
+    flow = ImgFlowOdom(flow,flshape,h_dim,device=device).to(device)
+    #flow = DummyFlow(flow,flshape,h_dim,device=device)
 
-    vo = Conv1dRecMapper((h_dim,strided_seq_len),(strided_seq_len,12)).to(device)
+    model = VanAE(flshape,h_dim)
+    vo = Conv1dRecMapper((h_dim,strided_seq_len),(strided_seq_len,12))
     #vo = Conv1dMapper((h_dim,strided_seq_len),(strided_seq_len,12)).to(device)
     model.dec = vo
 
@@ -122,16 +141,20 @@ if __name__=='__main__':
     loss_fn = torch.nn.MSELoss()
     #loss_fn = seq_pose_loss
     k,kv = 0,0
+    flow.eval()
+    flow.training = False
+    model.to(device)
     for i in range(epoch,num_epochs):
         print('Epoch',i)
         model.train()
-        flow.eval()
-        flow.training = False
         losses = []
-        for j,xy in enumerate(train_loader):
-            #torch.cuda.empty_cache()
-            x,y = xy[0].to(device), xy[1].to(device)
+        for x,y,_ in train_loader:
+            torch.cuda.empty_cache()
+            x,y = x.to(device), y.to(device)
+            print(x.size(),y.size())
             optimizer.zero_grad()
+            x = flow(x)
+            print(x.size())
             y_ = model(x)
             loss = loss_fn(y,y_)
             loss.backward()
@@ -147,9 +170,12 @@ if __name__=='__main__':
         #                 z[:seq_len].unsqueeze(0))
         model.eval()
         v_losses = []
-        for j,xy in enumerate(valid_loader):
-            #torch.cuda.empty_cache()
-            x,y = xy[0].to(device), xy[1].to(device)
+        for x,y,_ in valid_loader:
+            torch.cuda.empty_cache()
+            x,y = x.to(device), y.to(device)
+            print(x.size(),y.size())
+            x = flow(x)
+            print(x.size())
             y_ = model(x)
             loss = loss_fn(y_,y)
             v_losses.append(loss.item())

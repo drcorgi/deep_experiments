@@ -45,16 +45,16 @@ class Rescale(object):
 
 class ToTensor(object):
     def __call__(self,x):
-        return torch.from_numpy(x)
+        return torch.from_numpy(x).float()
 
 def list_split_kitti():
     base = '/home/ubuntu/kitti/dataset/'
     all_seqs = [sorted(glob(base+'sequences/{:02d}/image_0/*.png'\
                 .format(i))) for i in range(11)]
     all_poses = [base+'poses/{:02d}.txt'.format(i) for i in range(11)]
-    train_seqs, train_poses = all_seqs[2:], all_poses[2:]
-    valid_seqs, valid_poses = all_seqs[0:1], all_poses[0:1]
-    test_seqs, test_poses = all_seqs[1:2], all_poses[1:2]
+    train_seqs, train_poses = all_seqs[:8], all_poses[:8]
+    valid_seqs, valid_poses = all_seqs[8:], all_poses[8:]
+    test_seqs, test_poses = all_seqs[-1:], all_poses[-1:]
     return (train_seqs,train_poses), (valid_seqs,valid_poses), (test_seqs,test_poses)
 
 def list_split_kitti_(h,w):
@@ -63,8 +63,8 @@ def list_split_kitti_(h,w):
     all_seqs = [sorted(glob(base+'{:02d}/*.png'\
                 .format(i))) for i in range(11)]
     all_poses = [pbase+'poses/{:02d}.txt'.format(i) for i in range(11)]
-    train_seqs, train_poses = all_seqs[2:], all_poses[2:]
-    valid_seqs, valid_poses = all_seqs[0:1], all_poses[0:1]
+    train_seqs, train_poses = all_seqs[7:8], all_poses[7:8]
+    valid_seqs, valid_poses = all_seqs[8:9], all_poses[8:9]
     test_seqs, test_poses = all_seqs[1:2], all_poses[1:2]
     return (train_seqs,train_poses), (valid_seqs,valid_poses), (test_seqs,test_poses)
 
@@ -79,8 +79,8 @@ def list_split_kitti_flux(h,w):
     test_seqs, test_poses = all_seqs[9:10], all_poses[9:10] # 1:2, 8:9
     return (train_seqs,train_poses), (valid_seqs,valid_poses), (test_seqs,test_poses)
 
-class FastSeqDataset(Dataset):
-    def __init__(self, fnames, pfnames, seq_len, transform=None):
+class SeqBuffer():
+    def __init__(self, fnames, pfnames, seq_len, stride=1):
         ''' fnames is a list of lists of file names
             pfames is a list of file names (one for each entire sequence)
         '''
@@ -97,41 +97,31 @@ class FastSeqDataset(Dataset):
             for i in range(len(fns)-seq_len+1):
                 self.fsids.append(i)
         self.seq_len = seq_len
-        self.transform = transform # Transform at the frame level
+        self.stride = stride
+        assert seq_len%stride == 0
+        self.strided_seq_len = seq_len//stride
         self.aposes = [load_kitti_odom(fn) for fn in self.pfnames]
         self.data = []
-        self.load()
 
     def load(self):
         try:
             print('Cacheing dataset')
             for index in range(self.len):
                 s,id = self.sids[index], self.fsids[index]
-                x = [cv2.imread(fn,0) for fn in self.fnames[s][id:id+self.seq_len]]
-                x = [np.expand_dims(img,axis=0) for img in x]
-                if self.transform:
-                    x = [self.transform(img) for img in x]
-                x = [img.unsqueeze(0) for img in x]
-                x = torch.cat(x,dim=0)
-                abs = self.aposes[s][id:id+self.seq_len]
+                x = [cv2.imread(fn) for fn in self.fnames[s][id:id+self.seq_len:self.stride]]
+                x = [img.transpose(2,0,1) for img in x]
+                abs = self.aposes[s][id:id+self.seq_len:self.stride]
                 y = []
                 for p in abs:
                     p = c3dto2d(p)
                     y.append(p)
-                y = abs2relative(y,self.seq_len,1)[0]
+                y = abs2relative(y,self.strided_seq_len,1)[0]
                 y = torch.from_numpy(y).float()
-                #print('seq loading',x.size(),y.size(),abs.shape)
-                self.data.append((x,y,abs))
+                self.data.append([x,y,abs])
         except RuntimeError as re:
             print(re)
         except Exception as e:
             print(e)
-
-    def __getitem__(self,index):
-        return self.data[index]
-
-    def __len__(self):
-        return self.len
 
 class FastFluxSeqDataset(Dataset):
     def __init__(self, fnames, pfnames, seq_len, transform=None, stride=1):
@@ -312,6 +302,68 @@ class SeqDataset(Dataset):
             print('-',re)
         except Exception as e:
             print('--',i,e)
+
+    def __len__(self):
+        return self.len
+
+class FastSeqDataset(Dataset):
+    def __init__(self, fnames, pfnames, seq_len, seq_buffer, transform=None, stride=1):
+        ''' fnames is a list of lists of file names
+            pfames is a list of file names (one for each entire sequence)
+        '''
+        super().__init__()
+        self.fnames = fnames
+        self.pfnames = pfnames
+        self.len = sum([max(0,len(fns)-seq_len+1) for fns in fnames])
+        self.sids = []
+        for i,fns in enumerate(fnames):
+            for j in range(len(fns)-seq_len+1):
+                self.sids.append(i)
+        self.fsids = []
+        for fns in fnames:
+            for i in range(len(fns)-seq_len+1):
+                self.fsids.append(i)
+        self.seq_len = seq_len
+        self.transform = transform # Transform at the frame level
+        self.stride = stride
+        assert seq_len%stride == 0
+        self.strided_seq_len = seq_len//stride
+        self.aposes = [load_kitti_odom(fn) for fn in self.pfnames]
+        #self.data = []
+        self.seq_buffer = seq_buffer
+        self.seq_buffer.load()
+
+    def load(self):
+        try:
+            print('Cacheing dataset')
+            for index in range(self.len):
+                s,id = self.sids[index], self.fsids[index]
+                x = [cv2.imread(fn) for fn in self.fnames[s][id:id+self.seq_len:self.stride]]
+                x = [img.transpose(2,0,1) for img in x]
+                #if self.transform:
+                #    x = [self.transform(img) for img in x]
+                #x = [img.unsqueeze(0) for img in x]
+                #x = torch.cat(x,dim=0)
+                abs = self.aposes[s][id:id+self.seq_len:self.stride]
+                y = []
+                for p in abs:
+                    p = c3dto2d(p)
+                    y.append(p)
+                y = abs2relative(y,self.strided_seq_len,1)[0]
+                y = torch.from_numpy(y).float()
+                #print('seq loading',x.size(),y.size(),abs.shape)
+                self.data.append([x,y,abs])
+        except RuntimeError as re:
+            print(re)
+        except Exception as e:
+            print(e)
+
+    def __getitem__(self,index):
+        sample = self.seq_buffer.data[index]
+        sample[0] = [self.transform(img) for img in sample[0]]
+        sample[0] = [img.unsqueeze(0) for img in sample[0]]
+        sample[0] = torch.cat(sample[0],dim=0)
+        return sample
 
     def __len__(self):
         return self.len

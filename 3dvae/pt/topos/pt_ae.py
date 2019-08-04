@@ -140,12 +140,10 @@ class VanAE(nn.Module):
         return x
 
 class ImgFlowOdom(nn.Module):
-    def __init__(self,in_shape,h_dim,device='cuda:0'):
+    def __init__(self,flow,in_shape,h_dim,device='cuda:0'):
         super().__init__()
-        self.flow = None
+        self.flow = flow
         self.device = device
-        self.enc = VanillaEncoder(in_shape,h_dim).to(device)
-        self.dec = VanillaDecoder(in_shape,h_dim).to(device)
 
     def forward(self,x):
         ''' B x L x C x H x W -> (B x L) x C x 2 x H x W
@@ -158,8 +156,26 @@ class ImgFlowOdom(nn.Module):
             x_[:,i] = x[:,max(0,i-1):i+1].transpose(1,2) # or min
         x_ = x_.contiguous().view(b*l,c,2,h,w)
         x_ = self.flow(x_)
-        x_ = self.enc(x_)
-        x_ = self.dec(x_)
+        return x_
+
+class DummyFlow(nn.Module):
+    def __init__(self,flow,in_shape,h_dim,device='cuda:0'):
+        super().__init__()
+        self.training = False
+        self.device = device
+
+    def forward(self,x):
+        ''' B x L x C x H x W -> (B x L) x C x 2 x H x W
+        '''
+        sz = x.size()
+        assert len(sz) == 5
+        b,l,c,h,w = sz
+        x_ = torch.zeros(b,l,c,2,h,w).to(self.device)
+        for i in range(l):
+            x_[:,i] = x[:,max(0,i-1):i+1].transpose(1,2)
+        x_ = x_.contiguous().view(b*l,c,2,h,w)
+        x_ = x_[:,0,1,:,:] - x_[:,0,0,:,:]
+        x_ = x_.unsqueeze(1).repeat(1,2,1,1)
         return x_
 
 class VanillaAutoencoder(nn.Module):
