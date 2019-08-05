@@ -60,6 +60,23 @@ class Identity(nn.Module):
     def forward(self, x):
         return x
 
+class FCEnc(nn.Module):
+    def __init__(self,in_shape,h_dim):
+        ''' (B x L) x C x H x W; B x C x H x W
+        '''
+        super().__init__()
+        self.in_shape = in_shape
+        self.h_dim = h_dim
+        self.flat_dim = np.prod(in_shape)
+        self.fc1 = nn.Linear(self.flat_dim,h_dim)
+        self.drop1 = nn.Dropout(0.5)
+
+    def forward(self,x):
+        x = x.contiguous().view(x.size(0)*x.size(1),self.flat_dim)
+        x = F.relu(self.fc1(x))
+        x = self.drop1(x)
+        return x
+
 class VanillaEncoder(nn.Module):
     def __init__(self,in_shape,h_dim):
         ''' (B x L) x C x H x W; B x C x H x W
@@ -70,13 +87,13 @@ class VanillaEncoder(nn.Module):
         self.h_dim = h_dim #256
         self.conv1 = nn.Conv2d(in_shape[0],self.filters,(5,5),(2,2))
         self.bn1 = nn.BatchNorm2d(self.filters)
-        self.conv2 = nn.Conv2d(self.filters,self.filters,(3,3),(2,2))
+        self.conv2 = nn.Conv2d(self.filters,self.filters,(3,3),(1,1))
         self.bn2 = nn.BatchNorm2d(self.filters)
         self.conv3 = nn.Conv2d(self.filters,self.filters,(3,3),(1,1))
         self.bn3 = nn.BatchNorm2d(self.filters)
         #self.conv4 = nn.Conv2d(self.filters,self.filters,(3,3),(1,1))
-        self.new_h = (((((in_shape[1]-4)//2-2)//2)-2)//1) #-2
-        self.new_w = (((((in_shape[2]-4)//2-2)//2)-2)//1) #-2
+        self.new_h = (((((in_shape[1]-4)//2-2)//1)-2)//1) #-2
+        self.new_w = (((((in_shape[2]-4)//2-2)//1)-2)//1) #-2
         self.flat_dim = self.new_h*self.new_w*self.filters
         print(self.new_h,self.new_w)
         self.fc1 = nn.Linear(self.flat_dim,self.h_dim)

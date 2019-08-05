@@ -68,6 +68,17 @@ def list_split_kitti_(h,w):
     test_seqs, test_poses = all_seqs[-1:], all_poses[-1:]
     return (train_seqs,train_poses), (valid_seqs,valid_poses), (test_seqs,test_poses)
 
+def list_split_kitti_flow(h,w):
+    base = '/home/ubuntu/kitti/flow/{}x{}_flownet_1/'.format(h,w)
+    pbase = '/home/ubuntu/kitti/dataset/'
+    all_seqs = [sorted(glob(base+'{:02d}/*.npy'\
+                .format(i))) for i in range(11)]
+    all_poses = [pbase+'poses/{:02d}.txt'.format(i) for i in range(11)]
+    train_seqs, train_poses = all_seqs[:8], all_poses[:8] # 2:
+    valid_seqs, valid_poses = all_seqs[8:], all_poses[8:] # 0:1
+    test_seqs, test_poses = all_seqs[9:10], all_poses[9:10] # 1:2, 8:9
+    return (train_seqs,train_poses), (valid_seqs,valid_poses), (test_seqs,test_poses)
+
 def list_split_kitti_flux(h,w):
     base = '/home/ubuntu/kitti/flux/{}x{}/'.format(h,w)
     pbase = '/home/ubuntu/kitti/dataset/'

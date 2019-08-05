@@ -21,14 +21,14 @@ from glob import glob
 from torch.utils.data import Dataset, DataLoader
 from torchvision import transforms, utils
 from pt_ae import DirectOdometry, FastDirectOdometry, Conv1dRecMapper, ImgFlowOdom, DummyFlow,\
-VanillaAutoencoder, MLPAutoencoder, VanAE, Conv1dMapper, seq_pose_loss
+VanillaAutoencoder, MLPAutoencoder, VanAE, Conv1dMapper, seq_pose_loss, VanillaEncoder
 from datetime import datetime
 from plotter import c3dto2d, abs2relative, plot_eval, plot_yy
 from odom_loader import load_kitti_odom
 from tensorboardX import SummaryWriter
 from time import time
 from seq_datasets import FastFluxSeqDataset, FastSeqDataset, FluxSeqDataset, SeqDataset,\
-list_split_kitti_flux, list_split_kitti_, my_collate, ToTensor, SeqBuffer
+list_split_kitti_flow, list_split_kitti_, my_collate, ToTensor, SeqBuffer
 from ronny_test import Arguments
 
 if __name__=='__main__':
@@ -44,15 +44,15 @@ if __name__=='__main__':
     stride = 1
     assert seq_len%stride == 0
     strided_seq_len = seq_len//stride
-    tipo = 'img' #'flux' or 'img'
+    tipo = 'flow' #'flux' or 'img'
     loading = 'lazy' #'cached' or 'lazy'
     #transf = transforms.Compose([Rescale(new_dim),ToTensor()])
     #transf = [Rescale(new_dim),ToTensor()]
     transf = ToTensor()
 
-    if tipo == 'flux':
-        frshape = (2,) + new_dim
-        train_dir,valid_dir,test_dir = list_split_kitti_flux(new_dim[0],new_dim[1])
+    if tipo == 'flow':
+        flshape = (2,) + new_dim
+        train_dir,valid_dir,test_dir = list_split_kitti_flow(new_dim[0],new_dim[1])
         if loading == 'cached':
             FrSeqDataset = FastFluxSeqDataset
         else:
@@ -93,7 +93,7 @@ if __name__=='__main__':
     device = torch.device("cuda:0" if use_cuda else "cpu")
     print(device)
 
-    args = Arguments()
+    '''args = Arguments()
     flow = models.FlowNet2S(args)
     if os.path.isfile(flow_fn):
         print('Loading existing flow model')
@@ -110,12 +110,15 @@ if __name__=='__main__':
         print('Flow model checkpoint not found')
         raise FileNotFoundError()
     flow = ImgFlowOdom(flow,flshape,h_dim,device=device).to(device)
-    #flow = DummyFlow(flow,flshape,h_dim,device=device)
+    #flow = DummyFlow(flow,flshape,h_dim,device=device)'''
 
     model = VanAE(flshape,h_dim)
+    enc = VanillaEncoder((2,flshape[1]//4,flshape[2]//4),h_dim)
     vo = Conv1dRecMapper((h_dim,strided_seq_len),(strided_seq_len,12))
     #vo = Conv1dMapper((h_dim,strided_seq_len),(strided_seq_len,12)).to(device)
+    model.enc = enc
     model.dec = vo
+    model.to(device)
 
     ##model = VanillaAutoencoder((1,)+new_dim).to(device)
     #model = VanillaAutoencoder((2,)+new_dim,h_dim).to(device)
@@ -141,9 +144,9 @@ if __name__=='__main__':
     loss_fn = torch.nn.MSELoss()
     #loss_fn = seq_pose_loss
     k,kv = 0,0
-    flow.eval()
-    flow.training = False
-    model.to(device)
+    #flow.train()
+    #flow.training = True #False
+    #model.to(device)
     for i in range(epoch,num_epochs):
         print('Epoch',i)
         model.train()
@@ -153,8 +156,8 @@ if __name__=='__main__':
             x,y = x.to(device), y.to(device)
             print(x.size(),y.size())
             optimizer.zero_grad()
-            x = flow(x)
-            print(x.size())
+            #x = flow(x)[0]
+            #print(x.size())
             y_ = model(x)
             loss = loss_fn(y,y_)
             loss.backward()
@@ -174,8 +177,8 @@ if __name__=='__main__':
             torch.cuda.empty_cache()
             x,y = x.to(device), y.to(device)
             print(x.size(),y.size())
-            x = flow(x)
-            print(x.size())
+            #x = flow(x)[0]
+            #print(x.size())
             y_ = model(x)
             loss = loss_fn(y_,y)
             v_losses.append(loss.item())
@@ -195,6 +198,6 @@ if __name__=='__main__':
                         'epoch': i+1}, model_fn)
     model.eval()
     print('Start of plot_eval')
-    plot_eval(flow,model,test_loader,strided_seq_len,device,logger=writer)
+    plot_eval(model,test_loader,strided_seq_len,device,logger=writer)
     writer.close()
     print('End of plot_eval')

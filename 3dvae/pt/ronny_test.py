@@ -22,13 +22,12 @@ from utils import flow_utils, tools
 from matplotlib import pyplot as plt
 
 global offset
-global seq
 
-def list_split_kitti():
+def list_split_kitti(seq):
     base = '/home/ubuntu/kitti/dataset/'
     all_seqs = [sorted(glob(base+'sequences/{:02d}/image_0/*.png'\
                 .format(i))) for i in range(11)]
-    train_seqs = all_seqs[0]
+    train_seqs = all_seqs[seq]
     return train_seqs
 
 class FramesDataset(Dataset):
@@ -71,15 +70,9 @@ class Arguments:
 
 if __name__ == '__main__':
     global offset
-    global seq
     offset = 1
-    seq = 0
 
     model_fn = '/home/ubuntu/models/FlowNet2-S_checkpoint.pth'
-    frames_dir = list_split_kitti()
-    frames_dataset = FramesDataset(frames_dir)
-    frames_loader = DataLoader(frames_dataset,batch_size=512,shuffle=False)
-
     device = torch.device('cuda:0')
     args = Arguments()
     model = models.FlowNet2S(args)
@@ -90,20 +83,29 @@ if __name__ == '__main__':
     else:
         print('Model checkpoint not found')
         raise FileNotFoundError()
+    model.train()
 
-    #seq_dir = '32x128_flownet_{}/{:02d}'.format(offset,seq)
-    #if not os.path.isdir(seq_dir):
-    #    os.mkdir(seq_dir)
+    for seq in range(11):
+        frames_dir = list_split_kitti(seq)
+        frames_dataset = FramesDataset(frames_dir)
+        frames_loader = DataLoader(frames_dataset,batch_size=512,shuffle=False)
 
-    model.eval()
-    for i,x in enumerate(frames_loader):
-        f = model(x)
-        print(f.size())
-        f = f[0].permute(1,2,0).detach().cpu().numpy()
-        print(x.size(),f.shape)
-        #fname = seq_dir+'/{}.npy'.format(i)
-        #print('Saving {} of shape {}'.format(fname,f.shape))
-        #np.save(fname,f)
+        seq_dir = '/home/ubuntu/kitti/flow/64x256_flownet_{}/{:02d}'.format(offset,seq)
+        if not os.path.isdir(seq_dir):
+            os.mkdir(seq_dir)
+
+        i = 0
+        for x in frames_loader:
+            f = model(x)[0]
+            print(f.size())
+            for fr in f:
+                fr = fr.permute(1,2,0).detach().cpu().numpy()
+                #print(x.size(),f.shape)
+                fname = seq_dir+'/{}.npy'.format(i)
+                print('Saving {} of shape {}'.format(fname,fr.shape))
+                np.save(fname,fr)
+                i += 1
+
         #x0 = x[0,0,0].detach().cpu().numpy()
         #x1 = x[0,0,1].detach().cpu().numpy()
         #fcv = cv2.calcOpticalFlowFarneback(x0,x1,None,0.5,3,15,3,5,1.2,0)
