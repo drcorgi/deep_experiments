@@ -28,7 +28,7 @@ from odom_loader import load_kitti_odom
 from tensorboardX import SummaryWriter
 from time import time
 from seq_datasets import FastFluxSeqDataset, FastSeqDataset, FluxSeqDataset, SeqDataset,\
-list_split_kitti_flow, list_split_kitti_, my_collate, ToTensor, SeqBuffer
+list_split_kitti_flow, list_split_kitti_flux, list_split_kitti_, my_collate, ToTensor, SeqBuffer
 from ronny_test import Arguments
 
 if __name__=='__main__':
