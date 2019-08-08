@@ -21,8 +21,6 @@ from utils import flow_utils, tools
 
 from matplotlib import pyplot as plt
 
-global offset
-
 def list_split_kitti(seq):
     base = '/home/ubuntu/kitti/dataset/'
     all_seqs = [sorted(glob(base+'sequences/{:02d}/image_0/*.png'\
@@ -31,20 +29,22 @@ def list_split_kitti(seq):
     return train_seqs
 
 class FramesDataset(Dataset):
-    def __init__(self,fnames,transform=None):
+    def __init__(self,fnames,offset=1,transform=None):
         self.fnames = fnames
         self.len = len(self.fnames)-offset
         self.transform = transform
+        self.offset = offset
 
     def __len__(self):
         return self.len
 
     def __getitem__(self, idx):
         try:
+            offset = self.offset
             frame = cv2.imread(self.fnames[idx])
-            frame = cv2.resize(frame,(512,128)).transpose(2,0,1)
+            frame = cv2.resize(frame,(256,64)).transpose(2,0,1)
             frame2 = cv2.imread(self.fnames[min(idx+offset,self.len-1)])
-            frame2 = cv2.resize(frame2,(512,128)).transpose(2,0,1)
+            frame2 = cv2.resize(frame2,(256,64)).transpose(2,0,1)
             frame = torch.from_numpy(frame).float().unsqueeze(0).transpose(1,0)
             frame2 = torch.from_numpy(frame2).float().unsqueeze(0).transpose(1,0)
             frame = torch.cat([frame,frame2],dim=1)
@@ -69,7 +69,6 @@ class Arguments:
         self.rgb_max = 255.0
 
 if __name__ == '__main__':
-    global offset
     offset = 1
 
     model_fn = '/home/ubuntu/models/FlowNet2-S_checkpoint.pth'
@@ -83,25 +82,25 @@ if __name__ == '__main__':
     else:
         print('Model checkpoint not found')
         raise FileNotFoundError()
-    model.train()
+    model.eval()
 
     for seq in range(11):
         frames_dir = list_split_kitti(seq)
-        frames_dataset = FramesDataset(frames_dir)
+        frames_dataset = FramesDataset(frames_dir,offset=offset)
         frames_loader = DataLoader(frames_dataset,batch_size=512,shuffle=False)
 
-        seq_dir = '/home/ubuntu/kitti/flow/128x512_flownet_{}/{:02d}'.format(offset,seq)
+        seq_dir = '/home/ubuntu/kitti/flow/64x256_flownet_{}/{:02d}/'.format(offset,seq)
         if not os.path.isdir(seq_dir):
             os.mkdir(seq_dir)
 
         i = 0
         for x in frames_loader:
-            f = model(x)[0]
+            f = model(x)
             print(f.size())
             for fr in f:
                 fr = fr.permute(1,2,0).detach().cpu().numpy()
                 #print(x.size(),f.shape)
-                fname = seq_dir+'/{}.npy'.format(i)
+                fname = seq_dir+'{:06d}.npy'.format(i)
                 print('Saving {} of shape {}'.format(fname,fr.shape))
                 np.save(fname,fr)
                 i += 1

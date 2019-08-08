@@ -113,7 +113,7 @@ if __name__=='__main__':
     #flow = DummyFlow(flow,flshape,h_dim,device=device)'''
 
     model = VanAE(flshape,h_dim)
-    enc = VanillaEncoder((2,flshape[1]//4,flshape[2]//4),h_dim)
+    enc = VanillaEncoder((2,flshape[1],flshape[2]),h_dim)
     vo = Conv1dRecMapper((h_dim,strided_seq_len),(strided_seq_len,12))
     #vo = Conv1dMapper((h_dim,strided_seq_len),(strided_seq_len,12)).to(device)
     model.enc = enc
@@ -125,7 +125,7 @@ if __name__=='__main__':
     #model = MLPAutoencoder((2,)+new_dim,h_dim).to(device)
     #model = FastDirectOdometry((1,)+new_dim,(12,)).to(device)
     params = model.parameters()
-    optimizer = optim.Adam(params,lr=1e-3)
+    optimizer = optim.Adam(params,lr=3e-4)
     min_loss = 1e15
     epoch = 0
     writer = SummaryWriter('/home/ubuntu/log/exp_flow_net_h{}_l{}_s{}_{}x{}'\
@@ -141,8 +141,8 @@ if __name__=='__main__':
     else:
         print('Creating new model')
 
-    loss_fn = torch.nn.MSELoss()
-    #loss_fn = seq_pose_loss
+    #loss_fn = torch.nn.MSELoss()
+    loss_fn = seq_pose_loss
     k,kv = 0,0
     #flow.train()
     #flow.training = True #False

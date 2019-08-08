@@ -3,28 +3,59 @@ import torch.nn as nn
 import torch.nn.functional as F
 import torch.optim as optim
 import numpy as np
+import sys, os
+sys.path.append(os.path.dirname(os.path.realpath(__file__))+'/../misc')
+from plotter import homogen
+
+from scipy.linalg import logm, expm, norm
 
 def seq_pose_loss(p,p_):
     ''' B x L x P
     '''
-    '''theta = torch.acos(torch.clamp(p[:,:,0],min=-1+1e-7,max=1-1e-7))
-    theta_ = torch.acos(torch.clamp(p_[:,:,0],min=-1+1e-7,max=1-1e-7))
-    dtheta1 = torch.abs(theta-theta_)
-    dtheta2 = torch.abs(torch.tensor(6.2830)-dtheta1)
-    dtheta = torch.min(dtheta1,dtheta2)
-    #print('dtheta',torch.max(theta))
-    ltheta = torch.exp(torch.tensor(0.0)*dtheta)
-    ltheta = torch.mean(ltheta)
-    lxy = torch.mean((p[:,:,[3,11]]-p_[:,:,[3,11]])**2.0)
-    #print('losses',ltheta,lxy,torch.mean(dtheta))
-    return ltheta + lxy'''
-    diff = torch.sum((p-p_)**2.0,dim=-1)
-    diff = torch.max(diff,dim=-1)[0]
-    '''ltheta = torch.sum(diff[:,:,[0,1,2,4,5,6,7,8,9,10]]**4.0)
-    lxy = torch.sum(diff[:,:,[3,11]]**2.0)
-    b,l,p = diff.size()
-    return (ltheta+lxy)/(b*l*p)'''
-    return torch.mean(diff)
+    p = p.contiguous().view(-1,12)
+    p_ = p_.contiguous().view(-1,12)
+    t_loss = torch.mean((p[:,[3,7,11]]-p_[:,[3,7,11]])**2)
+    r_loss = torch.mean((p[:,[0,1,2,4,5,6,8,9,10]]-p_[:,[0,1,2,4,5,6,8,9,10]])**2)
+    loss = t_loss + 100*r_loss
+    return loss
+
+''' def seq_pose_loss_(p,p_):
+    # B x L x P
+    # TO numpy
+    p = p.contiguos().view(-1,12).cpu().detach().numpy()
+    p_ = p_.contiguos().view(-1,12).cpu().detach().numpy()
+    # To SE(3)
+    p = np.array([homogen(x) for x in p])
+    p_ = np.array([homogen(x) for x in p_])
+    # Get wv,w^
+    what = np.array([logm(x[:3,:3]) for x in p])
+    what_ = np.array([logm(x[:3,:3]) for x in p_])
+    wv = np.array([[x[2,1],x[0,2],x[1,0]] for x in what])
+    wv_ = np.array([[x[2,1],x[0,2],x[1,0]] for x in what_])
+    # Get theta, V
+    theta = np.array([norm(x) for x in wv])
+    theta_ = np.array([norm(x) for x in wv_])
+    V = np.array([np.eye(3) + what*(1.0-np.cos(theta))/theta**2\
+                  + np.dot(what,what)*(theta-np.sin(theta))/theta**3])
+    V_ = np.array([np.eye(3) + what_*(1.0-np.cos(theta))/theta**2\
+                  + np.dot(what_,what_)*(theta-np.sin(theta))/theta**3])
+    # Get t'
+    t = [np.dot(np.linalg.inv(V[i]),np.array([p[i,0,2],p[i,1,2],p[i,2,2]]))\
+               for i in range(len(V))]
+    t_ = [np.dot(np.linalg.inv(V_[i]),np.array([p_[i,0,2],p_[i,1,2],p_[i,2,2]])\
+               for i in range(len(V_))]
+    t = np.array(t)
+    t_ = np.array(t_)
+    # Get [t',wv]
+    tw = np.array([np.array([t[i],wv[i]]) for i in range(len(t))])
+    tw_ = np.array([np.array([t_[i],wv_[i]]) for i in range(len(t_))])
+    # Get loss = t_loss + 100*r_loss
+    tw = torch.from_numpy(tw)
+    tw_ = torch.from_numpy(tw_)
+    t_loss = torch.mean((tw[:,:4]-tw_[:,:4])**2)
+    r_loss = torch.mean((tw[:,4:]-tw_[:,4:])**2)
+    loss = t_loss + 100*r_loss
+    return loss '''
 
 class DepthWiseConv2d(nn.Module):
     def __init__(self,in_filters,out_filters,kernel_size,stride,padding):
