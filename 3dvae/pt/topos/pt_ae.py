@@ -16,7 +16,7 @@ def seq_pose_loss(p,p_):
     p_ = p_.contiguous().view(-1,12)
     t_loss = torch.mean((p[:,[3,7,11]]-p_[:,[3,7,11]])**2)
     r_loss = torch.mean((p[:,[0,1,2,4,5,6,8,9,10]]-p_[:,[0,1,2,4,5,6,8,9,10]])**2)
-    loss = t_loss + 100*r_loss
+    loss = t_loss + r_loss
     return loss
 
 ''' def seq_pose_loss_(p,p_):
@@ -518,9 +518,9 @@ class Conv1dMapper(nn.Module):
         self.fc2 = nn.Linear(10*self.in_shape[1],10*self.in_shape[1])
         self.bn5 = nn.BatchNorm1d(10*self.in_shape[1])
         self.fc3 = nn.Linear(10*self.in_shape[1],np.prod(out_shape)) # seq_len * x,y,theta
-        self.dropout1 = nn.Dropout(p=0.1)
-        self.dropout2 = nn.Dropout(p=0.1)
-        self.dropout3 = nn.Dropout(p=0.1)
+        #self.dropout1 = nn.Dropout(p=0.1)
+        #self.dropout2 = nn.Dropout(p=0.1)
+        #self.dropout3 = nn.Dropout(p=0.1)
         self.dropout4 = nn.Dropout(p=0.5)
         self.dropout5 = nn.Dropout(p=0.5)
 
@@ -530,16 +530,16 @@ class Conv1dMapper(nn.Module):
         shape = x.size()
         if len(shape) == 2:
             x = x.view(-1,self.in_shape[-1],shape[-1]).transpose(2,1)
-        x = self.bn1(F.relu(self.conv1(x)))
-        x = self.dropout1(x)
-        x = self.bn2(F.relu(self.conv2(x)))
-        x = self.dropout2(x)
-        x = self.bn3(F.relu(self.conv3(x)))
-        x = self.dropout3(x)
+        x = F.relu(self.bn1(self.conv1(x)))
+        #x = self.dropout1(x)
+        x = F.relu(self.bn2(self.conv2(x)))
+        #x = self.dropout2(x)
+        x = F.relu(self.bn3(self.conv3(x)))
+        #x = self.dropout3(x)
         x = x.view(-1,self.h_shape*self.filters)
-        x = self.bn4(F.relu(self.fc1(x)))
+        x = F.relu(self.bn4(self.fc1(x)))
         x = self.dropout4(x)
-        x = self.bn5(F.relu(self.fc2(x)))
+        x = F.relu(self.bn5(self.fc2(x)))
         x = self.dropout5(x)
         x = self.fc3(x)
         x = x.view((-1,)+self.out_shape)
