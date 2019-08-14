@@ -249,6 +249,8 @@ class FluxSeqDataset(Dataset):
             for i in range(id,id+self.seq_len):
                 x[i-id],y[i-id],abs[i-id] = self.buffer[s][i]
             y = abs2relative(y,self.seq_len,1)[0]
+            # Normalize translation
+            y[:,[3,11]] /= np.linalg.norm(y[-1,[3,11]]-y[0,[3,11]])+1e-8
             y = torch.from_numpy(y).float()
             return x,y,abs
         except RuntimeError as re:

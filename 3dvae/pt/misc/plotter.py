@@ -158,6 +158,7 @@ def get_3d_points_t2(rposes,wlen,gt_poses):
 
 def plot_eval(model,test_loader,seq_len,device='cuda:0',logger=None):
     rel_poses = []
+    rel_poses_gt =[]
     data_y = []
     for x,y,abs in test_loader:
         torch.cuda.empty_cache()
@@ -166,25 +167,29 @@ def plot_eval(model,test_loader,seq_len,device='cuda:0',logger=None):
         y_ = model(x)
         data_y += abs
         rel_poses += y_.cpu().detach().numpy().reshape(-1,12).tolist()
+        rel_poses_gt += y.cpu().detach().numpy().reshape(-1,12).tolist()
     #rel_poses = rel_poses[::seq_len]
     #rel_poses = np.array([c3dto2d(np.array(p)) for p in rel_poses])
     rel_poses = np.array(rel_poses)
+    rel_poses_gt = np.array(rel_poses_gt)
     gt = np.array(data_y[::seq_len]) #.transpose(0,2,1)
     print(gt.shape)
     #abs_ = np.array(relative2abs(gt,seq_len))
     pts_ = np.array(relative2abs(rel_poses,seq_len))
+    pts_gt = np.array(relative2abs(rel_poses_gt,seq_len))
     #print(pts_[-16:-12])
     print(pts_.shape)
 
     pts = np.array([[p[3],p[7],p[11]] for p in gt]) #get_3d_points_t2(rel_poses,seq_len,abs_)
     pts_ = np.array([[p[3],p[7],p[11]] for p in pts_])
+    pts_gt = np.array([[p[3],p[7],p[11]] for p in pts_gt])
 
     print(pts.shape,pts_.shape)
     if not os.path.isdir('tmp'):
         os.mkdir('tmp')
     t = time.time()
     #logger.add_embedding(pts,tag='source',global_step=1)
-    plot_3d_points_(pts,pts_,'tmp/{}_projections_xyz.png'.format(t),\
+    plot_3d_points_(pts_gt,pts_,'tmp/{}_projections_xyz.png'.format(t),\
                     wlen=seq_len,logger=logger) #gt
     #plot_abs(abs_,pts_,'tmp/{}_absolute_gt_3d.png'.format(t))
 

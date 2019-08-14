@@ -16,7 +16,7 @@ def seq_pose_loss(p,p_):
     p_ = p_.contiguous().view(-1,12)
     t_loss = torch.mean((p[:,[3,7,11]]-p_[:,[3,7,11]])**2)
     r_loss = torch.mean((p[:,[0,1,2,4,5,6,8,9,10]]-p_[:,[0,1,2,4,5,6,8,9,10]])**2)
-    loss = t_loss + r_loss
+    loss = t_loss + 100*r_loss
     return loss
 
 ''' def seq_pose_loss_(p,p_):
@@ -570,7 +570,7 @@ class Conv1dRecMapper(nn.Module):
         self.num_dir = 1 if not bidirectional else 2
         self.h = self.num_dir*in_shape[0]
         self.rec = nn.GRU(in_shape[0],in_shape[0],\
-                          self.num_cells,bidirectional=bidirectional) # bidirectional=True
+                          self.num_cells,bidirectional=bidirectional)
         self.fc1 = nn.Linear(self.h,self.h)
         self.fc2 = nn.Linear(self.h,out_shape[-1])
         #self.drop1 = nn.Dropout(p=0.5)
@@ -599,7 +599,7 @@ class Conv1dRecMapper(nn.Module):
         #print('view',x.size())
 
         x[:,:,[1,4,6,7,9]] = torch.zeros((x.size(0),x.size(1),5)).to(self.device)
-        #x[:,:,[3,11]] = torch.tensor(0.0).cuda()
+        x[:,0,[3,11]] = torch.tensor(0.0).cuda()
         x[:,:,5] = torch.tensor(1.0).to(self.device)
         #x = self.odom_norm(x)
 

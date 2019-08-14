@@ -141,8 +141,8 @@ if __name__=='__main__':
     else:
         print('Creating new model')
 
-    #loss_fn = torch.nn.MSELoss()
-    loss_fn = seq_pose_loss
+    loss_fn = torch.nn.MSELoss()
+    #loss_fn = seq_pose_loss
     k,kv = 0,0
     #flow.train()
     #flow.training = True #False
@@ -186,7 +186,8 @@ if __name__=='__main__':
             kv += 1
         #writer.add_embedding(y[0,:,[3,7,11]],tag='gt_pts_{}'.format(i),global_step=1)
         #writer.add_embedding(y_[0,:,[3,7,11]],tag='est_pts_{}'.format(i),global_step=1)
-        plot_yy(y[0],y_[0],device,writer) ###
+        wid = np.random.randint(len(y))
+        plot_yy(y[wid],y_[wid],device,writer) ###
         mean_train, mean_valid = np.mean(losses),np.mean(v_losses)
         print('Epoch {} loss\t{:.4f}\tValid loss\t{:.4f}'\
               .format(i,mean_train,mean_valid))
