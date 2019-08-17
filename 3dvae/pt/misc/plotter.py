@@ -165,6 +165,7 @@ def plot_eval(model,test_loader,seq_len,device='cuda:0',logger=None):
         x,y,abs = x.to(device), y.to(device), np.array(abs).reshape(-1,12).tolist()
         #x = flow(x)
         y_ = model(x)
+        y,y_ = y[:,1:],y_[:,1:]
         data_y += abs
         rel_poses += y_.cpu().detach().numpy().reshape(-1,12).tolist()
         rel_poses_gt += y.cpu().detach().numpy().reshape(-1,12).tolist()

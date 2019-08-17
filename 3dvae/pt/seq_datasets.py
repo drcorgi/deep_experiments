@@ -92,7 +92,7 @@ def list_split_kitti_flux(h,w):
     all_poses = [pbase+'poses/{:02d}.txt'.format(i) for i in range(11)]
     train_seqs, train_poses = all_seqs[:8], all_poses[:8] # 2:
     valid_seqs, valid_poses = all_seqs[8:], all_poses[8:] # 0:1
-    test_seqs, test_poses = all_seqs[7:8], all_poses[7:8] # 1:2, 8:9
+    test_seqs, test_poses = all_seqs[8:9], all_poses[8:9] # 1:2, 8:9
     return (train_seqs,train_poses), (valid_seqs,valid_poses), (test_seqs,test_poses)
 
 class SeqBuffer():
@@ -243,14 +243,20 @@ class FluxSeqDataset(Dataset):
     def __getitem__(self, index):
         try:
             s,id = self.sids[index], self.fsids[index]
-            x = torch.zeros((self.seq_len,)+self.fshape)
-            y = np.zeros((self.seq_len,12))
+            s_ = max(0,s-1)
+            id_ = 0 if s_ == 0 else -1
+
+            x = torch.zeros((self.seq_len+1,)+self.fshape)
+            y = np.zeros((self.seq_len+1,12))
             abs = np.zeros((self.seq_len,12))
+
+            x[0] = self.buffer[s_][id_][0]
+            y[0] = np.zeros(12)
             for i in range(id,id+self.seq_len):
-                x[i-id],y[i-id],abs[i-id] = self.buffer[s][i]
-            y = abs2relative(y,self.seq_len,1)[0]
+                x[i-id+1],y[i-id+1],abs[i-id] = self.buffer[s][i]
+            y[1:] = abs2relative(y[1:],self.seq_len,1)[0]
             # Normalize translation
-            y[:,[3,11]] /= np.linalg.norm(y[-1,[3,11]]-y[0,[3,11]])+1e-8
+            y[1:,[3,11]] /= np.linalg.norm(y[-1,[3,11]])+1e-12
             y = torch.from_numpy(y).float()
             return x,y,abs
         except RuntimeError as re:

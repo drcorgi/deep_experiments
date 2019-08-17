@@ -30,6 +30,7 @@ from time import time
 from seq_datasets import FastFluxSeqDataset, FastSeqDataset, FluxSeqDataset, SeqDataset,\
 list_split_kitti_flow, list_split_kitti_flux, list_split_kitti_, my_collate, ToTensor, SeqBuffer
 from ronny_test import Arguments
+from custom_optimizers import RAdam
 
 if __name__=='__main__':
     enc_fn = sys.argv[1]
@@ -114,7 +115,7 @@ if __name__=='__main__':
 
     model = VanAE(flshape,h_dim)
     enc = VanillaEncoder((2,flshape[1],flshape[2]),h_dim)
-    vo = Conv1dRecMapper((h_dim,strided_seq_len),(strided_seq_len,12))
+    vo = Conv1dRecMapper((h_dim,strided_seq_len+1),(strided_seq_len+1,12))
     #vo = Conv1dMapper((h_dim,strided_seq_len),(strided_seq_len,12)).to(device)
     model.enc = enc
     model.dec = vo
@@ -125,7 +126,8 @@ if __name__=='__main__':
     #model = MLPAutoencoder((2,)+new_dim,h_dim).to(device)
     #model = FastDirectOdometry((1,)+new_dim,(12,)).to(device)
     params = model.parameters()
-    optimizer = optim.Adam(params,lr=5e-5)
+    #optimizer = optim.Adam(params,lr=5e-5)
+    optimizer = RAdam(params,lr=5e-5)
     min_loss = 1e15
     epoch = 0
     writer = SummaryWriter('/home/ubuntu/log/exp_flow_net_h{}_l{}_s{}_{}x{}'\
@@ -141,8 +143,8 @@ if __name__=='__main__':
     else:
         print('Creating new model')
 
-    loss_fn = torch.nn.MSELoss()
-    #loss_fn = seq_pose_loss
+    #loss_fn = torch.nn.MSELoss()
+    loss_fn = seq_pose_loss
     k,kv = 0,0
     #flow.train()
     #flow.training = True #False
@@ -187,7 +189,7 @@ if __name__=='__main__':
         #writer.add_embedding(y[0,:,[3,7,11]],tag='gt_pts_{}'.format(i),global_step=1)
         #writer.add_embedding(y_[0,:,[3,7,11]],tag='est_pts_{}'.format(i),global_step=1)
         wid = np.random.randint(len(y))
-        plot_yy(y[wid],y_[wid],device,writer) ###
+        plot_yy(y[wid][1:],y_[wid][1:],device,writer) ###
         mean_train, mean_valid = np.mean(losses),np.mean(v_losses)
         print('Epoch {} loss\t{:.4f}\tValid loss\t{:.4f}'\
               .format(i,mean_train,mean_valid))
