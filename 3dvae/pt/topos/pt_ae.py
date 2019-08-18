@@ -607,7 +607,7 @@ class Conv1dRecMapper(nn.Module):
         x[:,1:,5] = torch.tensor(1.0).to(self.device)
         x[:,0] = torch.tensor(0.0).to(self.device)
         tr_norms = torch.norm(x[:,-1,[3,11]],dim=1)+1e-12
-        x[:,1:,[3,11]] /= tr_norms.unsqueeze(-1).unsqueeze(-1)
+        #x[:,1:,[3,11]] /= tr_norms.unsqueeze(-1).unsqueeze(-1)
         #x = self.odom_norm(x)
 
         return x
