@@ -8,6 +8,7 @@ from copy import deepcopy
 from matplotlib import pyplot as plt
 from mpl_toolkits.mplot3d import Axes3D
 from multiprocessing import Pool
+from scipy.linalg import expm, logm, norm
 
 def c3dto2d(p):
     p[[1,4,6,7,9]] = np.zeros(5,dtype=np.float32)
@@ -17,6 +18,31 @@ def c3dto2d(p):
         raise RuntimeError('Rotation determinant too far from 1.0')
     p[[0,2,8,10]] = p[[0,2,8,10]]/det
     return p
+
+def se3toSE3(poses):
+    ''' poses is B x L x 6
+        * x 6 -> * x (4x4) -> * x 12
+    '''
+    b,l,_ = poses.shape
+    poses = poses.reshape((-1,6))
+    poses_wx = [np.array([[ 0.0, -p[2], p[1]],\
+                          [ p[2], 0.0, -p[0]],\
+                          [-p[1], p[0], 0.0]]) for p in poses]
+    poses_R = [expm(r) for r in poses_wx]
+    thetas = [norm(p[:3]) for p in poses]
+    poses_V = [np.eye(3)+\
+               ( (1-np.cos(theta[i])) / theta[i]**2)*poses_wx[i]+\
+               ( (theta[i]-np.sin(theta[i])) / theta[i]**3)*\
+                 np.matmul(poses_wx[i],poses_wx[i])\
+               for i in range(len(poses))]
+    poses_t = [np.dot(poses_V[i],p[i,:3]) for i in range(len(poses))]
+    poses_SE3 = [np.array([poses_R[i][0,0], poses_R[i][0,1], poses_R[i][0,2], poses_t[i][0],\
+                           poses_R[i][1,0], poses_R[i][1,1], poses_R[i][1,2], poses_t[i][1],\
+                           poses_R[i][2,0], poses_R[i][2,1], poses_R[i][2,2], poses_t[i][2]])\
+                           for i in range(len(poses))]
+    poses_SE3 = np.array(poses_SE3)
+    poses_SE3 = poses_SE3.reshape(b,l,12)
+    return poses_SE3
 
 def plot_abs(gt,rec,out_fn,logger=None):
     fig = plt.figure()
