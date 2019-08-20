@@ -20,54 +20,54 @@ def c3dto2d(p):
     return p
 
 def se3toSE3(poses):
-    ''' poses is B x L x 6
+    ''' poses is L x 6
         * x 6 -> * x (4x4) -> * x 12
         se3: (r_3|t_3)
     '''
-    b,l,_ = poses.shape
-    poses = poses.reshape((-1,6))
+    #b,l,_ = poses.shape
+    #poses = poses.reshape((-1,6))
     poses_wx = [np.array([[ 0.0, -p[2], p[1]],\
                           [ p[2], 0.0, -p[0]],\
                           [-p[1], p[0], 0.0]]) for p in poses]
     poses_R = [expm(r) for r in poses_wx]
-    thetas = [norm(p[:3]) for p in poses]
+    thetas = [norm(p[:3])+1e-8 for p in poses]
     poses_V = [np.eye(3)+\
                ( (1-np.cos(thetas[i])) / thetas[i]**2)*poses_wx[i]+\
                ( (thetas[i]-np.sin(thetas[i])) / thetas[i]**3)*\
                  np.matmul(poses_wx[i],poses_wx[i])\
                for i in range(len(poses))]
-    poses_t = [np.dot(poses_V[i],p[i,3:]) for i in range(len(poses))]
+    poses_t = [np.dot(poses_V[i],poses[i,3:]) for i in range(len(poses))]
     poses_SE3 = [np.array([poses_R[i][0,0], poses_R[i][0,1], poses_R[i][0,2], poses_t[i][0],\
                            poses_R[i][1,0], poses_R[i][1,1], poses_R[i][1,2], poses_t[i][1],\
                            poses_R[i][2,0], poses_R[i][2,1], poses_R[i][2,2], poses_t[i][2]])\
                            for i in range(len(poses))]
     poses_SE3 = np.array(poses_SE3)
-    poses_SE3 = poses_SE3.reshape(b,l,12)
+    #poses_SE3 = poses_SE3.reshape(b,l,12)
     return poses_SE3
 
 def SE3tose3(poses):
-    ''' poses is B x L x 12
+    ''' poses is L x 12
         se3: (r_3|t_3)
     '''
-    b,l,_ = poses.shape
-    poses = poses.reshape((-1,12))
+    #l,_ = poses.shape
+    #poses = poses.reshape((-1,12))
     R = [np.array([[p[0],p[1],p[2]],\
                    [p[4],p[5],p[6]],\
                    [p[8],p[9],p[10]]]) for p in poses]
     wx = [logm(r) for r in R]
     w = [np.array([x[2,1],x[0,2],x[1,0]]) for x in wx]
-    thetas = [norm(x) for x in w]
+    thetas = [norm(x)+1e-8 for x in w]
+    #print(min(thetas))
     V = [np.eye(3)+\
          ( (1-np.cos(thetas[i])) / thetas[i]**2)*wx[i]+\
          ( (thetas[i]-np.sin(thetas[i])) / thetas[i]**3)*\
-            np.matmul(wx[i],wx[i])\
-         for i in range(len(poses))]
+            np.matmul(wx[i],wx[i]) for i in range(len(poses))]
     t = [np.array([p[3],p[7],p[11]]) for p in poses]
     t_ = [np.dot(np.linalg.inv(V[i]),t[i]) for i in range(len(poses))]
     poses_se3 = [np.array([w[i][0],w[i][1],w[i][2],t_[i][0],t_[i][1],t_[i][2]])\
                  for i in range(len(poses))]
     poses_se3 = np.array(poses_se3)
-    poses_se3 = poses_se3.reshape(b,l,6)
+    #poses_se3 = poses_se3.reshape(b,l,6)
     return poses_se3
 
 def plot_abs(gt,rec,out_fn,logger=None):
@@ -219,12 +219,15 @@ def plot_eval(model,test_loader,seq_len,device='cuda:0',logger=None):
         y_ = model(x)
         y,y_ = y[:,1:],y_[:,1:]
         data_y += abs
-        rel_poses += y_.cpu().detach().numpy().reshape(-1,12).tolist()
-        rel_poses_gt += y.cpu().detach().numpy().reshape(-1,12).tolist()
+        rel_poses += y_.cpu().detach().numpy().reshape(-1,6).tolist()
+        rel_poses_gt += y.cpu().detach().numpy().reshape(-1,6).tolist()
     #rel_poses = rel_poses[::seq_len]
     #rel_poses = np.array([c3dto2d(np.array(p)) for p in rel_poses])
     rel_poses = np.array(rel_poses)
     rel_poses_gt = np.array(rel_poses_gt)
+    rel_poses = se3toSE3(rel_poses)
+    rel_poses_gt = se3toSE3(rel_poses_gt)
+
     gt = np.array(data_y[::seq_len]) #.transpose(0,2,1)
     print(gt.shape)
     #abs_ = np.array(relative2abs(gt,seq_len))
@@ -249,8 +252,10 @@ def plot_eval(model,test_loader,seq_len,device='cuda:0',logger=None):
 def plot_yy(y,y_,device='cuda:0',logger=None):
     ''' L x O
     '''
-    y = y.cpu().detach().numpy().reshape(-1,12)
-    y_ = y_.cpu().detach().numpy().reshape(-1,12)
+    y = y.cpu().detach().numpy().reshape(-1,6)
+    y_ = y_.cpu().detach().numpy().reshape(-1,6)
+    y = se3toSE3(y)
+    y_ = se3toSE3(y_)
     y = y[:,[3,7,11]]
     y_ = y_[:,[3,7,11]]
     if not os.path.isdir('tmp/jan/'):

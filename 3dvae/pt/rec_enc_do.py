@@ -115,8 +115,8 @@ if __name__=='__main__':
 
     model = VanAE(flshape,h_dim)
     enc = VanillaEncoder((2,flshape[1],flshape[2]),h_dim)
-    vo = Conv1dRecMapper((h_dim,strided_seq_len+1),(strided_seq_len+1,12))
-    #vo = Conv1dMapper((h_dim,strided_seq_len),(strided_seq_len,12)).to(device)
+    vo = Conv1dRecMapper((h_dim,strided_seq_len+1),(strided_seq_len+1,6)) ###
+    #vo = Conv1dMapper((h_dim,strided_seq_len),(strided_seq_len,6)).to(device)
     model.enc = enc
     model.dec = vo
     model.to(device)
@@ -124,7 +124,7 @@ if __name__=='__main__':
     ##model = VanillaAutoencoder((1,)+new_dim).to(device)
     #model = VanillaAutoencoder((2,)+new_dim,h_dim).to(device)
     #model = MLPAutoencoder((2,)+new_dim,h_dim).to(device)
-    #model = FastDirectOdometry((1,)+new_dim,(12,)).to(device)
+    #model = FastDirectOdometry((1,)+new_dim,(6,)).to(device)
     params = model.parameters()
     #optimizer = optim.Adam(params,lr=5e-5)
     optimizer = RAdam(params,lr=5e-5)

@@ -18,7 +18,7 @@ from torchvision import transforms, utils
 from pt_ae import DirectOdometry, FastDirectOdometry, Conv1dRecMapper,\
 VanillaAutoencoder, MLPAutoencoder, VanAE, Conv1dMapper, seq_pose_loss
 from datetime import datetime
-from plotter import c3dto2d, abs2relative, plot_eval
+from plotter import c3dto2d, abs2relative, plot_eval, SE3tose3, se3toSE3, homogen
 from odom_loader import load_kitti_odom
 from tensorboardX import SummaryWriter
 from time import time
@@ -232,7 +232,8 @@ class FluxSeqDataset(Dataset):
                     if self.transform:
                         frame = self.transform(frame)
                     abs = self.aposes[s][id]
-                    p = c3dto2d(abs)
+                    #p = c3dto2d(abs)
+                    p = SE3tose3([abs])[0] ###
                     seq_.append((frame,p,abs))
                 self.buffer.append(seq_)
         except RuntimeError as re:
@@ -247,16 +248,18 @@ class FluxSeqDataset(Dataset):
             id_ = 0 if s_ == 0 else -1
 
             x = torch.zeros((self.seq_len+1,)+self.fshape)
-            y = np.zeros((self.seq_len+1,12))
+            y = np.zeros((self.seq_len+1,6))
             abs = np.zeros((self.seq_len,12))
 
             x[0] = self.buffer[s_][id_][0]
-            y[0] = np.zeros(12)
+            y[0] = np.zeros(6)
             for i in range(id,id+self.seq_len):
                 x[i-id+1],y[i-id+1],abs[i-id] = self.buffer[s][i]
-            y[1:] = abs2relative(y[1:],self.seq_len,1)[0]
+            y[1:] = np.array([p-y[1] for p in y[1:]])
+            #y[1:] = abs2relative(y[1:],self.seq_len,1)[0]
             # Normalize translation
             #y[1:,[3,11]] /= np.linalg.norm(y[-1,[3,11]])+1e-12
+            #y = SE3tose3(y) ###
             y = torch.from_numpy(y).float()
             return x,y,abs
         except RuntimeError as re:
