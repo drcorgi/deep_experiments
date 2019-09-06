@@ -161,8 +161,8 @@ def relative2abs(rel_poses,wsize):
     poses = [homogen(p) for p in rel_poses]
     abs_poses = poses[:wsize]
     for i in range(wsize,len(poses),wsize**2):
-        in_p = abs_poses[-1]
-        #in_p = np.matmul(abs_poses[-1],poses[i-wsize+1]) #abs_poses[-1]
+        #in_p = abs_poses[-1]
+        in_p = np.matmul(abs_poses[-1],poses[i-wsize+1]) #abs_poses[-1]
         abs_poses += [np.matmul(in_p,poses[j]) for j in range(i,i+wsize)]
     abs_poses = [flat_homogen(p) for p in abs_poses]
     return abs_poses
