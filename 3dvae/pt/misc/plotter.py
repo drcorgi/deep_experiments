@@ -9,8 +9,10 @@ from matplotlib import pyplot as plt
 from mpl_toolkits.mplot3d import Axes3D
 from multiprocessing import Pool
 from scipy.linalg import expm, logm, norm
+from liegroups import SE3, SO3, SE2, SO2
 
-def c3dto2d(p):
+def c3dto2d_(p3d):
+    p = np.array(p3d)
     p[[1,4,6,7,9]] = np.zeros(5,dtype=np.float32)
     p[5] = 1.0
     det = np.linalg.det([p[[0,2]],p[[8,10]]])
@@ -19,56 +21,55 @@ def c3dto2d(p):
     p[[0,2,8,10]] = p[[0,2,8,10]]/det
     return p
 
-def se3toSE3(poses):
-    ''' poses is L x 6
-        * x 6 -> * x (4x4) -> * x 12
-        se3: (r_3|t_3)
-    '''
-    #b,l,_ = poses.shape
-    #poses = poses.reshape((-1,6))
-    poses_wx = [np.array([[ 0.0, -p[2], p[1]],\
-                          [ p[2], 0.0, -p[0]],\
-                          [-p[1], p[0], 0.0]]) for p in poses]
-    poses_R = [expm(r) for r in poses_wx]
-    thetas = [norm(p[:3])+1e-8 for p in poses]
-    poses_V = [np.eye(3)+\
-               ( (1-np.cos(thetas[i])) / thetas[i]**2)*poses_wx[i]+\
-               ( (thetas[i]-np.sin(thetas[i])) / thetas[i]**3)*\
-                 np.matmul(poses_wx[i],poses_wx[i])\
-               for i in range(len(poses))]
-    poses_t = [np.dot(poses_V[i],poses[i,3:]) for i in range(len(poses))]
-    poses_SE3 = [np.array([poses_R[i][0,0], poses_R[i][0,1], poses_R[i][0,2], poses_t[i][0],\
-                           poses_R[i][1,0], poses_R[i][1,1], poses_R[i][1,2], poses_t[i][1],\
-                           poses_R[i][2,0], poses_R[i][2,1], poses_R[i][2,2], poses_t[i][2]])\
-                           for i in range(len(poses))]
-    poses_SE3 = np.array(poses_SE3)
-    #poses_SE3 = poses_SE3.reshape(b,l,12)
-    return poses_SE3
+def c3dto2d(p3d):
+    p = np.array(p3d)
+    #p[[1,4,6,7,9]] = np.zeros(5,dtype=np.float32)
+    #p[5] = 1.0
+    det = np.linalg.det([p[[0,2]],p[[8,10]]])
+    if abs(1.0-det) > 1e5:
+        raise RuntimeError('Rotation determinant too far from 1.0')
+    p[[0,2,8,10]] = p[[0,2,8,10]]/det
+    return p[[0,2,3,8,10,11]]
 
 def SE3tose3(poses):
     ''' poses is L x 12
-        se3: (r_3|t_3)
+        se3: L x 6 (t_3|r_3)
     '''
-    #l,_ = poses.shape
-    #poses = poses.reshape((-1,12))
-    R = [np.array([[p[0],p[1],p[2]],\
-                   [p[4],p[5],p[6]],\
-                   [p[8],p[9],p[10]]]) for p in poses]
-    wx = [logm(r) for r in R]
-    w = [np.array([x[2,1],x[0,2],x[1,0]]) for x in wx]
-    thetas = [norm(x)+1e-8 for x in w]
-    #print(min(thetas))
-    V = [np.eye(3)+\
-         ( (1-np.cos(thetas[i])) / thetas[i]**2)*wx[i]+\
-         ( (thetas[i]-np.sin(thetas[i])) / thetas[i]**3)*\
-            np.matmul(wx[i],wx[i]) for i in range(len(poses))]
-    t = [np.array([p[3],p[7],p[11]]) for p in poses]
-    t_ = [np.dot(np.linalg.inv(V[i]),t[i]) for i in range(len(poses))]
-    poses_se3 = [np.array([w[i][0],w[i][1],w[i][2],t_[i][0],t_[i][1],t_[i][2]])\
-                 for i in range(len(poses))]
-    poses_se3 = np.array(poses_se3)
-    #poses_se3 = poses_se3.reshape(b,l,6)
-    return poses_se3
+    poses = [homogen(p) for p in poses]
+    poses = [SE3(SO3(p[:3,:3]),np.array([p[0,3],p[1,3],p[2,3]])) for p in poses]
+    poses = [p.log() for p in poses]
+    return poses
+
+def SE2tose2(poses):
+    ''' poses is L x 6
+        se3: L x 3 (t_2|r_1)
+    '''
+    #poses = [np.array([p[0,1,2],p[3,4,5],[0.0,0.0,1.0]]) for p in poses]
+    poses = [homogen(p) for p in poses]
+    poses = [SE2(SO2(p[:2,:2]),np.array([p[0,2],p[1,2]])) for p in poses]
+    poses = [p.log() for p in poses]
+    return poses
+
+def se3toSE3(poses):
+    ''' poses is L x 6
+        * x 6 -> * x (4x4) -> * x 12
+        se3: (t_3|r_3)
+    '''
+    poses = [SE3.exp(p) for p in poses]
+    poses = [flat_homogen(p.as_matrix()) for p in poses]
+    poses = np.array(poses)
+    return poses
+
+def se2toSE2(poses):
+    ''' poses is L x 3
+        * x 3 -> * x (3x3) -> * x 6
+        se3: (t_2|r_1)
+    '''
+    poses = [SE2.exp(p) for p in poses]
+    poses = [p.as_matrix() for p in poses]
+    poses = [p.reshape(9)[:-3] for p in poses]
+    poses = np.array(poses)
+    return poses
 
 def plot_abs(gt,rec,out_fn,logger=None):
     fig = plt.figure()
@@ -112,13 +113,21 @@ def plot_2d_points_(gt,est,ign=1,ddir='/home/ronnypetson/models'):
     plt.savefig(ddir+'/2d_path_plot.png')
     plt.close(fig)
 
-def homogen(x):
+def homogen_(x):
     assert len(x) == 12
     return np.array(x.tolist()+[0.0,0.0,0.0,1.0]).reshape((4,4))
 
-def flat_homogen(x):
+def homogen(x):
+    assert len(x) == 6
+    return np.array(x.tolist()+[0.0,0.0,1.0]).reshape((3,3))
+
+def flat_homogen_(x):
     assert x.shape == (4,4)
     return np.array(x.reshape(16)[:-4])
+
+def flat_homogen(x):
+    assert x.shape == (3,3)
+    return np.array(x.reshape(9)[:-3])
 
 def abs2relative_(abs_poses,wsize,stride):
     rposes = []
@@ -134,7 +143,7 @@ def abs2relative(abs_poses,wsize,stride):
         #rposes.append([flat_homogen(np.matmul(np.linalg.inv(poses[min(i,j-1)]),poses[j])) for j in range(i,i+stride*wsize,stride)])
     return np.array(rposes)
 
-def relative2abs(rel_poses,wsize):
+def relative2abs_(rel_poses,wsize):
     ''' rel_poses: array de poses relativas (contiguo)
     '''
     poses = [homogen(p) for p in rel_poses]
@@ -142,6 +151,18 @@ def relative2abs(rel_poses,wsize):
     for i in range(wsize,len(poses),wsize**2):
         in_p = abs_poses[-1]
         #print(in_p,np.linalg.det(in_p[:3,:3]))
+        abs_poses += [np.matmul(in_p,poses[j]) for j in range(i,i+wsize)]
+    abs_poses = [flat_homogen(p) for p in abs_poses]
+    return abs_poses
+
+def relative2abs(rel_poses,wsize):
+    ''' rel_poses: array de poses relativas (contiguo)
+    '''
+    poses = [homogen(p) for p in rel_poses]
+    abs_poses = poses[:wsize]
+    for i in range(wsize,len(poses),wsize**2):
+        in_p = abs_poses[-1]
+        #in_p = np.matmul(abs_poses[-1],poses[i-wsize+1]) #abs_poses[-1]
         abs_poses += [np.matmul(in_p,poses[j]) for j in range(i,i+wsize)]
     abs_poses = [flat_homogen(p) for p in abs_poses]
     return abs_poses
@@ -213,22 +234,26 @@ def plot_eval(model,test_loader,seq_len,device='cuda:0',logger=None):
     rel_poses_gt =[]
     data_y = []
     for x,y,abs in test_loader:
-        torch.cuda.empty_cache()
-        x,y,abs = x.to(device), y.to(device), np.array(abs).reshape(-1,12).tolist()
+        #torch.cuda.empty_cache()
+        x,y = x.to(device), y.to(device)
+        #print(len(abs),abs[0].shape)
+        abs = np.array(abs).reshape(-1,3).tolist()
+        #x,y,abs = x[::seq_len], y[::seq_len], abs[::seq_len]
         #x = flow(x)
         y_ = model(x)
         y,y_ = y[:,1:],y_[:,1:]
         data_y += abs
-        rel_poses += y_.cpu().detach().numpy().reshape(-1,6).tolist()
-        rel_poses_gt += y.cpu().detach().numpy().reshape(-1,6).tolist()
+        rel_poses += y_.cpu().detach().numpy().reshape(-1,3).tolist()
+        rel_poses_gt += y.cpu().detach().numpy().reshape(-1,3).tolist()
     #rel_poses = rel_poses[::seq_len]
     #rel_poses = np.array([c3dto2d(np.array(p)) for p in rel_poses])
     rel_poses = np.array(rel_poses)
     rel_poses_gt = np.array(rel_poses_gt)
-    rel_poses = se3toSE3(rel_poses)
-    rel_poses_gt = se3toSE3(rel_poses_gt)
+    rel_poses = se2toSE2(rel_poses)
+    rel_poses_gt = se2toSE2(rel_poses_gt)
 
     gt = np.array(data_y[::seq_len]) #.transpose(0,2,1)
+    gt = se2toSE2(gt)
     print(gt.shape)
     #abs_ = np.array(relative2abs(gt,seq_len))
     pts_ = np.array(relative2abs(rel_poses,seq_len))
@@ -236,9 +261,9 @@ def plot_eval(model,test_loader,seq_len,device='cuda:0',logger=None):
     #print(pts_[-16:-12])
     print(pts_.shape)
 
-    pts = np.array([[p[3],p[7],p[11]] for p in gt]) #get_3d_points_t2(rel_poses,seq_len,abs_)
-    pts_ = np.array([[p[3],p[7],p[11]] for p in pts_])
-    pts_gt = np.array([[p[3],p[7],p[11]] for p in pts_gt])
+    pts = np.array([[p[2],p[2],p[5]] for p in gt]) #get_3d_points_t2(rel_poses,seq_len,abs_)
+    pts_ = np.array([[p[2],p[2],p[5]] for p in pts_])
+    pts_gt = np.array([[p[2],p[2],p[5]] for p in pts_gt])
 
     print(pts.shape,pts_.shape)
     if not os.path.isdir('tmp'):
@@ -252,12 +277,12 @@ def plot_eval(model,test_loader,seq_len,device='cuda:0',logger=None):
 def plot_yy(y,y_,device='cuda:0',logger=None):
     ''' L x O
     '''
-    y = y.cpu().detach().numpy().reshape(-1,6)
-    y_ = y_.cpu().detach().numpy().reshape(-1,6)
-    y = se3toSE3(y)
-    y_ = se3toSE3(y_)
-    y = y[:,[3,7,11]]
-    y_ = y_[:,[3,7,11]]
+    y = y.cpu().detach().numpy().reshape(-1,3)
+    y_ = y_.cpu().detach().numpy().reshape(-1,3)
+    y = se2toSE2(y)
+    y_ = se2toSE2(y_)
+    y = y[:,[2,2,5]]
+    y_ = y_[:,[2,2,5]]
     if not os.path.isdir('tmp/jan/'):
         os.mkdir('tmp/jan/')
     t = time.time()

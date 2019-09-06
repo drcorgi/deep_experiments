@@ -22,48 +22,10 @@ def seq_pose_loss_SE3(p,p_):
 def seq_pose_loss(p,p_):
     ''' B x L x P
     '''
-    p = p.contiguous().view(-1,6)
-    p_ = p_.contiguous().view(-1,6)
+    p = p.contiguous().view(-1,3)
+    p_ = p_.contiguous().view(-1,3)
     loss = torch.mean((p-p_)**2)
     return loss
-
-''' def seq_pose_loss_(p,p_):
-    # B x L x P
-    # TO numpy
-    p = p.contiguos().view(-1,12).cpu().detach().numpy()
-    p_ = p_.contiguos().view(-1,12).cpu().detach().numpy()
-    # To SE(3)
-    p = np.array([homogen(x) for x in p])
-    p_ = np.array([homogen(x) for x in p_])
-    # Get wv,w^
-    what = np.array([logm(x[:3,:3]) for x in p])
-    what_ = np.array([logm(x[:3,:3]) for x in p_])
-    wv = np.array([[x[2,1],x[0,2],x[1,0]] for x in what])
-    wv_ = np.array([[x[2,1],x[0,2],x[1,0]] for x in what_])
-    # Get theta, V
-    theta = np.array([norm(x) for x in wv])
-    theta_ = np.array([norm(x) for x in wv_])
-    V = np.array([np.eye(3) + what*(1.0-np.cos(theta))/theta**2\
-                  + np.dot(what,what)*(theta-np.sin(theta))/theta**3])
-    V_ = np.array([np.eye(3) + what_*(1.0-np.cos(theta))/theta**2\
-                  + np.dot(what_,what_)*(theta-np.sin(theta))/theta**3])
-    # Get t'
-    t = [np.dot(np.linalg.inv(V[i]),np.array([p[i,0,2],p[i,1,2],p[i,2,2]]))\
-               for i in range(len(V))]
-    t_ = [np.dot(np.linalg.inv(V_[i]),np.array([p_[i,0,2],p_[i,1,2],p_[i,2,2]])\
-               for i in range(len(V_))]
-    t = np.array(t)
-    t_ = np.array(t_)
-    # Get [t',wv]
-    tw = np.array([np.array([t[i],wv[i]]) for i in range(len(t))])
-    tw_ = np.array([np.array([t_[i],wv_[i]]) for i in range(len(t_))])
-    # Get loss = t_loss + 100*r_loss
-    tw = torch.from_numpy(tw)
-    tw_ = torch.from_numpy(tw_)
-    t_loss = torch.mean((tw[:,:4]-tw_[:,:4])**2)
-    r_loss = torch.mean((tw[:,4:]-tw_[:,4:])**2)
-    loss = t_loss + 100*r_loss
-    return loss '''
 
 class DepthWiseConv2d(nn.Module):
     def __init__(self,in_filters,out_filters,kernel_size,stride,padding):
@@ -604,6 +566,9 @@ class Conv1dRecMapper(nn.Module):
         x = self.fc2(x)
         #print('fc2',x.size())
         x = x.view((-1,)+self.out_shape)
+        x[:,1,:] = 0.0
+        tr_norms = torch.norm(x[:,-1,[0,1]],dim=1)+1e-12
+        x[:,1:,[0,1]] /= tr_norms.unsqueeze(-1).unsqueeze(-1)
         #print('view',x.size())
 
         '''x[:,:,[1,4,6,7,9]] = torch.zeros((x.size(0),x.size(1),5)).to(self.device)

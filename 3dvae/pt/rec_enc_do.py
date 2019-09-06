@@ -115,7 +115,7 @@ if __name__=='__main__':
 
     model = VanAE(flshape,h_dim)
     enc = VanillaEncoder((2,flshape[1],flshape[2]),h_dim)
-    vo = Conv1dRecMapper((h_dim,strided_seq_len+1),(strided_seq_len+1,6)) ###
+    vo = Conv1dRecMapper((h_dim,strided_seq_len+1),(strided_seq_len+1,3)) ###
     #vo = Conv1dMapper((h_dim,strided_seq_len),(strided_seq_len,6)).to(device)
     model.enc = enc
     model.dec = vo
