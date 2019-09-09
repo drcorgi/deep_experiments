@@ -21,7 +21,8 @@ from glob import glob
 from torch.utils.data import Dataset, DataLoader
 from torchvision import transforms, utils
 from pt_ae import DirectOdometry, FastDirectOdometry, Conv1dRecMapper, ImgFlowOdom, DummyFlow,\
-VanillaAutoencoder, MLPAutoencoder, VanAE, Conv1dMapper, seq_pose_loss, VanillaEncoder
+VanillaAutoencoder, MLPAutoencoder, VanAE, Conv1dMapper, seq_pose_loss, VanillaEncoder,\
+seq_pose_loss_se2, seq_pose_loss_SE2
 from datetime import datetime
 from plotter import c3dto2d, abs2relative, plot_eval, plot_yy
 from odom_loader import load_kitti_odom
@@ -144,7 +145,7 @@ if __name__=='__main__':
         print('Creating new model')
 
     #loss_fn = torch.nn.MSELoss()
-    loss_fn = seq_pose_loss
+    loss_fn = seq_pose_loss_se2
     k,kv = 0,0
     #flow.train()
     #flow.training = True #False

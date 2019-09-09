@@ -19,6 +19,26 @@ def seq_pose_loss_SE3(p,p_):
     loss = t_loss + 100.0*r_loss
     return loss
 
+def seq_pose_loss_se2(p,p_):
+    ''' B x L x P
+    '''
+    p = p.contiguous().view(-1,3)
+    p_ = p_.contiguous().view(-1,3)
+    t_loss = torch.mean((p[:,[0,1]]-p_[:,[0,1]])**2)
+    r_loss = torch.mean((p[:,[2]]-p_[:,[2]])**2)
+    loss = t_loss + 100.0*r_loss
+    return loss
+
+def seq_pose_loss_SE2(p,p_):
+    ''' B x L x P
+    '''
+    p = p.contiguous().view(-1,6)
+    p_ = p_.contiguous().view(-1,6)
+    t_loss = torch.mean((p[:,[2,5]]-p_[:,[2,5]])**2)
+    r_loss = torch.mean((p[:,[0,1,3,4]]-p_[:,[0,1,3,4]])**2)
+    loss = t_loss + 100.0*r_loss
+    return loss
+
 def seq_pose_loss(p,p_):
     ''' B x L x P
     '''
@@ -567,8 +587,10 @@ class Conv1dRecMapper(nn.Module):
         #print('fc2',x.size())
         x = x.view((-1,)+self.out_shape)
         x[:,1,:] = 0.0
-        tr_norms = torch.norm(x[:,-1,[0,1]],dim=1)+1e-12
-        x[:,1:,[0,1]] /= tr_norms.unsqueeze(-1).unsqueeze(-1)
+        #x[:,1,:] = torch.tensor([1.0,0.0,0.0,0.0,1.0,0.0]).to(self.device)
+        #tr_norms = torch.norm(x[:,-1,[0,1]],dim=1)+1e-12
+        #x[:,1:,[0,1]] /= tr_norms.unsqueeze(-1).unsqueeze(-1)
+
         #print('view',x.size())
 
         '''x[:,:,[1,4,6,7,9]] = torch.zeros((x.size(0),x.size(1),5)).to(self.device)

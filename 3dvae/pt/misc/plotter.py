@@ -139,7 +139,8 @@ def abs2relative(abs_poses,wsize,stride):
     poses = [homogen(p) for p in abs_poses]
     rposes = []
     for i in range(len(poses)-(stride*wsize-1)):
-        rposes.append([flat_homogen(np.matmul(np.linalg.inv(poses[i]),poses[j])) for j in range(i,i+stride*wsize,stride)])
+        inv_p = np.linalg.inv(poses[i])
+        rposes.append([flat_homogen(np.matmul(inv_p,poses[j])) for j in range(i,i+stride*wsize,stride)])
         #rposes.append([flat_homogen(np.matmul(np.linalg.inv(poses[min(i,j-1)]),poses[j])) for j in range(i,i+stride*wsize,stride)])
     return np.array(rposes)
 
@@ -155,14 +156,21 @@ def relative2abs_(rel_poses,wsize):
     abs_poses = [flat_homogen(p) for p in abs_poses]
     return abs_poses
 
+def norm_poses(poses):
+    hp = [SE2.from_matrix(p,normalize=True).as_matrix() for p in poses]
+    return hp
+
 def relative2abs(rel_poses,wsize):
     ''' rel_poses: array de poses relativas (contiguo)
     '''
     poses = [homogen(p) for p in rel_poses]
+    #poses = norm_poses(poses)
     abs_poses = poses[:wsize]
     for i in range(wsize,len(poses),wsize**2):
         #in_p = abs_poses[-1]
         in_p = np.matmul(abs_poses[-1],poses[i-wsize+1]) #abs_poses[-1]
+        in_p = SE2.from_matrix(in_p,normalize=True).as_matrix()
+        #print(np.linalg.det(in_p[:3,:3]))
         abs_poses += [np.matmul(in_p,poses[j]) for j in range(i,i+wsize)]
     abs_poses = [flat_homogen(p) for p in abs_poses]
     return abs_poses
@@ -237,12 +245,12 @@ def plot_eval(model,test_loader,seq_len,device='cuda:0',logger=None):
         #torch.cuda.empty_cache()
         x,y = x.to(device), y.to(device)
         #print(len(abs),abs[0].shape)
-        abs = np.array(abs).reshape(-1,3).tolist()
+        #abs = np.array(abs).reshape(-1,3).tolist()
         #x,y,abs = x[::seq_len], y[::seq_len], abs[::seq_len]
         #x = flow(x)
         y_ = model(x)
         y,y_ = y[:,1:],y_[:,1:]
-        data_y += abs
+        #data_y += abs
         rel_poses += y_.cpu().detach().numpy().reshape(-1,3).tolist()
         rel_poses_gt += y.cpu().detach().numpy().reshape(-1,3).tolist()
     #rel_poses = rel_poses[::seq_len]
@@ -252,20 +260,22 @@ def plot_eval(model,test_loader,seq_len,device='cuda:0',logger=None):
     rel_poses = se2toSE2(rel_poses)
     rel_poses_gt = se2toSE2(rel_poses_gt)
 
-    gt = np.array(data_y[::seq_len]) #.transpose(0,2,1)
-    gt = se2toSE2(gt)
-    print(gt.shape)
+    #gt = np.array(data_y[::seq_len]) #.transpose(0,2,1)
+    #gt = se2toSE2(gt)
+    #print(gt.shape)
     #abs_ = np.array(relative2abs(gt,seq_len))
-    pts_ = np.array(relative2abs(rel_poses,seq_len))
+    #for p,p_ in zip(rel_poses[500:510],rel_poses_gt[500:510]):
+    #    print(p,p_)
     pts_gt = np.array(relative2abs(rel_poses_gt,seq_len))
+    pts_ = np.array(relative2abs(rel_poses,seq_len))
     #print(pts_[-16:-12])
     print(pts_.shape)
 
-    pts = np.array([[p[2],p[2],p[5]] for p in gt]) #get_3d_points_t2(rel_poses,seq_len,abs_)
+    #pts = np.array([[p[2],p[2],p[5]] for p in gt]) #get_3d_points_t2(rel_poses,seq_len,abs_)
     pts_ = np.array([[p[2],p[2],p[5]] for p in pts_])
     pts_gt = np.array([[p[2],p[2],p[5]] for p in pts_gt])
 
-    print(pts.shape,pts_.shape)
+    print(pts_gt.shape,pts_.shape)
     if not os.path.isdir('tmp'):
         os.mkdir('tmp')
     t = time.time()

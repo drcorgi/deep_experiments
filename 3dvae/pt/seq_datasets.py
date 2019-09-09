@@ -19,7 +19,7 @@ from pt_ae import DirectOdometry, FastDirectOdometry, Conv1dRecMapper,\
 VanillaAutoencoder, MLPAutoencoder, VanAE, Conv1dMapper, seq_pose_loss
 from datetime import datetime
 from plotter import c3dto2d, abs2relative, plot_eval, SE3tose3, se3toSE3, homogen,\
-SE2tose2, se2toSE2
+SE2tose2, se2toSE2, flat_homogen
 from odom_loader import load_kitti_odom
 from tensorboardX import SummaryWriter
 from time import time
@@ -235,7 +235,6 @@ class FluxSeqDataset(Dataset):
                         frame = self.transform(frame)
                     abs = self.aposes[s][id]
                     p = c3dto2d(abs)
-                    #p = SE3tose3([p])[0] ###
                     p = SE2tose2([p])[0]
                     seq_.append((frame,p,p))
                 self.buffer.append(seq_)
@@ -247,8 +246,8 @@ class FluxSeqDataset(Dataset):
     def __getitem__(self, index):
         try:
             s,id = self.sids[index], self.fsids[index]
-            s_ = max(0,s-1)
-            id_ = 0 if s_ == 0 else -1
+            s_ = max(0,s-1) if id == 0 else s
+            id_ = max(0,id-1)
 
             x = torch.zeros((self.seq_len+1,)+self.fshape)
             y = np.zeros((self.seq_len+1,3))
@@ -259,9 +258,16 @@ class FluxSeqDataset(Dataset):
             for i in range(id,id+self.seq_len):
                 x[i-id+1],y[i-id+1],abs[i-id] = self.buffer[s][i]
             inert_ = SE2.exp(y[1]).inv()
+            #inert_ = SE2.from_matrix(homogen(y[1]),normalize=True).inv()
+            #inert_ = np.linalg.inv(homogen(y[1]))
+            #y[1:] = np.array([flat_homogen(np.dot(inert_,homogen(p))) for p in y[1:]])
             y[1:] = np.array([inert_.dot(SE2.exp(p)).log() for p in y[1:]])
+            #y[1:] = np.array([flat_homogen(\
+            #                  inert_.dot(SE2.from_matrix(homogen(p),\
+            #                             normalize=True))\
+            #                             .as_matrix()) for p in y[1:]])
             #y[1:] = abs2relative(y[1:],self.seq_len,1)[0]
-            y[1:,[0,1]] /= np.linalg.norm(y[-1,[0,1]])+1e-12
+            #y[1:,[0,1]] /= np.linalg.norm(y[-1,[0,1]])+1e-12
             # Normalize translation
             #y = SE3tose3(y) ###
             y = torch.from_numpy(y).float()
