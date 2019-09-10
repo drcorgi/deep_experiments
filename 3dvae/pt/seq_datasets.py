@@ -248,7 +248,7 @@ class FluxSeqDataset(Dataset):
         try:
             s,id = self.sids[index], self.fsids[index]
             s_ = s #max(0,s-1) if id == 0 else s
-            aug = (np.random.randint(2) == 0)
+            aug = (np.random.randint(2) == 0) and self.train
             id_ = min(len(self.buffer[s_])-1,id+self.seq_len) if aug else max(0,id-1)
 
             x = torch.zeros((self.seq_len+1,)+self.fshape)
@@ -261,7 +261,7 @@ class FluxSeqDataset(Dataset):
                 x[i-id+1],y[i-id+1],abs[i-id] = self.buffer[s][i]
 
             # Data aug
-            if self.train and aug:
+            if aug:
                 x[1:] = torch.flip(x[1:],dims=[0])
                 y[1:] = np.flip(y[1:],axis=0)
 
