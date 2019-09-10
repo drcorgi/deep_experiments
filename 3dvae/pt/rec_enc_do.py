@@ -79,7 +79,7 @@ if __name__=='__main__':
                       seq_buffer=test_buffer,transform=transf,stride=stride)'''
 
     # Datasets
-    train_dataset = FrSeqDataset(train_dir[0],train_dir[1],seq_len,transform=transf,stride=stride)
+    train_dataset = FrSeqDataset(train_dir[0],train_dir[1],seq_len,transform=transf,stride=stride,train=True)
     valid_dataset = FrSeqDataset(valid_dir[0],valid_dir[1],seq_len,transform=transf,stride=stride)
     test_dataset = FrSeqDataset(test_dir[0],test_dir[1],seq_len,transform=transf,stride=stride)
 

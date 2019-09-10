@@ -199,7 +199,7 @@ class FastFluxSeqDataset(Dataset):
         return self.len
 
 class FluxSeqDataset(Dataset):
-    def __init__(self, fnames, pfnames, seq_len, transform=None, stride=1):
+    def __init__(self, fnames, pfnames, seq_len, transform=None, stride=1, train=False):
         ''' fnames is a list of lists of file names
             pfames is a list of file names (one for each entire sequence)
         '''
@@ -222,6 +222,7 @@ class FluxSeqDataset(Dataset):
         self.aposes = [load_kitti_odom(fn) for fn in self.pfnames]
         self.fshape = np.load(self.fnames[0][0]).transpose(2,0,1).shape
         self.load()
+        self.train = train
 
     def load(self):
         try:
@@ -246,8 +247,9 @@ class FluxSeqDataset(Dataset):
     def __getitem__(self, index):
         try:
             s,id = self.sids[index], self.fsids[index]
-            s_ = max(0,s-1) if id == 0 else s
-            id_ = max(0,id-1)
+            s_ = s #max(0,s-1) if id == 0 else s
+            aug = (np.random.randint(2) == 0)
+            id_ = min(len(self.buffer[s_])-1,id+self.seq_len) if aug else max(0,id-1)
 
             x = torch.zeros((self.seq_len+1,)+self.fshape)
             y = np.zeros((self.seq_len+1,3))
@@ -257,6 +259,12 @@ class FluxSeqDataset(Dataset):
             y[0] = np.zeros(3)
             for i in range(id,id+self.seq_len):
                 x[i-id+1],y[i-id+1],abs[i-id] = self.buffer[s][i]
+
+            # Data aug
+            if self.train and aug:
+                x[1:] = torch.flip(x[1:],dims=[0])
+                y[1:] = np.flip(y[1:],axis=0)
+
             inert_ = SE2.exp(y[1]).inv()
             #inert_ = SE2.from_matrix(homogen(y[1]),normalize=True).inv()
             #inert_ = np.linalg.inv(homogen(y[1]))
