@@ -262,7 +262,7 @@ class FluxSeqDataset(Dataset):
 
             # Data aug
             if aug:
-                x[1:] = torch.flip(x[1:],dims=[0])
+                x[1:] = -torch.flip(x[1:],dims=[0])
                 y[1:] = np.flip(y[1:],axis=0)
 
             inert_ = SE2.exp(y[1]).inv()
