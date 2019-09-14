@@ -83,7 +83,7 @@ def list_split_kitti_flow(h,w):
     all_poses = [pbase+'poses/{:02d}.txt'.format(i) for i in range(11)]
     train_seqs, train_poses = all_seqs[:8], all_poses[:8] # 2:
     valid_seqs, valid_poses = all_seqs[8:], all_poses[8:] # 0:1
-    test_seqs, test_poses = all_seqs[8:9], all_poses[8:9] # 1:2, 8:9
+    test_seqs, test_poses = all_seqs[9:10], all_poses[9:10] # 1:2, 8:9
     return (train_seqs,train_poses), (valid_seqs,valid_poses), (test_seqs,test_poses)
 
 def list_split_kitti_flux(h,w):
@@ -94,7 +94,7 @@ def list_split_kitti_flux(h,w):
     all_poses = [pbase+'poses/{:02d}.txt'.format(i) for i in range(11)]
     train_seqs, train_poses = all_seqs[:8], all_poses[:8] # 2:
     valid_seqs, valid_poses = all_seqs[8:], all_poses[8:] # 0:1
-    test_seqs, test_poses = all_seqs[8:9], all_poses[8:9] # 1:2, 8:9
+    test_seqs, test_poses = all_seqs[9:10], all_poses[9:10] # 1:2, 8:9
     return (train_seqs,train_poses), (valid_seqs,valid_poses), (test_seqs,test_poses)
 
 class SeqBuffer():
@@ -199,7 +199,7 @@ class FastFluxSeqDataset(Dataset):
         return self.len
 
 class FluxSeqDataset(Dataset):
-    def __init__(self, fnames, pfnames, seq_len, transform=None, stride=1, train=False):
+    def __init__(self, fnames, pfnames, seq_len, transform=None, stride=1, train=False, delay=1):
         ''' fnames is a list of lists of file names
             pfames is a list of file names (one for each entire sequence)
         '''
@@ -223,6 +223,7 @@ class FluxSeqDataset(Dataset):
         self.fshape = np.load(self.fnames[0][0]).transpose(2,0,1).shape
         self.load()
         self.train = train
+        self.delay = delay
 
     def load(self):
         try:
@@ -246,30 +247,37 @@ class FluxSeqDataset(Dataset):
 
     def __getitem__(self, index):
         try:
+            d = self.delay
+            #print(d,end=' ')
             s,id = self.sids[index], self.fsids[index]
             s_ = s #max(0,s-1) if id == 0 else s
             aug = (np.random.randint(2) == 0) and self.train
-            id_ = min(len(self.buffer[s_])-1,id+self.seq_len) if aug else max(0,id-1)
+            #id__ = min(len(self.buffer[s_])-1,id+self.seq_len) if aug else max(0,id-1)
+            id_ = [min(len(self.buffer[s_])-1,id+self.seq_len+i)\
+                   if aug else max(0,id-i-1) for i in range(d-1,-1,-1)]
 
-            x = torch.zeros((self.seq_len+1,)+self.fshape)
-            y = np.zeros((self.seq_len+1,3))
+            x = torch.zeros((self.seq_len+d,)+self.fshape)
+            y = np.zeros((self.seq_len+d,3))
             abs = np.zeros((self.seq_len,3))
 
-            x[0] = self.buffer[s_][id_][0]
-            y[0] = np.zeros(3)
+            #print(id_,id__,end=' ')
+            for j,i in enumerate(id_):
+                x[j] = self.buffer[s_][i][0]
+            #y[:d] = self.buffer[s_][id+self.seq_len-1 if aug else id][1] #np.zeros(3)
+            #x[0] = self.buffer[s_][id__][0]
             for i in range(id,id+self.seq_len):
-                x[i-id+1],y[i-id+1],abs[i-id] = self.buffer[s][i]
+                x[i-id+d],y[i-id+d],abs[i-id] = self.buffer[s][i]
 
             # Data aug
             if aug:
-                x[1:] = -torch.flip(x[1:],dims=[0])
-                y[1:] = np.flip(y[1:],axis=0)
+                x[d:] = -torch.flip(x[d:],dims=[0])
+                y[d:] = np.flip(y[d:],axis=0)
 
-            inert_ = SE2.exp(y[1]).inv()
+            inert_ = SE2.exp(y[d]).inv()
             #inert_ = SE2.from_matrix(homogen(y[1]),normalize=True).inv()
             #inert_ = np.linalg.inv(homogen(y[1]))
             #y[1:] = np.array([flat_homogen(np.dot(inert_,homogen(p))) for p in y[1:]])
-            y[1:] = np.array([inert_.dot(SE2.exp(p)).log() for p in y[1:]])
+            y[d:] = np.array([inert_.dot(SE2.exp(p)).log() for p in y[d:]])
             #y[1:] = np.array([flat_homogen(\
             #                  inert_.dot(SE2.from_matrix(homogen(p),\
             #                             normalize=True))\
@@ -283,7 +291,7 @@ class FluxSeqDataset(Dataset):
         except RuntimeError as re:
             print('-',re)
         except Exception as e:
-            print('--',i,e)
+            print('--',index,e)
 
     def __len__(self):
         return self.len

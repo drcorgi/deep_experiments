@@ -237,7 +237,7 @@ def get_3d_points_t2(rposes,wlen,gt_poses):
         aposes += [np.matmul(in_p,rposes[i][j]) for j in range(wlen)]
     return np.array([[p[0,3],p[1,3],p[2,3]] for p in aposes])
 
-def plot_eval(model,test_loader,seq_len,device='cuda:0',logger=None):
+def plot_eval(model,test_loader,seq_len,delay=2,device='cuda:0',logger=None):
     rel_poses = []
     rel_poses_gt =[]
     data_y = []
@@ -249,7 +249,11 @@ def plot_eval(model,test_loader,seq_len,device='cuda:0',logger=None):
         #x,y,abs = x[::seq_len], y[::seq_len], abs[::seq_len]
         #x = flow(x)
         y_ = model(x)
-        y,y_ = y[:,1:],y_[:,1:]
+        normy = (torch.norm(y[:,-1,[0,1]],dim=1)+1e-12).unsqueeze(-1).unsqueeze(-1)
+        normy_ = (torch.norm(y_[:,-1,[0,1]],dim=1)+1e-12).unsqueeze(-1).unsqueeze(-1)
+        #print(normy.size(),normy_.size())
+        y = y[:,delay:] #/normy
+        y_ = y_[:,delay:] #/normy_
         #data_y += abs
         rel_poses += y_.cpu().detach().numpy().reshape(-1,3).tolist()
         rel_poses_gt += y.cpu().detach().numpy().reshape(-1,3).tolist()

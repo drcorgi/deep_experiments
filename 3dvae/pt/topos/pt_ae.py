@@ -19,14 +19,15 @@ def seq_pose_loss_SE3(p,p_):
     loss = t_loss + 100.0*r_loss
     return loss
 
-def seq_pose_loss_se2(p,p_):
+def seq_pose_loss_se2(p,p_,delay):
     ''' B x L x P
     '''
-    p = p.contiguous().view(-1,3)
-    p_ = p_.contiguous().view(-1,3)
-    t_loss = torch.mean((p[:,[0,1]]-p_[:,[0,1]])**2)
-    r_loss = torch.mean((p[:,[2]]-p_[:,[2]])**2)
-    loss = 1.0*t_loss + 100.0*r_loss
+    p = p[:,delay:] #.contiguous().view(-1,3)
+    p_ = p_[:,delay:] #.contiguous().view(-1,3)
+    t_loss = torch.mean((p[:,:,[0,1]]-p_[:,:,[0,1]])**2)
+    t_loss_ = torch.mean((p[:,-1,[0,1]]-p_[:,-1,[0,1]])**2)
+    r_loss = torch.mean((p[:,:,[2]]-p_[:,:,[2]])**2)
+    loss = 1.0*t_loss + 100.0*t_loss_ + 100.0*r_loss
     return loss
 
 def seq_pose_loss_SE2(p,p_):
@@ -551,7 +552,7 @@ class Conv1dMapper(nn.Module):
         return x
 
 class Conv1dRecMapper(nn.Module):
-    def __init__(self,in_shape,out_shape,bidirectional=False,device='cuda:0'):
+    def __init__(self,in_shape,out_shape,bidirectional=False,device='cuda:0',delay=1):
         super().__init__()
         self.in_shape = in_shape
         self.out_shape = out_shape
@@ -563,6 +564,7 @@ class Conv1dRecMapper(nn.Module):
                           self.num_cells,bidirectional=bidirectional)
         self.fc1 = nn.Linear(self.h,self.h)
         self.fc2 = nn.Linear(self.h,out_shape[-1])
+        self.delay = delay
         #self.drop1 = nn.Dropout(p=0.5)
         #self.odom_norm = OdomNorm2d(2*in_shape[0],12)
 
@@ -570,7 +572,6 @@ class Conv1dRecMapper(nn.Module):
         ''' (B x L) x D -> L x B x D
         '''
         shape = x.size()
-        #print('x size',shape)
         if len(shape) == 2:
              x = x.view(-1,self.in_shape[-1],shape[-1]).permute(1,0,2)
         #print('x unpacked',x.size())
@@ -586,7 +587,7 @@ class Conv1dRecMapper(nn.Module):
         x = self.fc2(x)
         #print('fc2',x.size())
         x = x.view((-1,)+self.out_shape)
-        x[:,1,:] = 0.0
+        x[:,self.delay,:] = 0.0
         #x[:,1,:] = torch.tensor([1.0,0.0,0.0,0.0,1.0,0.0]).to(self.device)
         #tr_norms = torch.norm(x[:,-1,[0,1]],dim=1)+1e-12
         #x[:,1:,[0,1]] /= tr_norms.unsqueeze(-1).unsqueeze(-1)

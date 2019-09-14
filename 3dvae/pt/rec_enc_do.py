@@ -44,6 +44,7 @@ if __name__=='__main__':
     flow_fn = '/home/ubuntu/models/FlowNet2-S_checkpoint.pth'
     fine_tune_flow = False
     stride = 1
+    delay = 4
     assert seq_len%stride == 0
     strided_seq_len = seq_len//stride
     tipo = 'flow' #'flux' or 'img'
@@ -79,9 +80,12 @@ if __name__=='__main__':
                       seq_buffer=test_buffer,transform=transf,stride=stride)'''
 
     # Datasets
-    train_dataset = FrSeqDataset(train_dir[0],train_dir[1],seq_len,transform=transf,stride=stride,train=True)
-    valid_dataset = FrSeqDataset(valid_dir[0],valid_dir[1],seq_len,transform=transf,stride=stride)
-    test_dataset = FrSeqDataset(test_dir[0],test_dir[1],seq_len,transform=transf,stride=stride)
+    train_dataset = FrSeqDataset(train_dir[0],train_dir[1],seq_len,transform=transf,\
+                     stride=stride,train=True,delay=delay)
+    valid_dataset = FrSeqDataset(valid_dir[0],valid_dir[1],seq_len,transform=transf,\
+                     stride=stride,delay=delay)
+    test_dataset = FrSeqDataset(test_dir[0],test_dir[1],seq_len,transform=transf,\
+                     stride=stride,delay=delay)
 
     # Data loaders
     train_loader = DataLoader(train_dataset,batch_size=batch_size,shuffle=True,\
@@ -116,7 +120,7 @@ if __name__=='__main__':
 
     model = VanAE(flshape,h_dim)
     enc = VanillaEncoder((2,flshape[1],flshape[2]),h_dim)
-    vo = Conv1dRecMapper((h_dim,strided_seq_len+1),(strided_seq_len+1,3)) ###
+    vo = Conv1dRecMapper((h_dim,strided_seq_len+delay),(strided_seq_len+delay,3),delay=delay) ###
     #vo = Conv1dMapper((h_dim,strided_seq_len),(strided_seq_len,6)).to(device)
     model.enc = enc
     model.dec = vo
@@ -162,7 +166,7 @@ if __name__=='__main__':
             #x = flow(x)[0]
             #print(x.size())
             y_ = model(x)
-            loss = loss_fn(y,y_)
+            loss = loss_fn(y,y_,delay)
             loss.backward()
             optimizer.step()
             writer.add_scalar('train_cost',loss.item(),k)
@@ -183,14 +187,14 @@ if __name__=='__main__':
             #x = flow(x)[0]
             #print(x.size())
             y_ = model(x)
-            loss = loss_fn(y_,y)
+            loss = loss_fn(y_,y,delay)
             v_losses.append(loss.item())
             writer.add_scalar('valid_cost',loss.item(),kv)
             kv += 1
         #writer.add_embedding(y[0,:,[3,7,11]],tag='gt_pts_{}'.format(i),global_step=1)
         #writer.add_embedding(y_[0,:,[3,7,11]],tag='est_pts_{}'.format(i),global_step=1)
         wid = np.random.randint(len(y))
-        plot_yy(y[wid][1:],y_[wid][1:],device,writer) ###
+        plot_yy(y[wid][delay:],y_[wid][delay:],device,writer) ###
         mean_train, mean_valid = np.mean(losses),np.mean(v_losses)
         print('Epoch {} loss\t{:.4f}\tValid loss\t{:.4f}'\
               .format(i,mean_train,mean_valid))
@@ -202,6 +206,6 @@ if __name__=='__main__':
                         'epoch': i+1}, model_fn)
     model.eval()
     print('Start of plot_eval')
-    plot_eval(model,test_loader,strided_seq_len,device,logger=writer)
+    plot_eval(model,test_loader,strided_seq_len,delay=delay,device=device,logger=writer)
     writer.close()
     print('End of plot_eval')
