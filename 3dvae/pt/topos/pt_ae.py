@@ -27,7 +27,7 @@ def seq_pose_loss_se2(p,p_,delay):
     t_loss = torch.mean((p[:,:,[0,1]]-p_[:,:,[0,1]])**2)
     t_loss_ = torch.mean((p[:,-1,[0,1]]-p_[:,-1,[0,1]])**2)
     r_loss = torch.mean((p[:,:,[2]]-p_[:,:,[2]])**2)
-    loss = 1.0*t_loss + 100.0*t_loss_ + 100.0*r_loss
+    loss = 1.0*t_loss + 0.0*t_loss_ + 100.0*r_loss
     return loss
 
 def seq_pose_loss_SE2(p,p_):
@@ -139,6 +139,19 @@ class VanillaEncoder(nn.Module):
         #x = x.view(shape[0],self.h_dim,shape[1])
         return x
 
+class FlatEncoder(nn.Module):
+    def __init__(self):
+        ''' x is B x L x C x H x W
+        '''
+        super().__init__()
+        self.max_pool = nn.MaxPool2d((2,2))
+
+    def forward(self,x):
+        shape = x.size()
+        x = self.max_pool(x)
+        x = x.contiguous().view(shape[0]*shape[1],shape[2]*shape[3]*shape[4])
+        return x
+
 class VanillaDecoder(nn.Module):
     def __init__(self,in_shape,h_dim):
         super().__init__()
@@ -173,8 +186,8 @@ class VanillaDecoder(nn.Module):
 class VanAE(nn.Module):
     def __init__(self,in_shape,h_dim):
         super().__init__()
-        self.enc = VanillaEncoder(in_shape,h_dim)
-        self.dec = VanillaDecoder(in_shape,h_dim)
+        self.enc = None #VanillaEncoder(in_shape,h_dim)
+        self.dec = None #VanillaDecoder(in_shape,h_dim)
 
     def forward(self,x):
         x = self.enc(x)

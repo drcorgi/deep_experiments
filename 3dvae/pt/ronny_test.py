@@ -29,17 +29,19 @@ def list_split_kitti(seq):
     return train_seqs
 
 class FramesDataset(Dataset):
-    def __init__(self,fnames,offset=1,transform=None):
+    def __init__(self,fnames,new_shape=[16,64],offset=1,transform=None):
         self.fnames = fnames
         self.len = len(self.fnames)-offset
         self.transform = transform
         self.offset = offset
+        self.new_shape = new_shape
 
     def __len__(self):
         return self.len
 
     def __getitem__(self, idx):
         try:
+            h,w = self.new_shape
             offset = self.offset
             frame = cv2.imread(self.fnames[idx])
             frame = cv2.resize(frame,(256,64)).transpose(2,0,1)
@@ -70,7 +72,7 @@ class Arguments:
 
 if __name__ == '__main__':
     offset = 1
-
+    h,w = 16,64
     model_fn = '/home/ubuntu/models/FlowNet2-S_checkpoint.pth'
     device = torch.device('cuda:0')
     args = Arguments()
@@ -82,21 +84,26 @@ if __name__ == '__main__':
     else:
         print('Model checkpoint not found')
         raise FileNotFoundError()
-    model.eval()
+    #model.eval()
+    model.train()
+
+    dest_dir = '/home/ubuntu/kitti/flow/{}x{}_flownet_{}/'.format(h,w,offset)
+    if not os.path.isdir(dest_dir):
+        os.mkdir(dest_dir)
 
     for seq in range(11):
         frames_dir = list_split_kitti(seq)
-        frames_dataset = FramesDataset(frames_dir,offset=offset)
+        frames_dataset = FramesDataset(frames_dir,new_shape=[h,w],offset=offset)
         frames_loader = DataLoader(frames_dataset,batch_size=512,shuffle=False)
 
-        seq_dir = '/home/ubuntu/kitti/flow/64x256_flownet_{}/{:02d}/'.format(offset,seq)
+        seq_dir = '/home/ubuntu/kitti/flow/{}x{}_flownet_{}/{:02d}/'.format(h,w,offset,seq)
         if not os.path.isdir(seq_dir):
             os.mkdir(seq_dir)
 
         i = 0
         for x in frames_loader:
-            f = model(x)
-            print(f.size())
+            f = model(x)[0]
+            #for y in f: print(y.size())
             for fr in f:
                 fr = fr.permute(1,2,0).detach().cpu().numpy()
                 #print(x.size(),f.shape)

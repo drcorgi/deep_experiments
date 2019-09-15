@@ -22,7 +22,7 @@ from torch.utils.data import Dataset, DataLoader
 from torchvision import transforms, utils
 from pt_ae import DirectOdometry, FastDirectOdometry, Conv1dRecMapper, ImgFlowOdom, DummyFlow,\
 VanillaAutoencoder, MLPAutoencoder, VanAE, Conv1dMapper, seq_pose_loss, VanillaEncoder,\
-seq_pose_loss_se2, seq_pose_loss_SE2
+seq_pose_loss_se2, seq_pose_loss_SE2, FlatEncoder
 from datetime import datetime
 from plotter import c3dto2d, abs2relative, plot_eval, plot_yy
 from odom_loader import load_kitti_odom
@@ -41,6 +41,7 @@ if __name__=='__main__':
     seq_len = int(sys.argv[6])
     batch_size = int(sys.argv[7])
     num_epochs = int(sys.argv[8])
+    enc_type = 'none' if len(sys.argv) < 10 else sys.argv[9]
     flow_fn = '/home/ubuntu/models/FlowNet2-S_checkpoint.pth'
     fine_tune_flow = False
     stride = 1
@@ -119,8 +120,13 @@ if __name__=='__main__':
     #flow = DummyFlow(flow,flshape,h_dim,device=device)'''
 
     model = VanAE(flshape,h_dim)
-    enc = VanillaEncoder((2,flshape[1],flshape[2]),h_dim)
-    vo = Conv1dRecMapper((h_dim,strided_seq_len+delay),(strided_seq_len+delay,3),delay=delay) ###
+    if enc_type == 'flat':
+        enc = FlatEncoder()
+        h_dim = (2*flshape[1]*flshape[2])//4
+        vo = Conv1dRecMapper((h_dim,strided_seq_len+delay),(strided_seq_len+delay,3),delay=delay)
+    else:
+        enc = VanillaEncoder((2,flshape[1],flshape[2]),h_dim)
+        vo = Conv1dRecMapper((h_dim,strided_seq_len+delay),(strided_seq_len+delay,3),delay=delay) ###
     #vo = Conv1dMapper((h_dim,strided_seq_len),(strided_seq_len,6)).to(device)
     model.enc = enc
     model.dec = vo
