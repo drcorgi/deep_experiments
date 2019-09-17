@@ -148,8 +148,10 @@ class FlatEncoder(nn.Module):
 
     def forward(self,x):
         shape = x.size()
+        if len(shape) == 5:
+            x = x.view(shape[0]*shape[1],shape[2],shape[3],shape[4])
         x = self.max_pool(x)
-        x = x.contiguous().view(shape[0]*shape[1],shape[2]*shape[3]*shape[4])
+        x = x.contiguous().view(shape[0]*shape[1],shape[2]*shape[3]*shape[4]//4)
         return x
 
 class VanillaDecoder(nn.Module):
