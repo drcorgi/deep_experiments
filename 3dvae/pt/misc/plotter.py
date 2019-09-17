@@ -160,7 +160,7 @@ def norm_poses(poses):
     hp = [SE2.from_matrix(p,normalize=True).as_matrix() for p in poses]
     return hp
 
-def relative2abs_prev(rel_poses,wsize):
+def relative2abs_prev(rel_poses,wsize): ### Restore here
     ''' rel_poses: array de poses relativas (contiguo)
     '''
     poses = [homogen(p) for p in rel_poses]
@@ -178,7 +178,7 @@ def relative2abs(rel_poses,wsize):
     poses = [homogen(p) for p in rel_poses]
     abs_poses = poses[:wsize]
     for i in range(wsize,len(poses),wsize**2):
-        in_p = np.matmul(abs_poses[-wsize+1],poses[i-wsize**2+2*wsize+1])
+        in_p = np.matmul(abs_poses[-wsize+1],poses[i-wsize**2+2*wsize-1])
         in_p = SE2.from_matrix(in_p,normalize=True).as_matrix()
         #print(np.linalg.det(in_p[:3,:3]))
         abs_poses += [np.matmul(in_p,poses[j]) for j in range(i,i+wsize)]
