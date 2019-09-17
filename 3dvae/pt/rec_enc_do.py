@@ -45,7 +45,7 @@ if __name__=='__main__':
     flow_fn = '/home/ubuntu/models/FlowNet2-S_checkpoint.pth'
     fine_tune_flow = False
     stride = 1
-    delay = 4
+    delay = 8
     assert seq_len%stride == 0
     strided_seq_len = seq_len//stride
     tipo = 'flow' #'flux' or 'img'
