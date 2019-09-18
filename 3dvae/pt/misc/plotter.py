@@ -179,7 +179,8 @@ def relative2abs(rel_poses,wsize):
     abs_poses = poses[:wsize]
     for i in range(wsize,len(poses),wsize**2):
         #in_p = np.matmul(abs_poses[-wsize+1],poses[i-wsize**2+2*wsize-1])
-        in_p = np.matmul(abs_poses[-2],poses[i-2*wsize+2])
+        b = wsize//2
+        in_p = np.matmul(abs_poses[-b],poses[i-b*wsize+b])
         in_p = SE2.from_matrix(in_p,normalize=True).as_matrix()
         #print(np.linalg.det(in_p[:3,:3]))
         abs_poses += [np.matmul(in_p,poses[j]) for j in range(i,i+wsize)]
