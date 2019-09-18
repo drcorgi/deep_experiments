@@ -41,11 +41,11 @@ if __name__=='__main__':
     seq_len = int(sys.argv[6])
     batch_size = int(sys.argv[7])
     num_epochs = int(sys.argv[8])
-    enc_type = 'none' if len(sys.argv) < 10 else sys.argv[9]
+    enc_type = None if len(sys.argv) < 10 else sys.argv[9]
     flow_fn = '/home/ubuntu/models/FlowNet2-S_checkpoint.pth'
     fine_tune_flow = False
     stride = 1
-    delay = 8
+    delay = None if len(sys.argv) < 11 else int(sys.argv[10]) ## 8
     assert seq_len%stride == 0
     strided_seq_len = seq_len//stride
     tipo = 'flow' #'flux' or 'img'
