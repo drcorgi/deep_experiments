@@ -81,9 +81,15 @@ def list_split_kitti_flow(h,w):
         all_seqs.append(fns)
 
     all_poses = [pbase+'poses/{:02d}.txt'.format(i) for i in range(11)]
-    train_seqs, train_poses = all_seqs[:8], all_poses[:8] # 2:
-    valid_seqs, valid_poses = all_seqs[8:], all_poses[8:] # 0:1
-    test_seqs, test_poses = all_seqs[8:9], all_poses[8:9] # 1:2, 8:9
+    train_ids = [0,2,8,9]
+    valid_ids = [1,3,4,5,6,7,10]
+
+    train_seqs = [all_seqs[i] for i in train_ids]
+    train_poses = [all_poses[i] for i in train_ids]
+    valid_seqs = [all_seqs[i] for i in valid_ids]
+    valid_poses = [all_poses[i] for i in valid_ids]
+    test_seqs, test_poses = all_seqs[10:], all_poses[10:]
+
     return (train_seqs,train_poses), (valid_seqs,valid_poses), (test_seqs,test_poses)
 
 def list_split_kitti_flux(h,w):
@@ -92,7 +98,7 @@ def list_split_kitti_flux(h,w):
     all_seqs = [sorted(glob(base+'{:02d}/*.npy'\
                 .format(i))) for i in range(11)]
     all_poses = [pbase+'poses/{:02d}.txt'.format(i) for i in range(11)]
-    train_seqs, train_poses = all_seqs[:8], all_poses[:8] # 2:
+    train_seqs, train_poses = all_seqs[:8], all_poses[:8] # 0,2,8,9
     valid_seqs, valid_poses = all_seqs[8:], all_poses[8:] # 0:1
     test_seqs, test_poses = all_seqs[9:10], all_poses[9:10] # 1:2, 8:9
     return (train_seqs,train_poses), (valid_seqs,valid_poses), (test_seqs,test_poses)
