@@ -103,107 +103,6 @@ def list_split_kitti_flux(h,w):
     test_seqs, test_poses = all_seqs[9:10], all_poses[9:10] # 1:2, 8:9
     return (train_seqs,train_poses), (valid_seqs,valid_poses), (test_seqs,test_poses)
 
-class SeqBuffer():
-    def __init__(self, fnames, pfnames, seq_len, stride=1):
-        ''' fnames is a list of lists of file names
-            pfames is a list of file names (one for each entire sequence)
-        '''
-        super().__init__()
-        self.fnames = fnames
-        self.pfnames = pfnames
-        self.len = sum([max(0,len(fns)-seq_len+1) for fns in fnames])
-        self.sids = []
-        for i,fns in enumerate(fnames):
-            for j in range(len(fns)-seq_len+1):
-                self.sids.append(i)
-        self.fsids = []
-        for fns in fnames:
-            for i in range(len(fns)-seq_len+1):
-                self.fsids.append(i)
-        self.seq_len = seq_len
-        self.stride = stride
-        assert seq_len%stride == 0
-        self.strided_seq_len = seq_len//stride
-        self.aposes = [load_kitti_odom(fn) for fn in self.pfnames]
-        self.data = []
-
-    def load(self):
-        try:
-            print('Cacheing dataset')
-            for index in range(self.len):
-                s,id = self.sids[index], self.fsids[index]
-                x = [cv2.imread(fn) for fn in self.fnames[s][id:id+self.seq_len:self.stride]]
-                x = [img.transpose(2,0,1) for img in x]
-                abs = self.aposes[s][id:id+self.seq_len:self.stride]
-                y = []
-                for p in abs:
-                    p = c3dto2d(p)
-                    y.append(p)
-                y = abs2relative(y,self.strided_seq_len,1)[0]
-                y = torch.from_numpy(y).float()
-                self.data.append([x,y,abs])
-        except RuntimeError as re:
-            print(re)
-        except Exception as e:
-            print(e)
-
-class FastFluxSeqDataset(Dataset):
-    def __init__(self, fnames, pfnames, seq_len, transform=None, stride=1):
-        ''' fnames is a list of lists of file names
-            pfames is a list of file names (one for each entire sequence)
-        '''
-        super().__init__()
-        self.fnames = fnames
-        self.pfnames = pfnames
-        self.len = sum([max(0,len(fns)-seq_len+1) for fns in fnames])
-        self.sids = []
-        for i,fns in enumerate(fnames):
-            for j in range(len(fns)-seq_len+1):
-                self.sids.append(i)
-        self.fsids = []
-        for fns in fnames:
-            for i in range(len(fns)-seq_len+1):
-                self.fsids.append(i)
-        self.seq_len = seq_len
-        self.transform = transform # Transform at the frame level
-        self.stride = stride
-        assert seq_len%stride == 0
-        self.strided_seq_len = seq_len//stride
-        self.aposes = [load_kitti_odom(fn) for fn in self.pfnames]
-        self.data = []
-        self.load()
-
-    def load(self):
-        try:
-            print('Cacheing dataset')
-            for index in range(self.len):
-                s,id = self.sids[index], self.fsids[index]
-                x = [np.load(fn) for fn in self.fnames[s][id:id+self.seq_len:self.stride]]
-                x = [img.transpose(2,0,1) for img in x]
-                if self.transform:
-                    x = [self.transform(img) for img in x]
-                x = [img.unsqueeze(0) for img in x]
-                x = torch.cat(x,dim=0)
-                abs = self.aposes[s][id:id+self.seq_len:self.stride]
-                y = []
-                for p in abs:
-                    p = c3dto2d(p)
-                    y.append(p)
-                y = abs2relative(y,self.strided_seq_len,1)[0]
-                y = torch.from_numpy(y).float()
-                #print('seq loading',x.size(),y.size(),abs.shape)
-                self.data.append((x,y,abs))
-        except RuntimeError as re:
-            print(re)
-        except Exception as e:
-            print(e)
-
-    def __getitem__(self,index):
-        return self.data[index]
-
-    def __len__(self):
-        return self.len
-
 class FluxSeqDataset(Dataset):
     def __init__(self, fnames, pfnames, seq_len, transform=None, stride=1, train=False, delay=1):
         ''' fnames is a list of lists of file names
@@ -302,6 +201,89 @@ class FluxSeqDataset(Dataset):
     def __len__(self):
         return self.len
 
+class RawKITTIDataset(Dataset):
+    ''' basedir -> flow files names
+    '''
+    def __init__(self, base_dir, seq_len, transform=None, stride=1, train=False, delay=1):
+        super().__init__()
+        self.fnames = fnames
+        self.pfnames = pfnames
+        self.len = sum([max(0,len(fns)-seq_len+1) for fns in fnames])
+        self.frames_len = sum([len(fns) for fns in fnames])
+        self.sids = []
+        for i,fns in enumerate(fnames):
+            for j in range(len(fns)-seq_len+1):
+                self.sids.append(i)
+        self.fsids = []
+        for fns in fnames:
+            for i in range(len(fns)-seq_len+1):
+                self.fsids.append(i)
+        self.seq_len = seq_len
+        self.transform = transform # Transform at the frame level
+        self.buffer = [] # index -> (x,abs)
+        basedir = fn
+        self.aposes_imu = load_raw_kitti_odom_imu(basedir)  ###
+        self.fshape = np.load(self.fnames[0][0]).transpose(2,0,1).shape
+        self.load()
+        self.train = train
+        self.delay = delay
+
+    def load(self):
+        try:
+            print('Cacheing frames')
+            for s,fns in enumerate(self.fnames):
+                seq_ = []
+                for id,fn in enumerate(fns):
+                    frame = np.load(fn)
+                    frame = frame.transpose(2,0,1)
+                    if self.transform:
+                        frame = self.transform(frame)
+                    abs = self.aposes[s][id]
+                    p = c3dto2d(abs)
+                    p = SE2tose2([p])[0]
+                    imu = self.imu[s][id]
+                    seq_.append((frame,p,p))
+                self.buffer.append(seq_)
+        except RuntimeError as re:
+            print('frames missed',re)
+        except Exception as e:
+            print('frames not loaded',e)
+
+    def __getitem__(self, index):
+        try:
+            d = self.delay
+            s,id = self.sids[index], self.fsids[index]
+            s_ = s
+            aug = (np.random.randint(2) == 0) and self.train
+            id_ = [min(len(self.buffer[s_])-1,id+self.seq_len+i)\
+                   if aug else max(0,id-i-1) for i in range(d-1,-1,-1)]
+
+            x = torch.zeros((self.seq_len+d,)+self.fshape)
+            y = np.zeros((self.seq_len+d,3))
+            abs = np.zeros((self.seq_len,3))
+
+            for j,i in enumerate(id_):
+                x[j] = self.buffer[s_][i][0]
+            for i in range(id,id+self.seq_len):
+                x[i-id+d],y[i-id+d],abs[i-id] = self.buffer[s][i]
+
+            # Data aug
+            if aug:
+                x[d:] = -torch.flip(x[d:],dims=[0])
+                y[d:] = np.flip(y[d:],axis=0)
+
+            inert_ = SE2.exp(y[d]).inv()
+            y[d:] = np.array([inert_.dot(SE2.exp(p)).log() for p in y[d:]])
+            y = torch.from_numpy(y).float()
+            return x,y,abs
+        except RuntimeError as re:
+            print('-',re)
+        except Exception as e:
+            print('--',index,e)
+
+    def __len__(self):
+        return self.len
+
 class SeqDataset(Dataset):
     def __init__(self, fnames, pfnames, seq_len, transform=None, stride=1):
         ''' fnames is a list of lists of file names
@@ -361,68 +343,6 @@ class SeqDataset(Dataset):
             print('-',re)
         except Exception as e:
             print('--',i,e)
-
-    def __len__(self):
-        return self.len
-
-class FastSeqDataset(Dataset):
-    def __init__(self, fnames, pfnames, seq_len, seq_buffer, transform=None, stride=1):
-        ''' fnames is a list of lists of file names
-            pfames is a list of file names (one for each entire sequence)
-        '''
-        super().__init__()
-        self.fnames = fnames
-        self.pfnames = pfnames
-        self.len = sum([max(0,len(fns)-seq_len+1) for fns in fnames])
-        self.sids = []
-        for i,fns in enumerate(fnames):
-            for j in range(len(fns)-seq_len+1):
-                self.sids.append(i)
-        self.fsids = []
-        for fns in fnames:
-            for i in range(len(fns)-seq_len+1):
-                self.fsids.append(i)
-        self.seq_len = seq_len
-        self.transform = transform # Transform at the frame level
-        self.stride = stride
-        assert seq_len%stride == 0
-        self.strided_seq_len = seq_len//stride
-        self.aposes = [load_kitti_odom(fn) for fn in self.pfnames]
-        #self.data = []
-        self.seq_buffer = seq_buffer
-        self.seq_buffer.load()
-
-    def load(self):
-        try:
-            print('Cacheing dataset')
-            for index in range(self.len):
-                s,id = self.sids[index], self.fsids[index]
-                x = [cv2.imread(fn) for fn in self.fnames[s][id:id+self.seq_len:self.stride]]
-                x = [img.transpose(2,0,1) for img in x]
-                #if self.transform:
-                #    x = [self.transform(img) for img in x]
-                #x = [img.unsqueeze(0) for img in x]
-                #x = torch.cat(x,dim=0)
-                abs = self.aposes[s][id:id+self.seq_len:self.stride]
-                y = []
-                for p in abs:
-                    p = c3dto2d(p)
-                    y.append(p)
-                y = abs2relative(y,self.strided_seq_len,1)[0]
-                y = torch.from_numpy(y).float()
-                #print('seq loading',x.size(),y.size(),abs.shape)
-                self.data.append([x,y,abs])
-        except RuntimeError as re:
-            print(re)
-        except Exception as e:
-            print(e)
-
-    def __getitem__(self,index):
-        sample = self.seq_buffer.data[index]
-        sample[0] = [self.transform(img) for img in sample[0]]
-        sample[0] = [img.unsqueeze(0) for img in sample[0]]
-        sample[0] = torch.cat(sample[0],dim=0)
-        return sample
 
     def __len__(self):
         return self.len

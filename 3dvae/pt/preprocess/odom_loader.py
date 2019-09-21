@@ -4,6 +4,7 @@ import os, sys
 import re
 import time
 import pickle
+import pykitti
 
 from copy import deepcopy
 from glob import glob
@@ -79,6 +80,32 @@ def load_kitti_odom(fdir):
     poses = [l.split() for l in content]
     poses = np.array([ [ float(p) for p in l ] for l in poses ])
     return poses
+
+def load_raw_kitti_odom_imu(basedir):
+    ''' OxtsData(packet=OxtsPacket(lat=49.030737883859,\
+        lon=8.3398878482103, alt=114.77355194092, roll=0.035521,\
+        pitch=0.006243, yaw=-0.9161816732051, vn=-6.3349919699448,\
+        ve=4.8542886072513, vf=7.980990183777, vl=0.006629911301955,\
+        vu=0.043791248142715, ax=-0.0034208888097007, ay=0.61793453350163,\
+        az=9.325595250268, af=0.050762056308803, al=0.2773333895807,\
+        au=9.3426054822303, wx=-0.017105540779655, wy=0.0057239717836089,\
+        wz=-0.00081830538408185, wf=-0.017108767059082, wl=0.0057499843741701,\
+        wu=-0.00048516742865752, pos_accuracy=0.11469088891451, vel_accuracy=0.019849433241279,\
+        navstat=4, numsats=7, posmode=5, velmode=5, orimode=6), T_w_imu
+    '''
+    debug_msg = 'load_raw_kitti_odom_imu'
+    dates = [d for d in os.listdir(basedir) if os.path.isdir(d)]
+    print(debug_msg,'dates:',dates)
+    dates_drives = []
+    for d in dates:
+        dates_drives += [(d,drv[11:-5]) for drv in\
+                         os.listdir(basedir+'/'+d+'/') if os.path.isdir(drv)]
+    print(debug_msg,'dates_drives:',dates_drives)
+    odom_imu = []
+    for dd in dates_drives:
+        data = pykitti.raw(basedir,dd[0],dd[1])
+        odom_imu.append([(o.T_w_imu,o.packet[6:23]) for o in data.oxts])
+    return odom_imu
 
 def load_kitti_odom_all(fdir):
     fns = os.listdir(fdir)

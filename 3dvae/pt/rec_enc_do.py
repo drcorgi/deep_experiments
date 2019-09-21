@@ -124,6 +124,10 @@ if __name__=='__main__':
         enc = FlatEncoder()
         h_dim = (2*flshape[1]*flshape[2])//4
         vo = Conv1dRecMapper((h_dim,strided_seq_len+delay),(strided_seq_len+delay,3),delay=delay)
+    elif enc_type == 'stat':
+        enc = StatEncoder()
+        h_dim = 4*(flshape[1]+flshape[2])
+        vo = Conv1dRecMapper((h_dim,strided_seq_len+delay),(strided_seq_len+delay,3),delay=delay)
     else:
         enc = VanillaEncoder((2,flshape[1],flshape[2]),h_dim)
         vo = Conv1dRecMapper((h_dim,strided_seq_len+delay),(strided_seq_len+delay,3),delay=delay) ###

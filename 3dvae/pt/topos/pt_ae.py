@@ -154,6 +154,25 @@ class FlatEncoder(nn.Module):
         x = x.contiguous().view(shape[0]*shape[1],shape[2]*shape[3]*shape[4]//4)
         return x
 
+class StatEncoder(nn.Module):
+    def __init__(self):
+        ''' x is B x L x C x H x W
+        '''
+        super().__init__()
+
+    def forward(self,x):
+        shape = x.size()
+        if len(shape) == 5:
+            x = x.view(shape[0]*shape[1],shape[2],shape[3],shape[4])
+        r_mu = torch.mean(x,dim=2).view(-1,shape[-3]*shape[-1]) # (B x L) x (C x W)
+        r_std = torch.std(x,dim=2).view(-1,shape[-3]*shape[-1])
+        c_mu = torch.mean(x,dim=3).view(-1,shape[-3]*shape[-2]) # (B x L) x (C x H)
+        c_std = torch.std(x,dim=3).view(-1,shape[-3]*shape[-2])
+        r_stat = torch.cat([r_mu,r_std],dim=1)
+        c_stat = torch.cat([c_mu,c_std],dim=1)
+        x = torch.cat([r_stat,c_stat],dim=1)
+        return x
+
 class VanillaDecoder(nn.Module):
     def __init__(self,in_shape,h_dim):
         super().__init__()
