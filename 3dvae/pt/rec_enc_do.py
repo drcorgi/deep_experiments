@@ -22,14 +22,14 @@ from torch.utils.data import Dataset, DataLoader
 from torchvision import transforms, utils
 from pt_ae import DirectOdometry, FastDirectOdometry, Conv1dRecMapper, ImgFlowOdom, DummyFlow,\
 VanillaAutoencoder, MLPAutoencoder, VanAE, Conv1dMapper, seq_pose_loss, VanillaEncoder,\
-seq_pose_loss_se2, seq_pose_loss_SE2, FlatEncoder
+seq_pose_loss_se2, seq_pose_loss_SE2, FlatEncoder, StatEncoder
 from datetime import datetime
 from plotter import c3dto2d, abs2relative, plot_eval, plot_yy
 from odom_loader import load_kitti_odom
 from tensorboardX import SummaryWriter
 from time import time
-from seq_datasets import FastFluxSeqDataset, FastSeqDataset, FluxSeqDataset, SeqDataset,\
-list_split_kitti_flow, list_split_kitti_flux, list_split_kitti_, my_collate, ToTensor, SeqBuffer
+from seq_datasets import FluxSeqDataset, SeqDataset,\
+list_split_kitti_flow, list_split_kitti_flux, list_split_kitti_, my_collate, ToTensor
 from ronny_test import Arguments
 from custom_optimizers import RAdam
 
