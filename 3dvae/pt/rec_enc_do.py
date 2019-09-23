@@ -30,7 +30,7 @@ from tensorboardX import SummaryWriter
 from time import time
 from seq_datasets import FluxSeqDataset, SeqDataset,\
 list_split_kitti_flow, list_split_kitti_flux, list_split_kitti_, my_collate, ToTensor
-from ronny_test import Arguments
+from load_flow import Arguments
 from custom_optimizers import RAdam
 
 if __name__=='__main__':

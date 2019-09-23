@@ -81,7 +81,7 @@ def load_kitti_odom(fdir):
     poses = np.array([ [ float(p) for p in l ] for l in poses ])
     return poses
 
-def load_raw_kitti_odom_imu(basedir):
+def load_raw_kitti_odom_imu(basedir,dates_drives):
     ''' OxtsData(packet=OxtsPacket(lat=49.030737883859,\
         lon=8.3398878482103, alt=114.77355194092, roll=0.035521,\
         pitch=0.006243, yaw=-0.9161816732051, vn=-6.3349919699448,\
@@ -93,14 +93,14 @@ def load_raw_kitti_odom_imu(basedir):
         wu=-0.00048516742865752, pos_accuracy=0.11469088891451, vel_accuracy=0.019849433241279,\
         navstat=4, numsats=7, posmode=5, velmode=5, orimode=6), T_w_imu
     '''
-    debug_msg = 'load_raw_kitti_odom_imu'
+    '''debug_msg = 'load_raw_kitti_odom_imu'
     dates = [d for d in os.listdir(basedir) if os.path.isdir(d)]
     print(debug_msg,'dates:',dates)
     dates_drives = []
     for d in dates:
         dates_drives += [(d,drv[11:-5]) for drv in\
                          os.listdir(basedir+'/'+d+'/') if os.path.isdir(drv)]
-    print(debug_msg,'dates_drives:',dates_drives)
+    print(debug_msg,'dates_drives:',dates_drives)'''
     odom_imu = []
     for dd in dates_drives:
         data = pykitti.raw(basedir,dd[0],dd[1])

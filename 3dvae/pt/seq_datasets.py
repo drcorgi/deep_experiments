@@ -20,7 +20,7 @@ VanillaAutoencoder, MLPAutoencoder, VanAE, Conv1dMapper, seq_pose_loss
 from datetime import datetime
 from plotter import c3dto2d, abs2relative, plot_eval, SE3tose3, se3toSE3, homogen,\
 SE2tose2, se2toSE2, flat_homogen
-from odom_loader import load_kitti_odom
+from odom_loader import load_kitti_odom, load_raw_kitti_odom_imu
 from tensorboardX import SummaryWriter
 from time import time
 from liegroups import SE3, SE2
@@ -69,6 +69,29 @@ def list_split_kitti_(h,w):
     valid_seqs, valid_poses = all_seqs[8:], all_poses[8:]
     test_seqs, test_poses = all_seqs[-1:], all_poses[-1:]
     return (train_seqs,train_poses), (valid_seqs,valid_poses), (test_seqs,test_poses)
+
+def list_split_raw_kitti(h,w):
+    basedir = '/home/ubuntu/kitti/raw/'
+    debug_msg = 'load_raw_kitti_odom_imu'
+    dates = [d for d in os.listdir(basedir) if os.path.isdir(d)]
+    print(debug_msg,'dates:',dates)
+    dates_drives = []
+    for d in dates:
+        dates_drives += [(d,drv[11:-5]) for drv in\
+                         os.listdir(basedir+'/'+d+'/') if os.path.isdir(drv)]
+    print(debug_msg,'dates_drives:',dates_drives)
+    train_ids = [0,1,2,3,4,5,6,7]
+    valid_ids = [8,9,10]
+    test_ids = [10]
+    '''odom_imu = []
+    for dd in dates_drives:
+        data = pykitti.raw(basedir,dd[0],dd[1])
+        odom_imu.append([(o.T_w_imu,o.packet[6:23]) for o in data.oxts])
+    return odom_imu'''
+    train_seqs = [dates_drives[i] for i in train_ids]
+    valid_seqs = [dates_drives[i] for i in valid_ids]
+    test_seqs = [dates_drives[i] for i in test_ids]
+    return train_seqs, valid_seqs, test_seqs
 
 def list_split_kitti_flow(h,w):
     base = '/home/ubuntu/kitti/flow/{}x{}_flownet_1/'.format(h,w)
@@ -170,8 +193,13 @@ class FluxSeqDataset(Dataset):
                 x[j] = self.buffer[s_][i][0]
             #y[:d] = self.buffer[s_][id+self.seq_len-1 if aug else id][1] #np.zeros(3)
             #x[0] = self.buffer[s_][id__][0]
-            for i in range(id,id+self.seq_len):
-                x[i-id+d],y[i-id+d],abs[i-id] = self.buffer[s][i]
+            i_ = id
+            for i in range(id,id+self.seq_len): ### Fix sampling
+                if self.train:
+                    i_ = min(i_+np.random.randint(3),len(self.buffer[s])-1)
+                else:
+                    i_ = i
+                x[i-id+d],y[i-id+d],abs[i-id] = self.buffer[s][i_]
 
             # Data aug
             if aug:
@@ -204,7 +232,7 @@ class FluxSeqDataset(Dataset):
 class RawKITTIDataset(Dataset):
     ''' basedir -> flow files names
     '''
-    def __init__(self, base_dir, seq_len, transform=None, stride=1, train=False, delay=1):
+    def __init__(self, basedir, dates_drives, seq_len, transform=None, stride=1, train=False, delay=1):
         super().__init__()
         self.fnames = fnames
         self.pfnames = pfnames
@@ -222,7 +250,7 @@ class RawKITTIDataset(Dataset):
         self.transform = transform # Transform at the frame level
         self.buffer = [] # index -> (x,abs)
         basedir = fn
-        self.aposes_imu = load_raw_kitti_odom_imu(basedir)  ###
+        self.aposes_imu = load_raw_kitti_odom_imu(basedir,dates_drives)  ###
         self.fshape = np.load(self.fnames[0][0]).transpose(2,0,1).shape
         self.load()
         self.train = train
