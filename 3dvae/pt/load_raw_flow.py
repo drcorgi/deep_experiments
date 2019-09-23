@@ -23,18 +23,19 @@ from matplotlib import pyplot as plt
 def list_split_raw_kitti():
     basedir = '/home/ubuntu/kitti/raw/'
     debug_msg = 'load_raw_kitti_odom_imu'
-    dates = [d for d in os.listdir(basedir) if os.path.isdir(d)]
+    dates = [d for d in os.listdir(basedir) if os.path.isdir(basedir+d)]
     print(debug_msg,'dates:',dates)
     dates_drives = []
     for d in dates:
-        dates_drives += [(d,drv[11:-5]) for drv in\
-                         os.listdir(basedir+'/'+d+'/') if os.path.isdir(drv)]
+        dates_drives += [(d,drv[17:-5]) for drv in\
+                         os.listdir(basedir+'/'+d+'/') if os.path.isdir(basedir+d+'/'+drv)]
     print(debug_msg,'dates_drives:',dates_drives)
     return dates_drives
 
 class FramesDataset(Dataset):
-    def __init__(self,dates_drives,new_shape=[16,64],offset=1,transform=None):
-        self.fnames = fnames
+    def __init__(self,fdir,new_shape=[16,64],offset=1,transform=None):
+        self.fnames = glob(fdir+'/*.png')
+        print(self.fnames)
         self.len = len(self.fnames)-offset
         self.transform = transform
         self.offset = offset
@@ -45,12 +46,13 @@ class FramesDataset(Dataset):
 
     def __getitem__(self, idx):
         try:
-            h,w = self.new_shape
+            #h,w = self.new_shape
+            h,w = 128,512
             offset = self.offset
             frame = cv2.imread(self.fnames[idx])
-            frame = cv2.resize(frame,(256,64)).transpose(2,0,1)
+            frame = cv2.resize(frame,(w,h)).transpose(2,0,1)
             frame2 = cv2.imread(self.fnames[min(idx+offset,self.len-1)])
-            frame2 = cv2.resize(frame2,(256,64)).transpose(2,0,1)
+            frame2 = cv2.resize(frame2,(w,h)).transpose(2,0,1)
             frame = torch.from_numpy(frame).float().unsqueeze(0).transpose(1,0)
             frame2 = torch.from_numpy(frame2).float().unsqueeze(0).transpose(1,0)
             frame = torch.cat([frame,frame2],dim=1)
@@ -95,12 +97,14 @@ if __name__ == '__main__':
     if not os.path.isdir(dest_dir):
         os.mkdir(dest_dir)
 
-    dds = list_split_kitti_raw_kitti() ## dates, drives
+    basedir = '/home/ubuntu/kitti/raw/'
+    dds = list_split_raw_kitti() ## dates, drives
     for dd in dds:
+        frames_dir = basedir+dd[0]+'/{}_drive_{}_sync/image_00/data/'.format(dd[0],dd[1])
         frames_dataset = FramesDataset(frames_dir,new_shape=[h,w],offset=offset)
         frames_loader = DataLoader(frames_dataset,batch_size=512,shuffle=False)
 
-        seq_dir = '/home/ubuntu/kitti/flow/raw/{}x{}_flownet_{}/{:02d}/'.format(h,w,offset,seq)
+        seq_dir = '/home/ubuntu/kitti/flow/raw/{}x{}_flownet_{}/{}_{}/'.format(h,w,offset,dd[0],dd[1])
         if not os.path.isdir(seq_dir):
             os.mkdir(seq_dir)
 
