@@ -34,7 +34,7 @@ def list_split_raw_kitti():
 
 class FramesDataset(Dataset):
     def __init__(self,fdir,new_shape=[16,64],offset=1,transform=None):
-        self.fnames = glob(fdir+'/*.png')
+        self.fnames = sorted(glob(fdir+'/*.png'),key=lambda x:int(x[-14:-4]))
         print(self.fnames)
         self.len = len(self.fnames)-offset
         self.transform = transform

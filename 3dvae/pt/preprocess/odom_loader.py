@@ -6,6 +6,8 @@ import time
 import pickle
 import pykitti
 
+#sys.path.append(os.path.dirname(os.path.realpath(__file__))+'/misc')
+
 from copy import deepcopy
 from glob import glob
 
@@ -101,11 +103,12 @@ def load_raw_kitti_odom_imu(basedir,dates_drives):
         dates_drives += [(d,drv[11:-5]) for drv in\
                          os.listdir(basedir+'/'+d+'/') if os.path.isdir(drv)]
     print(debug_msg,'dates_drives:',dates_drives)'''
-    odom_imu = []
+    odom, imu = [], []
     for dd in dates_drives:
         data = pykitti.raw(basedir,dd[0],dd[1])
-        odom_imu.append([(o.T_w_imu,o.packet[6:23]) for o in data.oxts])
-    return odom_imu
+        odom.append([flat_homogen(o.T_w_imu) for o in data.oxts])
+        imu.append([np.array(o.packet[6:23]) for o in data.oxts])
+    return odom, imu
 
 def load_kitti_odom_all(fdir):
     fns = os.listdir(fdir)

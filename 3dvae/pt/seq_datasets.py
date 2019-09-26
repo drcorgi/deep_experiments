@@ -36,6 +36,19 @@ def my_collate(batch):
             batch_abs.append(b[2])
     return torch.stack(batch_x), torch.stack(batch_y), batch_abs
 
+def my_collate_(batch):
+    batch_x = []
+    batch_imu = []
+    batch_y = []
+    batch_abs = []
+    for b in batch:
+        if b is not None:
+            batch_x.append(b[0])
+            batch_imu.append(b[1])
+            batch_y.append(b[2])
+            batch_abs.append(b[3])
+    return torch.stack(batch_x), torch.stack(batch_imu), torch.stack(batch_y), batch_abs
+
 class Rescale(object):
     def __init__(self, output_size):
         assert isinstance(output_size, (int, tuple))
@@ -70,19 +83,20 @@ def list_split_kitti_(h,w):
     test_seqs, test_poses = all_seqs[-1:], all_poses[-1:]
     return (train_seqs,train_poses), (valid_seqs,valid_poses), (test_seqs,test_poses)
 
-def list_split_raw_kitti(h,w):
+def list_split_raw_kitti():
     basedir = '/home/ubuntu/kitti/raw/'
     debug_msg = 'load_raw_kitti_odom_imu'
-    dates = [d for d in os.listdir(basedir) if os.path.isdir(d)]
+    dates = [d for d in os.listdir(basedir) if os.path.isdir(basedir+d)]
     print(debug_msg,'dates:',dates)
     dates_drives = []
     for d in dates:
-        dates_drives += [(d,drv[11:-5]) for drv in\
-                         os.listdir(basedir+'/'+d+'/') if os.path.isdir(drv)]
+        dates_drives += [(d,drv[17:-5]) for drv in\
+                         os.listdir(basedir+'/'+d+'/')\
+                         if os.path.isdir(basedir+d+'/'+drv)]
     print(debug_msg,'dates_drives:',dates_drives)
-    train_ids = [0,1,2,3,4,5,6,7]
-    valid_ids = [8,9,10]
-    test_ids = [10]
+    train_ids = [0] #[0,1,2,3,4,5,6,7]
+    valid_ids = [0] #[8,9,10]
+    test_ids = [0] #[10]
     '''odom_imu = []
     for dd in dates_drives:
         data = pykitti.raw(basedir,dd[0],dd[1])
@@ -232,10 +246,12 @@ class FluxSeqDataset(Dataset):
 class RawKITTIDataset(Dataset):
     ''' basedir -> flow files names
     '''
-    def __init__(self, basedir, dates_drives, seq_len, transform=None, stride=1, train=False, delay=1):
+    def __init__(self, basedir, flowdir, dates_drives,\
+                 seq_len, transform=None, stride=1,\
+                 train=False, delay=1):
         super().__init__()
-        self.fnames = fnames
-        self.pfnames = pfnames
+        fnames = self.get_ffnames(flowdir,dates_drives)
+        self.fnames = fnames # create fnames as list of lists of flow file names
         self.len = sum([max(0,len(fns)-seq_len+1) for fns in fnames])
         self.frames_len = sum([len(fns) for fns in fnames])
         self.sids = []
@@ -249,12 +265,21 @@ class RawKITTIDataset(Dataset):
         self.seq_len = seq_len
         self.transform = transform # Transform at the frame level
         self.buffer = [] # index -> (x,abs)
-        basedir = fn
-        self.aposes_imu = load_raw_kitti_odom_imu(basedir,dates_drives)  ###
+        self.aposes, self.imu = load_raw_kitti_odom_imu(basedir,dates_drives)  ###
+        #print(len(self.aposes), len(self.imu))
         self.fshape = np.load(self.fnames[0][0]).transpose(2,0,1).shape
         self.load()
         self.train = train
         self.delay = delay
+
+    def get_ffnames(self,flowdir,dates_drives):
+        fns = []
+        for dd in dates_drives:
+            bdd = flowdir+'/32x128_flownet_1/'\
+                  +dd[0]+'_'+dd[1]+'/*.npy'
+            fns.append(sorted(glob(bdd),key=lambda x:int(x[-10:-4])))
+        #print(fns)
+        return fns
 
     def load(self):
         try:
@@ -268,14 +293,15 @@ class RawKITTIDataset(Dataset):
                         frame = self.transform(frame)
                     abs = self.aposes[s][id]
                     p = c3dto2d(abs)
-                    p = SE2tose2([p])[0]
-                    imu = self.imu[s][id]
-                    seq_.append((frame,p,p))
+                    p = SE2tose2([p])[0] # dim 3
+                    imu = self.imu[s][id] # dim 17
+                    seq_.append((frame,p,p,imu))
                 self.buffer.append(seq_)
         except RuntimeError as re:
             print('frames missed',re)
         except Exception as e:
             print('frames not loaded',e)
+            raise e
 
     def __getitem__(self, index):
         try:
@@ -289,25 +315,37 @@ class RawKITTIDataset(Dataset):
             x = torch.zeros((self.seq_len+d,)+self.fshape)
             y = np.zeros((self.seq_len+d,3))
             abs = np.zeros((self.seq_len,3))
+            imu = np.zeros((self.seq_len+d,17))
 
             for j,i in enumerate(id_):
                 x[j] = self.buffer[s_][i][0]
+
+            i_ = id
             for i in range(id,id+self.seq_len):
-                x[i-id+d],y[i-id+d],abs[i-id] = self.buffer[s][i]
+                if self.train:
+                    i_ = min(i_+np.random.randint(3),len(self.buffer[s])-1)
+                else:
+                    i_ = i
+                x[i-id+d],y[i-id+d],abs[i-id],imu[i-id+d] = self.buffer[s][i_]
 
             # Data aug
             if aug:
                 x[d:] = -torch.flip(x[d:],dims=[0])
                 y[d:] = np.flip(y[d:],axis=0)
+                imu[d:] = np.flip(imu[d:],axis=0)
 
             inert_ = SE2.exp(y[d]).inv()
             y[d:] = np.array([inert_.dot(SE2.exp(p)).log() for p in y[d:]])
             y = torch.from_numpy(y).float()
-            return x,y,abs
+            imu = torch.from_numpy(imu).float()
+            abs = torch.from_numpy(abs).float()
+            #yimu = torch.cat([y,imu],dim=1)
+            return x,imu,y,abs
         except RuntimeError as re:
             print('-',re)
         except Exception as e:
             print('--',index,e)
+            raise e
 
     def __len__(self):
         return self.len
@@ -374,3 +412,13 @@ class SeqDataset(Dataset):
 
     def __len__(self):
         return self.len
+
+if __name__ == '__main__':
+    train_split, valid_split, test_split = list_split_raw_kitti()
+    dset = RawKITTIDataset('/home/ubuntu/kitti/raw/',\
+                           '/home/ubuntu/kitti/flow/raw/',\
+                           train_split,2,transform=ToTensor())
+    dload = DataLoader(dset,batch_size=512,shuffle=True,\
+                     num_workers=1,pin_memory=False) #,collate_fn=my_collate_)
+    for x,imu,y,_ in dload:
+        print(x.size(),imu.size(),y.size())
