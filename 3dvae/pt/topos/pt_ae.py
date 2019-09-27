@@ -173,6 +173,26 @@ class StatEncoder(nn.Module):
         x = torch.cat([r_stat,c_stat],dim=1)
         return x
 
+class StatXIMU(nn.Module):
+    def __init__(self):
+        ''' x is B x L x C x H x W
+        '''
+        super().__init__()
+
+    def forward(self,x,imu):
+        shape = x.size()
+        if len(shape) == 5:
+            x = x.view(shape[0]*shape[1],shape[2],shape[3],shape[4])
+            imu = imu.view(shape[0]*shape[1],-1)
+        r_mu = torch.mean(x,dim=2).view(-1,shape[-3]*shape[-1]) # (B x L) x (C x W)
+        r_std = torch.std(x,dim=2).view(-1,shape[-3]*shape[-1])
+        c_mu = torch.mean(x,dim=3).view(-1,shape[-3]*shape[-2]) # (B x L) x (C x H)
+        c_std = torch.std(x,dim=3).view(-1,shape[-3]*shape[-2])
+        r_stat = torch.cat([r_mu,r_std],dim=1)
+        c_stat = torch.cat([c_mu,c_std],dim=1)
+        x = torch.cat([r_stat,c_stat,imu],dim=1)
+        return x
+
 class VanillaDecoder(nn.Module):
     def __init__(self,in_shape,h_dim):
         super().__init__()
@@ -212,6 +232,17 @@ class VanAE(nn.Module):
 
     def forward(self,x):
         x = self.enc(x)
+        x = self.dec(x)
+        return x
+
+class VanAE_(nn.Module):
+    def __init__(self,in_shape,h_dim):
+        super().__init__()
+        self.enc = None #VanillaEncoder(in_shape,h_dim)
+        self.dec = None #VanillaDecoder(in_shape,h_dim)
+
+    def forward(self,x,imu):
+        x = self.enc(x,imu)
         x = self.dec(x)
         return x
 

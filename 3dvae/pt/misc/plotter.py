@@ -242,40 +242,22 @@ def plot_eval(model,test_loader,seq_len,delay=2,device='cuda:0',logger=None):
     rel_poses_gt =[]
     data_y = []
     for x,y,abs in test_loader:
-        #torch.cuda.empty_cache()
         x,y = x.to(device), y.to(device)
-        #print(len(abs),abs[0].shape)
-        #abs = np.array(abs).reshape(-1,3).tolist()
-        #x,y,abs = x[::seq_len], y[::seq_len], abs[::seq_len]
-        #x = flow(x)
         y_ = model(x)
         normy = (torch.norm(y[:,-1,[0,1]],dim=1)+1e-12).unsqueeze(-1).unsqueeze(-1)
         normy_ = (torch.norm(y_[:,-1,[0,1]],dim=1)+1e-12).unsqueeze(-1).unsqueeze(-1)
-        #print(normy.size(),normy_.size())
         y = y[:,delay:] #/normy
         y_ = y_[:,delay:] #/normy_
-        #data_y += abs
         rel_poses += y_.cpu().detach().numpy().reshape(-1,3).tolist()
         rel_poses_gt += y.cpu().detach().numpy().reshape(-1,3).tolist()
-    #rel_poses = rel_poses[::seq_len]
-    #rel_poses = np.array([c3dto2d(np.array(p)) for p in rel_poses])
     rel_poses = np.array(rel_poses)
     rel_poses_gt = np.array(rel_poses_gt)
     rel_poses = se2toSE2(rel_poses)
     rel_poses_gt = se2toSE2(rel_poses_gt)
-
-    #gt = np.array(data_y[::seq_len]) #.transpose(0,2,1)
-    #gt = se2toSE2(gt)
-    #print(gt.shape)
-    #abs_ = np.array(relative2abs(gt,seq_len))
-    #for p,p_ in zip(rel_poses[500:510],rel_poses_gt[500:510]):
-    #    print(p,p_)
     pts_gt = np.array(relative2abs(rel_poses_gt,seq_len))
     pts_ = np.array(relative2abs(rel_poses,seq_len))
-    #print(pts_[-16:-12])
     print(pts_.shape)
 
-    #pts = np.array([[p[2],p[2],p[5]] for p in gt]) #get_3d_points_t2(rel_poses,seq_len,abs_)
     pts_ = np.array([[p[2],p[2],p[5]] for p in pts_])
     pts_gt = np.array([[p[2],p[2],p[5]] for p in pts_gt])
 
@@ -283,10 +265,39 @@ def plot_eval(model,test_loader,seq_len,delay=2,device='cuda:0',logger=None):
     if not os.path.isdir('tmp'):
         os.mkdir('tmp')
     t = time.time()
-    #logger.add_embedding(pts,tag='source',global_step=1)
     plot_3d_points_(pts_gt,pts_,'tmp/{}_projections_xyz.png'.format(t),\
                     wlen=seq_len,logger=logger) #gt
-    #plot_abs(abs_,pts_,'tmp/{}_absolute_gt_3d.png'.format(t))
+
+def plot_eval_(model,test_loader,seq_len,delay=2,device='cuda:0',logger=None):
+    rel_poses = []
+    rel_poses_gt =[]
+    data_y = []
+    for x,imu,y,abs in test_loader:
+        x,imu,y = x.to(device), imu.to(device), y.to(device)
+        y_ = model(x,imu)
+        normy = (torch.norm(y[:,-1,[0,1]],dim=1)+1e-12).unsqueeze(-1).unsqueeze(-1)
+        normy_ = (torch.norm(y_[:,-1,[0,1]],dim=1)+1e-12).unsqueeze(-1).unsqueeze(-1)
+        y = y[:,delay:] #/normy
+        y_ = y_[:,delay:] #/normy_
+        rel_poses += y_.cpu().detach().numpy().reshape(-1,3).tolist()
+        rel_poses_gt += y.cpu().detach().numpy().reshape(-1,3).tolist()
+    rel_poses = np.array(rel_poses)
+    rel_poses_gt = np.array(rel_poses_gt)
+    rel_poses = se2toSE2(rel_poses)
+    rel_poses_gt = se2toSE2(rel_poses_gt)
+    pts_gt = np.array(relative2abs(rel_poses_gt,seq_len))
+    pts_ = np.array(relative2abs(rel_poses,seq_len))
+    print(pts_.shape)
+
+    pts_ = np.array([[p[2],p[2],p[5]] for p in pts_])
+    pts_gt = np.array([[p[2],p[2],p[5]] for p in pts_gt])
+
+    print(pts_gt.shape,pts_.shape)
+    if not os.path.isdir('tmp'):
+        os.mkdir('tmp')
+    t = time.time()
+    plot_3d_points_(pts_gt,pts_,'tmp/{}_projections_xyz.png'.format(t),\
+                    wlen=seq_len,logger=logger) #gt
 
 def plot_yy(y,y_,device='cuda:0',logger=None):
     ''' L x O
