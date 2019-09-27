@@ -20,8 +20,8 @@ from utils import flow_utils, tools
 
 from matplotlib import pyplot as plt
 
-def list_split_raw_kitti():
-    basedir = '/home/ubuntu/kitti/raw/'
+def list_split_raw_kitti(h=32,w=128):
+    basedir = '/home/ubuntu/kitti/raw/' #.format(h,w)
     debug_msg = 'load_raw_kitti_odom_imu'
     dates = [d for d in os.listdir(basedir) if os.path.isdir(basedir+d)]
     print(debug_msg,'dates:',dates)
@@ -97,7 +97,7 @@ if __name__ == '__main__':
     if not os.path.isdir(dest_dir):
         os.mkdir(dest_dir)
 
-    basedir = '/home/ubuntu/kitti/raw/'
+    basedir = '/home/ubuntu/kitti/raw/'.format(h,w)
     dds = list_split_raw_kitti() ## dates, drives
     for dd in dds:
         frames_dir = basedir+dd[0]+'/{}_drive_{}_sync/image_00/data/'.format(dd[0],dd[1])

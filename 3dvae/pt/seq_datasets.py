@@ -94,9 +94,9 @@ def list_split_raw_kitti():
                          os.listdir(basedir+'/'+d+'/')\
                          if os.path.isdir(basedir+d+'/'+drv)]
     print(debug_msg,'dates_drives:',dates_drives)
-    train_ids = [0] #[0,1,2,3,4,5,6,7]
-    valid_ids = [0] #[8,9,10]
-    test_ids = [0] #[10]
+    train_ids = [0,1,2,3,4,5,6,7] #[0,1,2,3,4,5,6,7]
+    valid_ids = [8] #[8,9,10]
+    test_ids = [8] #[10]
     '''odom_imu = []
     for dd in dates_drives:
         data = pykitti.raw(basedir,dd[0],dd[1])
