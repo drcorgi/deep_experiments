@@ -94,9 +94,9 @@ def list_split_raw_kitti():
                          os.listdir(basedir+'/'+d+'/')\
                          if os.path.isdir(basedir+d+'/'+drv)]
     print(debug_msg,'dates_drives:',dates_drives)
-    train_ids = [i for i in range(16)] #[0,1,2,3,4,5,6,7]
-    valid_ids = [16,17,18,19,20,21] #[8,9,10]
-    test_ids = [2] #[10]
+    valid_ids = [8,9] #[8,9,10]
+    train_ids = [i for i in range(22) if i not in valid_ids] #[0,1,2,3,4,5,6,7]
+    test_ids = [8] #[10]
     '''odom_imu = []
     for dd in dates_drives:
         data = pykitti.raw(basedir,dd[0],dd[1])
@@ -250,7 +250,7 @@ class RawKITTIDataset(Dataset):
                  seq_len, transform=None, stride=1,\
                  train=False, delay=1):
         super().__init__()
-        fnames = self.get_ffnames(flowdir,dates_drives)
+        fnames = self.get_ffnames(basedir,dates_drives)
         self.fnames = fnames # create fnames as list of lists of flow file names
         self.len = sum([max(0,len(fns)-seq_len+1) for fns in fnames])
         self.frames_len = sum([len(fns) for fns in fnames])
@@ -269,7 +269,7 @@ class RawKITTIDataset(Dataset):
                      load_raw_kitti_img_odom_imu(basedir,dates_drives)  ###
         #exit()
         #print(len(self.aposes), len(self.imu))
-        self.fshape = np.load(self.fnames[0][0]).transpose(2,0,1).shape
+        self.fshape = (2,32,128) #cv2.imread(self.fnames[0][0]).transpose(2,0,1).shape
         self.load()
         self.train = train
         self.delay = delay
@@ -277,8 +277,8 @@ class RawKITTIDataset(Dataset):
     def get_ffnames(self,flowdir,dates_drives):
         fns = []
         for dd in dates_drives:
-            bdd = flowdir+'/32x128_flownet_1/'\
-                  +dd[0]+'_'+dd[1]+'/*.npy'
+            bdd = flowdir+'/'+dd[0]+'/'\
+                  +dd[0]+'_drive_'+dd[1]+'_sync/image_00/data/*.png'
             fns.append(sorted(glob(bdd),key=lambda x:int(x[-10:-4])))
         #print(fns)
         return fns
@@ -328,7 +328,7 @@ class RawKITTIDataset(Dataset):
             i_ = id
             for i in range(id,id+self.seq_len):
                 if self.train:
-                    i_ = i #min(i_+np.random.randint(3),len(self.buffer[s])-1)
+                    i_ = min(i_+np.random.randint(3),len(self.buffer[s])-1)
                 else:
                     i_ = i
                 x[i-id+d],y[i-id+d],abs[i-id],imu[i-id+d] = self.buffer[s][i_]
@@ -337,7 +337,7 @@ class RawKITTIDataset(Dataset):
             if aug:
                 x[d:] = -torch.flip(x[d:],dims=[0])
                 y[d:] = np.flip(y[d:],axis=0)
-                imu[d:] = -np.flip(imu[d:],axis=0)
+                imu[d:] = -np.flip(imu[d:],axis=0) # ??
 
             inert_ = SE3.exp(y[d]).inv()
             y[d:] = np.array([inert_.dot(SE3.exp(p)).log() for p in y[d:]])
