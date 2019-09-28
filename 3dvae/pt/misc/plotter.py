@@ -35,7 +35,7 @@ def SE3tose3(poses):
     ''' poses is L x 12
         se3: L x 6 (t_3|r_3)
     '''
-    poses = [homogen(p) for p in poses]
+    poses = [homogen_(p) for p in poses]
     poses = [SE3(SO3(p[:3,:3]),np.array([p[0,3],p[1,3],p[2,3]])) for p in poses]
     poses = [p.log() for p in poses]
     return poses
@@ -56,7 +56,7 @@ def se3toSE3(poses):
         se3: (t_3|r_3)
     '''
     poses = [SE3.exp(p) for p in poses]
-    poses = [flat_homogen(p.as_matrix()) for p in poses]
+    poses = [flat_homogen_(p.as_matrix()) for p in poses]
     poses = np.array(poses)
     return poses
 
@@ -151,13 +151,13 @@ def norm_poses(poses):
 def relative2abs_(rel_poses,wsize): ### Restore here
     ''' rel_poses: array de poses relativas (contiguo)
     '''
-    poses = [homogen(p) for p in rel_poses]
+    poses = [homogen_(p) for p in rel_poses]
     abs_poses = poses[:wsize]
     for i in range(wsize,len(poses),wsize**2):
         in_p = np.matmul(abs_poses[-1],poses[i-wsize+1])
-        in_p = SE2.from_matrix(in_p,normalize=True).as_matrix()
+        in_p = SE3.from_matrix(in_p,normalize=True).as_matrix()
         abs_poses += [np.matmul(in_p,poses[j]) for j in range(i,i+wsize)]
-    abs_poses = [flat_homogen(p) for p in abs_poses]
+    abs_poses = [flat_homogen_(p) for p in abs_poses]
     return abs_poses
 
 def relative2abs(rel_poses,wsize):
@@ -275,22 +275,22 @@ def plot_eval_(model,test_loader,seq_len,delay=2,device='cuda:0',logger=None):
     for x,imu,y,abs in test_loader:
         x,imu,y = x.to(device), imu.to(device), y.to(device)
         y_ = model(x,imu)
-        normy = (torch.norm(y[:,-1,[0,1]],dim=1)+1e-12).unsqueeze(-1).unsqueeze(-1)
-        normy_ = (torch.norm(y_[:,-1,[0,1]],dim=1)+1e-12).unsqueeze(-1).unsqueeze(-1)
+        normy = (torch.norm(y[:,-1,[0,1,2]],dim=1)+1e-12).unsqueeze(-1).unsqueeze(-1)
+        normy_ = (torch.norm(y_[:,-1,[0,1,2]],dim=1)+1e-12).unsqueeze(-1).unsqueeze(-1)
         y = y[:,delay:] #/normy
         y_ = y_[:,delay:] #/normy_
-        rel_poses += y_.cpu().detach().numpy().reshape(-1,3).tolist()
-        rel_poses_gt += y.cpu().detach().numpy().reshape(-1,3).tolist()
+        rel_poses += y_.cpu().detach().numpy().reshape(-1,6).tolist()
+        rel_poses_gt += y.cpu().detach().numpy().reshape(-1,6).tolist()
     rel_poses = np.array(rel_poses)
     rel_poses_gt = np.array(rel_poses_gt)
-    rel_poses = se2toSE2(rel_poses)
-    rel_poses_gt = se2toSE2(rel_poses_gt)
-    pts_gt = np.array(relative2abs(rel_poses_gt,seq_len))
-    pts_ = np.array(relative2abs(rel_poses,seq_len))
+    rel_poses = se3toSE3(rel_poses)
+    rel_poses_gt = se3toSE3(rel_poses_gt)
+    pts_gt = np.array(relative2abs_(rel_poses_gt,seq_len))
+    pts_ = np.array(relative2abs_(rel_poses,seq_len))
     print(pts_.shape)
 
-    pts_ = np.array([[p[2],p[2],p[5]] for p in pts_])
-    pts_gt = np.array([[p[2],p[2],p[5]] for p in pts_gt])
+    pts_ = np.array([[p[3],p[7],p[11]] for p in pts_])
+    pts_gt = np.array([[p[3],p[7],p[11]] for p in pts_gt])
 
     print(pts_gt.shape,pts_.shape)
     if not os.path.isdir('tmp'):
@@ -308,6 +308,21 @@ def plot_yy(y,y_,device='cuda:0',logger=None):
     y_ = se2toSE2(y_)
     y = y[:,[2,2,5]]
     y_ = y_[:,[2,2,5]]
+    if not os.path.isdir('tmp/jan/'):
+        os.mkdir('tmp/jan/')
+    t = time.time()
+    plot_3d_points_(y,y_,'tmp/jan/{}_projections_xyz.png'.format(t),\
+                    wlen=len(y),logger=logger)
+
+def plot_yy_(y,y_,device='cuda:0',logger=None):
+    ''' L x O
+    '''
+    y = y.cpu().detach().numpy().reshape(-1,6)
+    y_ = y_.cpu().detach().numpy().reshape(-1,6)
+    y = se3toSE3(y)
+    y_ = se3toSE3(y_)
+    y = y[:,[3,7,11]]
+    y_ = y_[:,[3,7,11]]
     if not os.path.isdir('tmp/jan/'):
         os.mkdir('tmp/jan/')
     t = time.time()

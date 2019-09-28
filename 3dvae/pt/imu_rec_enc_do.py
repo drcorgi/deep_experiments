@@ -22,9 +22,10 @@ from torch.utils.data import Dataset, DataLoader
 from torchvision import transforms, utils
 from pt_ae import DirectOdometry, FastDirectOdometry, Conv1dRecMapper, ImgFlowOdom, DummyFlow,\
 VanillaAutoencoder, MLPAutoencoder, VanAE, Conv1dMapper, seq_pose_loss, VanillaEncoder,\
-seq_pose_loss_se2, seq_pose_loss_SE2, FlatEncoder, StatXIMU, VanAE_
+seq_pose_loss_se2, seq_pose_loss_SE2, FlatEncoder, StatXIMU, VanAE_,\
+seq_pose_loss_se3
 from datetime import datetime
-from plotter import c3dto2d, abs2relative, plot_eval_, plot_yy
+from plotter import c3dto2d, abs2relative, plot_eval_, plot_yy_
 from odom_loader import load_kitti_odom
 from tensorboardX import SummaryWriter
 from time import time
@@ -130,7 +131,7 @@ if __name__=='__main__':
     elif enc_type == 'imu':
         enc = StatXIMU()
         h_dim = 4*(flshape[1]+flshape[2])+17
-        vo = Conv1dRecMapper((h_dim,strided_seq_len+delay),(strided_seq_len+delay,3),delay=delay)
+        vo = Conv1dRecMapper((h_dim,strided_seq_len+delay),(strided_seq_len+delay,6),delay=delay)
     else:
         enc = VanillaEncoder((2,flshape[1],flshape[2]),h_dim)
         vo = Conv1dRecMapper((h_dim,strided_seq_len+delay),(strided_seq_len+delay,3),delay=delay) ###
@@ -162,7 +163,7 @@ if __name__=='__main__':
         print('Creating new model')
 
     #loss_fn = torch.nn.MSELoss()
-    loss_fn = seq_pose_loss_se2
+    loss_fn = seq_pose_loss_se3
     k,kv = 0,0
     #flow.train()
     #flow.training = True #False
@@ -207,7 +208,7 @@ if __name__=='__main__':
         #writer.add_embedding(y[0,:,[3,7,11]],tag='gt_pts_{}'.format(i),global_step=1)
         #writer.add_embedding(y_[0,:,[3,7,11]],tag='est_pts_{}'.format(i),global_step=1)
         wid = np.random.randint(len(y))
-        plot_yy(y[wid][delay:],y_[wid][delay:],device,writer) ###
+        plot_yy_(y[wid][delay:],y_[wid][delay:],device,writer) ###
         mean_train, mean_valid = np.mean(losses),np.mean(v_losses)
         print('Epoch {} loss\t{:.4f}\tValid loss\t{:.4f}'\
               .format(i,mean_train,mean_valid))

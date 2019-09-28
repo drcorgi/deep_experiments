@@ -110,6 +110,16 @@ def load_raw_kitti_odom_imu(basedir,dates_drives):
         imu.append([np.array(o.packet[6:23]) for o in data.oxts])
     return odom, imu
 
+def load_raw_kitti_img_odom_imu(basedir,dates_drives,h=32,w=128):
+    img, odom, imu = [], [], []
+    for dd in dates_drives:
+        data = pykitti.raw(basedir,dd[0],dd[1])
+        #print(np.array(next(data.cam0)).shape)
+        img.append([cv2.resize(np.array(im),(128,32)) for im in data.cam0])
+        odom.append([flat_homogen(o.T_w_imu) for o in data.oxts])
+        imu.append([np.array(o.packet[6:23]) for o in data.oxts])
+    return img, odom, imu
+
 def load_kitti_odom_all(fdir):
     fns = os.listdir(fdir)
     fns = sorted(fns,key=lambda x: int(x[:-4]))

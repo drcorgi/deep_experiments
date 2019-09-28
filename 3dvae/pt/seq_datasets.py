@@ -20,7 +20,7 @@ VanillaAutoencoder, MLPAutoencoder, VanAE, Conv1dMapper, seq_pose_loss
 from datetime import datetime
 from plotter import c3dto2d, abs2relative, plot_eval, SE3tose3, se3toSE3, homogen,\
 SE2tose2, se2toSE2, flat_homogen
-from odom_loader import load_kitti_odom, load_raw_kitti_odom_imu
+from odom_loader import load_kitti_odom, load_raw_kitti_odom_imu, load_raw_kitti_img_odom_imu
 from tensorboardX import SummaryWriter
 from time import time
 from liegroups import SE3, SE2
@@ -94,9 +94,9 @@ def list_split_raw_kitti():
                          os.listdir(basedir+'/'+d+'/')\
                          if os.path.isdir(basedir+d+'/'+drv)]
     print(debug_msg,'dates_drives:',dates_drives)
-    train_ids = [0,1,2,3,4,5,6,7] #[0,1,2,3,4,5,6,7]
-    valid_ids = [8] #[8,9,10]
-    test_ids = [8] #[10]
+    train_ids = [i for i in range(16)] #[0,1,2,3,4,5,6,7]
+    valid_ids = [16,17,18,19,20,21] #[8,9,10]
+    test_ids = [2] #[10]
     '''odom_imu = []
     for dd in dates_drives:
         data = pykitti.raw(basedir,dd[0],dd[1])
@@ -265,7 +265,9 @@ class RawKITTIDataset(Dataset):
         self.seq_len = seq_len
         self.transform = transform # Transform at the frame level
         self.buffer = [] # index -> (x,abs)
-        self.aposes, self.imu = load_raw_kitti_odom_imu(basedir,dates_drives)  ###
+        self.imgs, self.aposes, self.imu =\
+                     load_raw_kitti_img_odom_imu(basedir,dates_drives)  ###
+        #exit()
         #print(len(self.aposes), len(self.imu))
         self.fshape = np.load(self.fnames[0][0]).transpose(2,0,1).shape
         self.load()
@@ -287,13 +289,16 @@ class RawKITTIDataset(Dataset):
             for s,fns in enumerate(self.fnames):
                 seq_ = []
                 for id,fn in enumerate(fns):
-                    frame = np.load(fn)
+                    id_ = min(id+1,len(self.imgs[s])-1)
+                    frame, frame_ = self.imgs[s][id], self.imgs[s][id_] #np.load(fn)
+                    frame = cv2.calcOpticalFlowFarneback\
+                            (frame,frame_,None,0.5,3,15,3,5,1.2,0)
                     frame = frame.transpose(2,0,1)
                     if self.transform:
                         frame = self.transform(frame)
                     abs = self.aposes[s][id]
-                    p = c3dto2d(abs)
-                    p = SE2tose2([p])[0] # dim 3
+                    #p = c3dto2d(abs)
+                    p = SE3tose3([abs])[0] # dim 6
                     imu = self.imu[s][id] # dim 17
                     seq_.append((frame,p,p,imu))
                 self.buffer.append(seq_)
@@ -308,13 +313,13 @@ class RawKITTIDataset(Dataset):
             d = self.delay
             s,id = self.sids[index], self.fsids[index]
             s_ = s
-            aug = (np.random.randint(2) == 0) and self.train
+            aug = (np.random.randint(2) == 0) and self.train and False
             id_ = [min(len(self.buffer[s_])-1,id+self.seq_len+i)\
                    if aug else max(0,id-i-1) for i in range(d-1,-1,-1)]
 
             x = torch.zeros((self.seq_len+d,)+self.fshape)
-            y = np.zeros((self.seq_len+d,3))
-            abs = np.zeros((self.seq_len,3))
+            y = np.zeros((self.seq_len+d,6))
+            abs = np.zeros((self.seq_len,6))
             imu = np.zeros((self.seq_len+d,17))
 
             for j,i in enumerate(id_):
@@ -323,7 +328,7 @@ class RawKITTIDataset(Dataset):
             i_ = id
             for i in range(id,id+self.seq_len):
                 if self.train:
-                    i_ = min(i_+np.random.randint(3),len(self.buffer[s])-1)
+                    i_ = i #min(i_+np.random.randint(3),len(self.buffer[s])-1)
                 else:
                     i_ = i
                 x[i-id+d],y[i-id+d],abs[i-id],imu[i-id+d] = self.buffer[s][i_]
@@ -332,10 +337,10 @@ class RawKITTIDataset(Dataset):
             if aug:
                 x[d:] = -torch.flip(x[d:],dims=[0])
                 y[d:] = np.flip(y[d:],axis=0)
-                imu[d:] = np.flip(imu[d:],axis=0)
+                imu[d:] = -np.flip(imu[d:],axis=0)
 
-            inert_ = SE2.exp(y[d]).inv()
-            y[d:] = np.array([inert_.dot(SE2.exp(p)).log() for p in y[d:]])
+            inert_ = SE3.exp(y[d]).inv()
+            y[d:] = np.array([inert_.dot(SE3.exp(p)).log() for p in y[d:]])
             y = torch.from_numpy(y).float()
             imu = torch.from_numpy(imu).float()
             abs = torch.from_numpy(abs).float()

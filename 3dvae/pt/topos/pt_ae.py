@@ -30,6 +30,17 @@ def seq_pose_loss_se2(p,p_,delay):
     loss = 1.0*t_loss + 0.0*t_loss_ + 100.0*r_loss
     return loss
 
+def seq_pose_loss_se3(p,p_,delay):
+    ''' B x L x P
+    '''
+    p = p[:,delay:] #.contiguous().view(-1,3)
+    p_ = p_[:,delay:] #.contiguous().view(-1,3)
+    t_loss = torch.mean((p[:,:,[0,1,2]]-p_[:,:,[0,1,2]])**2)
+    t_loss_ = torch.mean((p[:,-1,[0,1,2]]-p_[:,-1,[0,1,2]])**2)
+    r_loss = torch.mean((p[:,:,[3,4,5]]-p_[:,:,[3,4,5]])**2)
+    loss = 1.0*t_loss + 0.0*t_loss_ + 100.0*r_loss
+    return loss
+
 def seq_pose_loss_SE2(p,p_):
     ''' B x L x P
     '''

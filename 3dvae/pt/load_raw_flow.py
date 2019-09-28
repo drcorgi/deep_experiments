@@ -34,7 +34,7 @@ def list_split_raw_kitti(h=32,w=128):
 
 class FramesDataset(Dataset):
     def __init__(self,fdir,new_shape=[16,64],offset=1,transform=None):
-        self.fnames = sorted(glob(fdir+'/*.png'),key=lambda x:int(x[-14:-4]))
+        self.fnames = glob(fdir+'/*.png') #sorted(glob(fdir+'/*.png'),key=lambda x:int(x[-10:-4]))
         print(self.fnames)
         self.len = len(self.fnames)-offset
         self.transform = transform
@@ -56,7 +56,7 @@ class FramesDataset(Dataset):
             frame = torch.from_numpy(frame).float().unsqueeze(0).transpose(1,0)
             frame2 = torch.from_numpy(frame2).float().unsqueeze(0).transpose(1,0)
             frame = torch.cat([frame,frame2],dim=1)
-            return frame
+            return frame, torch.tensor(int(self.fnames[idx][-10:-4]))
         except Exception as e:
             print(e,'frame not loaded')
 
@@ -109,13 +109,15 @@ if __name__ == '__main__':
             os.mkdir(seq_dir)
 
         i = 0
-        for x in frames_loader:
+        for x,idx in frames_loader:
             f = model(x)[0]
             #for y in f: print(y.size())
-            for fr in f:
+            for fr,id in zip(f,idx):
                 fr = fr.permute(1,2,0).detach().cpu().numpy()
+                id = id.detach().cpu().numpy()
+                id = int(id)
                 #print(x.size(),f.shape)
-                fname = seq_dir+'{:06d}.npy'.format(i)
+                fname = seq_dir+'{:06d}.npy'.format(id)
                 print('Saving {} of shape {}'.format(fname,fr.shape))
                 np.save(fname,fr)
                 i += 1

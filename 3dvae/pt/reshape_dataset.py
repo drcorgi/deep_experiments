@@ -15,7 +15,7 @@ if __name__ == '__main__':
     indir = base_in+'/*.png'
     infns = glob(indir)
     for fn in infns:
-        img = cv2.imread(fn,0) #cv2.imread(fn,0)
+        img = cv2.imread(fn) #cv2.imread(fn,0)
         img = cv2.resize(img,(new_w,new_h)) # yes
         bname = os.path.basename(fn)
         outfn = dirname + bname
