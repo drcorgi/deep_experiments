@@ -165,6 +165,23 @@ class FlatEncoder(nn.Module):
         x = x.contiguous().view(shape[0]*shape[1],shape[2]*shape[3]*shape[4]//4)
         return x
 
+class FlatIMUEncoder(nn.Module):
+    def __init__(self):
+        ''' x is B x L x C x H x W
+        '''
+        super().__init__()
+        self.max_pool = nn.MaxPool2d((2,2))
+
+    def forward(self,x,imu):
+        shape = x.size()
+        if len(shape) == 5:
+            x = x.view(shape[0]*shape[1],shape[2],shape[3],shape[4])
+            imu = imu.view(shape[0]*shape[1],-1)
+        x = self.max_pool(x)
+        x = x.contiguous().view(shape[0]*shape[1],shape[2]*shape[3]*shape[4]//4)
+        x = torch.cat([x,imu],dim=1)
+        return x
+
 class StatEncoder(nn.Module):
     def __init__(self):
         ''' x is B x L x C x H x W

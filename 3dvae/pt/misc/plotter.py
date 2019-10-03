@@ -13,12 +13,12 @@ from liegroups import SE3, SO3, SE2, SO2
 
 def c3dto2d_(p3d):
     p = np.array(p3d)
-    p[[1,4,6,7,9]] = np.zeros(5,dtype=np.float32)
-    p[5] = 1.0
-    det = np.linalg.det([p[[0,2]],p[[8,10]]])
+    p[[2,6,8,9,11]] = np.zeros(5,dtype=np.float32)
+    p[10] = 1.0
+    det = np.linalg.det([p[[0,1]],p[[4,5]]])
     if abs(1.0-det) > 1e5:
         raise RuntimeError('Rotation determinant too far from 1.0')
-    p[[0,2,8,10]] = p[[0,2,8,10]]/det
+    p[[0,1,4,5]] = p[[0,1,4,5]]/det
     return p
 
 def c3dto2d(p3d):
