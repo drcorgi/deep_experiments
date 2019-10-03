@@ -327,7 +327,7 @@ class RawKITTIDataset(Dataset):
 
             i_ = id
             for i in range(id,id+self.seq_len):
-                if self.train and False:
+                if self.train:
                     i_ = min(i_+np.random.randint(3),len(self.buffer[s])-1)
                 else:
                     i_ = i
